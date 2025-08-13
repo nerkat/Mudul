@@ -3,7 +3,7 @@ import type { Node, Dashboard, Session, AnalysisRecord } from "./types.js";
 export interface NodeRepo {
   byId(id: string): Promise<Node | null>;
   byPath(orgId: string, slugs: string[]): Promise<Node | null>;
-  children(parentId: string, orgId: string): Promise<Node[]>;
+  children(orgId: string, parentId: string): Promise<Node[]>;
   create(node: Node): Promise<void>;
 }
 
@@ -82,7 +82,7 @@ class MemoryNodeRepo implements NodeRepo {
     return currentNode;
   }
 
-  async children(parentId: string, orgId: string): Promise<Node[]> {
+  async children(orgId: string, parentId: string): Promise<Node[]> {
     const allChildren = this.nodesByParent.get(parentId) || [];
     return allChildren.filter(node => node.orgId === orgId);
   }

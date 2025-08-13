@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { seedRepos } from "@mudul/core";
 import type { Node } from "@mudul/core";
 
@@ -35,11 +35,9 @@ export function NodePage() {
 
         setNode(foundNode);
 
-        // Load children if no dashboard
-        if (!foundNode.dashboardId) {
-          const nodeChildren = await repos.nodes.children(foundNode.id, org);
-          setChildren(nodeChildren);
-        }
+        // Always load children for navigation
+        const nodeChildren = await repos.nodes.children(org, foundNode.id);
+        setChildren(nodeChildren);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
@@ -78,11 +76,17 @@ export function NodePage() {
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">{node.name}</h1>
       
-      {node.dashboardId ? (
-        <DashboardPlaceholder node={node} />
-      ) : (
-        <ChildrenList children={children} org={org!} />
+      {node.dashboardId && (
+        <div className="mb-6">
+          <DashboardPlaceholder node={node} />
+        </div>
       )}
+      
+      <NodeDirectory 
+        org={org!} 
+        slugs={splat ? splat.split("/").filter(Boolean) : []} 
+        nodes={children} 
+      />
     </div>
   );
 }
@@ -157,41 +161,46 @@ function DashboardPlaceholder({ node }: { node: Node }) {
   );
 }
 
-function ChildrenList({ children, org }: { children: Node[]; org: string }) {
+function NodeDirectory({
+  org,
+  slugs,
+  nodes
+}: {
+  org: string;
+  slugs: string[];
+  nodes: Node[];
+}) {
+  if (!nodes.length) return <div className="text-slate-500">No children</div>;
+
+  const base = `/${org}/${slugs.join("/")}`;
+  const sep = slugs.length ? "/" : "";
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Contents</h2>
-      
-      {children.length === 0 ? (
-        <div className="text-gray-500">No items found</div>
-      ) : (
-        <ul className="space-y-2">
-          {children.map((n) => (
-            <li key={n.id} className="border rounded p-3 hover:bg-gray-50">
-              <a 
-                href={`/${org}/${buildPathForDemo(n.id)}`}
-                className="text-blue-600 hover:text-blue-800 font-medium"
+      <ul className="space-y-2">
+        {nodes.map((child) => (
+          <li key={child.id} className="border rounded p-3 hover:bg-gray-50">
+            <Link
+              to={`${base}${sep}${child.slug}`}
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              {child.name}
+            </Link>
+            <div className="text-sm text-gray-600 mt-1">
+              {child.kind} • {child.slug}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              <Link
+                to={`${base}${sep}${child.slug}`}
+                className="text-blue-500 hover:text-blue-700"
               >
-                {n.name}
-              </a>
-              <div className="text-sm text-gray-600 mt-1">
-                {n.kind} • {n.slug}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+                Open
+              </Link>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
-}
-
-// Demo path map for seed (replace with real path resolution later)
-function buildPathForDemo(id: string): string {
-  const map: Record<string, string> = {
-    "root": "",
-    "p1": "sales",
-    "l1": "sales/acme-co", 
-    "c1": "sales/acme-co/2025-08-10"
-  };
-  return map[id] || `unknown/${id}`;
 }
