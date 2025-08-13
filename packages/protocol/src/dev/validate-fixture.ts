@@ -13,7 +13,7 @@ function run(label: string, filename: string) {
     console.log(`✅ ${label}: valid`);
   } else {
     console.error(`❌ ${label}: invalid`);
-    console.error(JSON.stringify(result.error.issues, null, 2));
+    console.error(JSON.stringify(result.errors, null, 2));
     process.exitCode = 1;
   }
 }

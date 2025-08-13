@@ -33,6 +33,16 @@ export const SalesCallV1 = z.object({
 
 export type SalesCall = z.infer<typeof SalesCallV1>;
 
-export function validateSalesCall(json: unknown) {
-  return SalesCallV1.safeParse(json);
+export type ValidationResult<T> = 
+  | { success: true; data: T }
+  | { success: false; errors: z.ZodIssue[] };
+
+export function validateSalesCall(json: unknown): ValidationResult<SalesCall> {
+  const result = SalesCallV1.safeParse(json);
+  
+  if (result.success) {
+    return { success: true, data: result.data };
+  } else {
+    return { success: false, errors: result.error.issues };
+  }
 }
