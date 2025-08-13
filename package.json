@@ -1,0 +1,11 @@
+{
+  "name": "agent-workbench",
+  "private": true,
+  "packageManager": "pnpm@9",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "echo \"(placeholder) run dev in subpackages\"",
+    "build": "echo \"(placeholder) build all\"",
+    "typecheck": "echo \"(placeholder) typecheck all\""
+  }
+}
