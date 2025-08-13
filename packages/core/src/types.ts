@@ -17,6 +17,8 @@ export interface Node {
   updatedAt: string;
 }
 
+// TODO: Enforce unique slug per parent in future database adapters
+
 export interface Dashboard {
   id: string;
   name: string;
