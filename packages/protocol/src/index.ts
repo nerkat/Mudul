@@ -1,0 +1,1 @@
+export { SalesCallV1, type SalesCall, validateSalesCall } from "./salesCall.schema.js";
