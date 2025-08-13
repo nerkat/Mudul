@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "callId": "",
+  "summary": "",
+  "sentiment": {
+    "overall": "very_positive",
+    "score": 1.5
+  },
+  "bookingLikelihood": -0.1,
+  "objections": [
+    {
+      "type": 123
+    }
+  ],
+  "actionItems": [
+    {
+      "owner": "",
+      "text": ""
+    }
+  ],
+  "keyMoments": [
+    {
+      "label": ""
+    }
+  ],
+  "entities": {
+    "prospect": "not an array",
+    "people": null,
+    "products": [123, 456]
+  },
+  "complianceFlags": "should be array"
+}
