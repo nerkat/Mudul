@@ -1,0 +1,45 @@
+{
+  "version": "1.0.0",
+  "callId": "call-12345",
+  "summary": "Great call with potential customer interested in our Enterprise package. They have budget and timeline fits well.",
+  "sentiment": {
+    "overall": "positive",
+    "score": 0.85
+  },
+  "bookingLikelihood": 0.75,
+  "objections": [
+    {
+      "type": "price",
+      "quote": "The price seems a bit high for our current budget",
+      "ts": "00:12:45"
+    }
+  ],
+  "actionItems": [
+    {
+      "owner": "sales_rep",
+      "text": "Send pricing proposal with discount options",
+      "due": "2024-01-15"
+    },
+    {
+      "owner": "prospect",
+      "text": "Review proposal with team",
+      "due": "2024-01-20"
+    }
+  ],
+  "keyMoments": [
+    {
+      "label": "Budget Discussion",
+      "ts": "00:12:30"
+    },
+    {
+      "label": "Decision Timeline",
+      "ts": "00:18:15"
+    }
+  ],
+  "entities": {
+    "prospect": ["ACME Corp"],
+    "people": ["John Smith", "Sarah Johnson"],
+    "products": ["Enterprise Package", "Analytics Module"]
+  },
+  "complianceFlags": []
+}
