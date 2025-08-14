@@ -15,7 +15,8 @@
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.0",
     "@mudul/core": "workspace:*",
-    "@mudul/protocol": "workspace:*"
+  "@mudul/protocol": "workspace:*",
+  "preline": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
