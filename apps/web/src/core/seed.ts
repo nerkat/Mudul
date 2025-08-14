@@ -74,7 +74,7 @@ export const nodes: Record<string, NodeBase> = {
     kind: "call_session",
     name: "Initial Contact - Jan 12",
     slug: "initial-jan-12",
-    dashboardId: "sales-call-default",
+    dashboardId: "client-dashboard",
     dataRef: { type: "session", id: "session-beta-1" },
     createdAt: now,
     updatedAt: now
