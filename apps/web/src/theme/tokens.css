@@ -1,0 +1,41 @@
+:root {
+  /* semantic roles */
+  --bg:          255 255 255; /* rgb triplets for easy opacity in Tailwind */
+  --fg:          17 24 39;
+  --muted:       107 114 128;
+  --surface:     249 250 251;
+  --border:      229 231 235;
+  --accent:      59 130 246;
+  --success:     16 185 129;
+  --danger:      239 68 68;
+  --warning:     245 158 11;
+
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+
+  --shadow-sm:   0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:   0 4px 10px rgba(0,0,0,0.06);
+
+  --space-1:     4px;
+  --space-2:     8px;
+  --space-3:     12px;
+  --space-4:     16px;
+  --space-6:     24px;
+  --space-8:     32px;
+}
+
+.dark {
+  --bg:        17 24 39;
+  --fg:        243 244 246;
+  --muted:     156 163 175;
+  --surface:   31 41 55;
+  --border:    55 65 81;
+  --accent:    96 165 250;
+  --success:   52 211 153;
+  --danger:    248 113 113;
+  --warning:   251 191 36;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 8px 20px rgba(0,0,0,0.35);
+}

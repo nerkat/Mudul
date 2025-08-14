@@ -1,0 +1,5 @@
+:root, .dark {
+  color-scheme: light dark;
+  background-color: rgb(var(--bg));
+  color: rgb(var(--fg));
+}

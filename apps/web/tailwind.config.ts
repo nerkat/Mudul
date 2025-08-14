@@ -1,0 +1,43 @@
+import type { Config } from 'tailwindcss';
+
+// Tailwind v4 JIT only emits utilities it finds in the sources below.
+// In a monorepo we also scan shared workspace packages that might contain
+// React components with Tailwind className strings.
+export default {
+  content: [
+    './index.html',
+    './src/**/*.{js,jsx,ts,tsx,mdx,html,css}',
+    // Scan shared workspace packages (adjust path depth if structure changes)
+    '../../packages/**/*.{js,jsx,ts,tsx,mdx}'
+  ],
+  // If you introduce fully dynamic (computed) class names that JIT can't see,
+  // add them to the safelist below to force generation.
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        bg:      'rgb(var(--bg) / <alpha-value>)',
+        fg:      'rgb(var(--fg) / <alpha-value>)',
+        surface: 'rgb(var(--surface) / <alpha-value>)',
+        border:  'rgb(var(--border) / <alpha-value>)',
+        accent:  'rgb(var(--accent) / <alpha-value>)',
+        muted:   'rgb(var(--muted) / <alpha-value>)',
+        success: 'rgb(var(--success) / <alpha-value>)',
+        danger:  'rgb(var(--danger) / <alpha-value>)',
+        warning: 'rgb(var(--warning) / <alpha-value>)',
+      },
+      borderRadius: {
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+      },
+      spacing: {
+        1: 'var(--space-1)', 2: 'var(--space-2)', 3: 'var(--space-3)',
+        4: 'var(--space-4)', 6: 'var(--space-6)', 8: 'var(--space-8)',
+      }
+    }
+  }
+} satisfies Config;
