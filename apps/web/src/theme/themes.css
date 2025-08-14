@@ -1,13 +1,5 @@
-:root, html[data-theme="light"], html[data-theme="dark"] {
+:root, .dark {
   color-scheme: light dark;
   background-color: rgb(var(--bg));
   color: rgb(var(--fg));
 }
-
-.ui-surface { background-color: rgb(var(--surface)); }
-.ui-border  { border-color:    rgb(var(--border)); }
-.ui-muted   { color:           rgb(var(--muted)); }
-.ui-accent  { color:           rgb(var(--accent)); }
-.ui-success { color:           rgb(var(--success)); }
-.ui-danger  { color:           rgb(var(--danger)); }
-.ui-warning { color:           rgb(var(--warning)); }

@@ -25,7 +25,7 @@
   --space-8:     32px;
 }
 
-html[data-theme="dark"] {
+.dark {
   --bg:        17 24 39;
   --fg:        243 244 246;
   --muted:     156 163 175;
