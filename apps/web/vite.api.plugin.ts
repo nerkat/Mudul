@@ -1,10 +1,13 @@
 import type { Plugin } from "vite";
-import { validateSalesCall } from "@mudul/protocol";
-import sample from "./fixtures/sales-call.sample.json";
+import { validateSalesCall, type SalesCall } from "@mudul/protocol";
+import rawSample from "./fixtures/sales-call.sample.json";
+
+const sample: SalesCall = rawSample;
 
 export default function apiPlugin(): Plugin {
   return {
     name: "dev-mock-api",
+    apply: "serve",
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url || "";
@@ -23,9 +26,13 @@ export default function apiPlugin(): Plugin {
         // validation
         const result = validateSalesCall(sample);
         if (!result.success) {
+          const issues = result.errors.map(issue => ({
+            path: issue.path.join('.'),
+            message: issue.message
+          }));
           res.statusCode = 500;
           res.setHeader("content-type", "application/json");
-          res.end(JSON.stringify({ error: "invalid_schema", details: result.errors }));
+          res.end(JSON.stringify({ error: "invalid_schema", issues }));
           return;
         }
 
