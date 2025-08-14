@@ -5,12 +5,12 @@
 # Mudul • Copilot Agent Guide
 
 **Primary objective:** Build and modify the UI **without breaking the seed-driven data model**.  
-Always read data from `src/core/seed.ts` via `src/core/repo.ts`. Never inline mock data.
+Always read data from `apps/web/src/core/seed.ts` via `apps/web/src/core/repo.ts`. Never inline mock data.
 
 ---
 
 ## 0) Tech context
-- React + MUI (with possible migration to Minimal/Next later)
+- React + MUI v7 (current working implementation)
 - Routing: React Router (`/node/:nodeId` for dashboards)
 - Data model: **seed → repo → hooks → pages → widgets**
 - Sidebar: renders tree from **seed**, not from ad-hoc arrays
@@ -18,22 +18,22 @@ Always read data from `src/core/seed.ts` via `src/core/repo.ts`. Never inline mo
 
 ---
 
-## 1) Canonical data flow (do not diverge)
+## 1) Canonical data flow (✅ IMPLEMENTED)
 
 ```txt
-src/core/seed.ts           // nodes{} and calls{}, multiple clients & calls
+apps/web/src/core/seed.ts       // nodes{} and calls{}, multiple clients & calls
         ↓
-src/core/repo.ts           // getRoot/getNode/getChildren/getDashboardId/getCallByNode
+apps/web/src/core/repo.ts       // getRoot/getNode/getChildren/getDashboardId/getCallByNode
         ↓
-src/hooks/useRepo.tsx      // RepoProvider + useRepo()
-src/hooks/useNode.ts       // useNode(id)
-src/hooks/useSalesCall.ts  // useSalesCall(nodeId)
+apps/web/src/hooks/useRepo.tsx  // RepoProvider + useRepo()
+apps/web/src/hooks/useNode.ts   // useNode(id)
+apps/web/src/hooks/useSalesCall.ts  // useSalesCall(nodeId)
         ↓
-src/core/registry.tsx      // DashboardTemplates + WidgetRegistry (Paper/Rich)
+apps/web/src/core/registry.tsx  // DashboardTemplates + WidgetRegistry (Paper/Rich)
         ↓
-src/pages/DashboardPage.tsx  // reads nodeId, picks template, renders widgets
+apps/web/src/pages/DashboardPage.tsx  // reads nodeId, picks template, renders widgets
         ↓
-src/shell/Sidebar[...].tsx   // TreeView populated from repo.getRoot() & getChildren()
+apps/web/src/shell/AppShell.tsx  // TreeView populated from repo.getRoot() & getChildren()
 ````
 
 **Rules**

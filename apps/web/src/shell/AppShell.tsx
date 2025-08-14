@@ -15,12 +15,14 @@ import {
   Brightness4, 
   Brightness7,
   Dashboard,
+  Business,
   Call,
   Settings,
 } from '@mui/icons-material';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { useRepo } from '../hooks/useRepo';
 
 const drawerWidth = 280;
 
@@ -34,41 +36,24 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
+  const repo = useRepo();
 
-  // Sample calls data for navigation - in a real app this would come from an API
-  const callsData = [
-    { id: 1, title: 'Discovery Call - Acme Corp', participant: 'John Smith' },
-    { id: 2, title: 'Demo Call - TechStart', participant: 'Sarah Johnson' },
-    { id: 3, title: 'Follow-up - Global Inc', participant: 'Mike Wilson' },
-    { id: 4, title: 'Pricing Discussion - StartupXYZ', participant: 'Lisa Chen' },
-    { id: 5, title: 'Technical Review - Enterprise Co', participant: 'David Brown' },
-    { id: 6, title: 'Initial Contact - Innovation Ltd', participant: 'Emma Davis' },
-    { id: 7, title: 'Contract Discussion - MegaCorp', participant: 'Robert Taylor' },
-    { id: 8, title: 'Support Call - Current Customer', participant: 'Jennifer Lee' },
-  ];
+  // Get the tree data from repo
+  const root = repo.getRoot();
+  const clients = root ? repo.getChildren(root.id) : [];
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
   const handleItemClick = (_event: React.SyntheticEvent, itemId: string) => {
-    switch (itemId) {
-      case 'dashboard':
-        navigate('/');
-        break;
-      case 'calls':
-        navigate('/calls');
-        break;
-      case 'settings':
-        navigate('/settings');
-        break;
-      default:
-        // Handle individual call navigation (format: call-{id})
-        if (itemId.startsWith('call-')) {
-          const callId = itemId.replace('call-', '');
-          navigate(`/calls/${callId}`);
-        }
-        break;
+    if (itemId === 'dashboard') {
+      navigate('/');
+    } else if (itemId === 'settings') {
+      navigate('/settings');
+    } else {
+      // Navigate to node
+      navigate(`/node/${itemId}`);
     }
     if (isMobile) {
       setMobileOpen(false);
@@ -85,58 +70,18 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
       <Box sx={{ p: 2 }}>
         <SimpleTreeView 
           onItemClick={handleItemClick}
-          defaultExpandedItems={['root', 'calls']}
+          defaultExpandedItems={['navigation', ...(root ? [root.id] : []), ...clients.map(c => c.id)]}
         >
-          <TreeItem itemId="root" label="Navigation">
+          <TreeItem itemId="navigation" label="Navigation">
             <TreeItem 
               itemId="dashboard" 
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Dashboard fontSize="small" />
-                  Dashboard
+                  Overview
                 </Box>
               } 
             />
-            <TreeItem 
-              itemId="calls" 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Call fontSize="small" />
-                  Calls
-                </Box>
-              } 
-            >
-              {callsData.map((call) => (
-                <TreeItem
-                  key={call.id}
-                  itemId={`call-${call.id}`}
-                  label={
-                    <Box sx={{ 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      py: 0.5
-                    }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                        Call #{call.id}
-                      </Typography>
-                      <Typography 
-                        variant="caption" 
-                        color="textSecondary"
-                        sx={{ 
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          maxWidth: '200px'
-                        }}
-                      >
-                        {call.participant}
-                      </Typography>
-                    </Box>
-                  }
-                />
-              ))}
-            </TreeItem>
             <TreeItem 
               itemId="settings" 
               label={
@@ -147,6 +92,56 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
               } 
             />
           </TreeItem>
+          
+          {root && (
+            <TreeItem 
+              itemId={root.id} 
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Business fontSize="small" />
+                  {root.name}
+                </Box>
+              }
+            >
+              {clients.map((client) => {
+                const calls = repo.getChildren(client.id);
+                return (
+                  <TreeItem
+                    key={client.id}
+                    itemId={client.id}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Business fontSize="small" />
+                        {client.name}
+                      </Box>
+                    }
+                  >
+                    {calls.map((call) => (
+                      <TreeItem
+                        key={call.id}
+                        itemId={call.id}
+                        label={
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            gap: 1,
+                            py: 0.5
+                          }}>
+                            <Call fontSize="small" />
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                                {call.name}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        }
+                      />
+                    ))}
+                  </TreeItem>
+                );
+              })}
+            </TreeItem>
+          )}
         </SimpleTreeView>
       </Box>
     </Box>
@@ -173,7 +168,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Dashboard
+            Mudul
           </Typography>
           <IconButton color="inherit" onClick={onThemeToggle}>
             {isDark ? <Brightness7 /> : <Brightness4 />}
