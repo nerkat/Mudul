@@ -30,6 +30,12 @@ Mudul is a data visualization and dashboard application with a theme system and 
 - **ThemeSwitch**: Theme selector dropdown component
 - **ModeSwitch**: Toggle between Paper/Rich view modes
 
+### AI Provider Architecture
+- **Provider Interface**: `AiProvider` interface in `packages/protocol/src/ai.types.ts` defines contracts
+- **Mock Implementation**: `MockAiProvider` in `packages/core/src/ai/mock.provider.ts` for development
+- **Dev API Endpoint**: `POST /api/analyze` via Vite plugin for development testing (dev-only, not in production)
+- **Schema Validation**: All AI output must pass through `validateSalesCall` validation
+
 ## Route Structure
 - **Root**: `/` - Redirects to `/acme`
 - **Organization**: `/acme` - Main organization landing page
@@ -50,6 +56,7 @@ Mudul is a data visualization and dashboard application with a theme system and 
 - **Workspace Setup**: This is a pnpm workspace with multiple packages
 - **Dependencies**: Install using `pnpm install` from root
 - **Building**: Build workspace packages (`@mudul/protocol`, `@mudul/core`) before web app
+- **Error Prevention**: If you discover mid-run that you're using wrong commands (e.g., `npm` instead of `pnpm`), add the correct approach to these instructions immediately to prevent future mistakes
 
 ### Development Workflow
 1. Install dependencies: `pnpm install` (from root)
@@ -68,3 +75,4 @@ Mudul is a data visualization and dashboard application with a theme system and 
 - **Test Both Themes**: Always verify changes work in both light and dark modes
 - **Preserve Functionality**: Maintain existing Paper/Rich mode switching
 - **Update Instructions**: Update these instructions when making significant architecture changes
+- **Error Prevention Rule**: Whenever you try something during a run and realize it's wrong (e.g., using `npm` instead of `pnpm`), add it to these instructions so you don't repeat the same mistake. This will prevent repeating the same dead ends and improve Copilot's future PRs.
