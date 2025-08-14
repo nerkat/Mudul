@@ -104,7 +104,7 @@ function DashboardPlaceholder({ node }: { node: Node }) {
   return (
     <Card className="space-y-3" aria-busy={loading}>
       <div className="font-semibold">Dashboard</div>
-      {loading && <div className="ui-muted">Loading analysis…</div>}
+      {loading && <div className="text-muted">Loading analysis…</div>}
       {error && <div className="text-danger">Error: {error}</div>}
       {!loading && !error && data && (
         <div className="space-y-3">
@@ -131,7 +131,7 @@ function NodeDirectory({
   slugs: string[];
   nodes: Node[];
 }) {
-  if (!nodes.length) return <Card><div className="ui-muted">No children</div></Card>;
+  if (!nodes.length) return <Card><div className="text-muted">No children</div></Card>;
 
   const base = `/${org}/${slugs.join("/")}`;
   const sep = slugs.length ? "/" : "";
@@ -141,20 +141,20 @@ function NodeDirectory({
       <h2 className="text-xl font-semibold mb-4">Contents</h2>
       <ul className="space-y-2">
         {nodes.map((child) => (
-          <li key={child.id} className="ui-border border rounded p-3 hover:ui-surface">
+          <li key={child.id} className="border border-border rounded p-3 hover:bg-surface">
             <Link
               to={`${base}${sep}${child.slug}`}
-              className="ui-accent hover:opacity-80 font-medium"
+              className="text-accent hover:opacity-80 font-medium"
             >
               {child.name}
             </Link>
-            <div className="text-sm ui-muted mt-1">
+            <div className="text-sm text-muted mt-1">
               {child.kind} • {child.slug}
             </div>
-            <div className="text-xs ui-muted mt-1">
+            <div className="text-xs text-muted mt-1">
               <Link
                 to={`${base}${sep}${child.slug}`}
-                className="ui-accent hover:opacity-80"
+                className="text-accent hover:opacity-80"
               >
                 Open
               </Link>

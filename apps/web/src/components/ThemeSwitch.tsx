@@ -6,7 +6,7 @@ export function ThemeSwitch() {
   const { theme, setTheme } = useTheme();
   return (
     <div className="flex gap-2 items-center">
-      <label className="ui-muted text-sm">Theme</label>
+      <label className="text-muted text-sm">Theme</label>
       <select
         value={theme}
         onChange={(e) => setTheme(e.target.value as Theme)}

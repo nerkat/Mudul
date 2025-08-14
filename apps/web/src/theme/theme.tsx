@@ -10,7 +10,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = (t: Theme) => {
       const effective = t === "system" ? (mq.matches ? "dark" : "light") : t;
-      document.documentElement.setAttribute("data-theme", effective);
+      // Use Tailwind's class-based dark mode
+      if (effective === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
       localStorage.setItem("theme", t);
     };
     apply(theme);
