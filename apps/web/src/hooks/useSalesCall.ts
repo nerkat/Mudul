@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 
-export type SalesCallMinimal = { summary?: string };
+export type SalesCallMinimal = {
+  summary?: string;
+  sentiment?: { overall?: string; score?: number };
+  bookingLikelihood?: number;
+  objections?: { type: string; quote: string; ts: string }[];
+  actionItems?: { owner: string; text: string; due?: string | null }[];
+  keyMoments?: { label: string; ts: string }[];
+  entities?: { prospect?: string[]; people?: string[]; products?: string[] };
+  complianceFlags?: string[];
+};
 
 const friendly = (msg: string) =>
   msg === "not_found" ? "No analysis yet for this session." :
