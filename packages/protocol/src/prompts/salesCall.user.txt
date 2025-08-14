@@ -1,3 +1,5 @@
+PROMPT_ID: salesCall.user@v1.0.0
+
 Analyze the following sales call transcript and return a JSON object with these fields:
 - version: "1.0.0"
 - callId: string (use a stable id if provided, otherwise "unknown")
