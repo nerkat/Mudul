@@ -5,7 +5,7 @@ import type { Node } from "@mudul/core";
 import { useSalesCall } from "../hooks/useSalesCall";
 import { useViewMode } from "../ctx/ViewModeContext";
 import { Paper, Rich } from "../widgets/registry";
-import { ModeSwitch } from "../components/ModeSwitch";
+import { Card } from "../components/Card";
 
 const repos = seedRepos();
 
@@ -54,30 +54,30 @@ export function NodePage() {
 
   if (loading) {
     return (
-      <div className="p-4">
+      <Card>
         <div className="text-lg">Loading...</div>
-      </div>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4">
-        <div className="text-red-600 text-lg">Error: {error}</div>
-      </div>
+      <Card>
+        <div className="text-danger text-lg">Error: {error}</div>
+      </Card>
     );
   }
 
   if (!node) {
     return (
-      <div className="p-4">
+      <Card>
         <div className="text-lg">Node not found</div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="p-4">
+    <div>
       <h1 className="text-2xl font-bold mb-4">{node.name}</h1>
       
       {node.dashboardId && (
@@ -102,13 +102,10 @@ function DashboardPlaceholder({ node }: { node: Node }) {
   const W = mode === "paper" ? Paper : Rich;
 
   return (
-    <div className="rounded-xl border p-4 space-y-3" aria-busy={loading}>
-      <div className="flex justify-between items-center">
-        <div className="font-semibold">Dashboard</div>
-        <ModeSwitch />
-      </div>
-      {loading && <div className="text-slate-500">Loading analysis…</div>}
-      {error && <div className="text-red-600">Error: {error}</div>}
+    <Card className="space-y-3" aria-busy={loading}>
+      <div className="font-semibold">Dashboard</div>
+      {loading && <div className="ui-muted">Loading analysis…</div>}
+      {error && <div className="text-danger">Error: {error}</div>}
       {!loading && !error && data && (
         <div className="space-y-3">
           <W.Summary data={data} />
@@ -121,7 +118,7 @@ function DashboardPlaceholder({ node }: { node: Node }) {
           <W.Compliance data={data} />
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -134,30 +131,30 @@ function NodeDirectory({
   slugs: string[];
   nodes: Node[];
 }) {
-  if (!nodes.length) return <div className="text-slate-500">No children</div>;
+  if (!nodes.length) return <Card><div className="ui-muted">No children</div></Card>;
 
   const base = `/${org}/${slugs.join("/")}`;
   const sep = slugs.length ? "/" : "";
 
   return (
-    <div>
+    <Card>
       <h2 className="text-xl font-semibold mb-4">Contents</h2>
       <ul className="space-y-2">
         {nodes.map((child) => (
-          <li key={child.id} className="border rounded p-3 hover:bg-gray-50">
+          <li key={child.id} className="ui-border border rounded p-3 hover:ui-surface">
             <Link
               to={`${base}${sep}${child.slug}`}
-              className="text-blue-600 hover:text-blue-800 font-medium"
+              className="ui-accent hover:opacity-80 font-medium"
             >
               {child.name}
             </Link>
-            <div className="text-sm text-gray-600 mt-1">
+            <div className="text-sm ui-muted mt-1">
               {child.kind} • {child.slug}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs ui-muted mt-1">
               <Link
                 to={`${base}${sep}${child.slug}`}
-                className="text-blue-500 hover:text-blue-700"
+                className="ui-accent hover:opacity-80"
               >
                 Open
               </Link>
@@ -165,6 +162,6 @@ function NodeDirectory({
           </li>
         ))}
       </ul>
-    </div>
+    </Card>
   );
 }
