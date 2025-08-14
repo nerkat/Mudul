@@ -6,13 +6,14 @@ import {
 } from '@mui/material';
 import { useNode } from '../hooks/useNode';
 import { useSalesCall } from '../hooks/useSalesCall';
-import { useDashboardWidgets } from '../core/registry';
+import { WidgetRenderer } from '../core/widgets/registry';
+import { DashboardTemplate } from '../core/widgets/protocol';
+import { DashboardTemplates } from '../core/registry-json';
 
 export function DashboardPage() {
   const { nodeId } = useParams<{ nodeId: string }>();
   const node = useNode(nodeId || "");
   const { data: call, error, loading } = useSalesCall(nodeId || "");
-  const widgets = useDashboardWidgets(node?.dashboardId || "", call);
 
   if (!nodeId) {
     return (
@@ -40,6 +41,17 @@ export function DashboardPage() {
     );
   }
 
+  // Get dashboard template and validate
+  const tpl = DashboardTemplates[node?.dashboardId ?? "sales-call-default"];
+  let parsed: DashboardTemplate | null = null;
+  let templateError: string | null = null;
+
+  try {
+    parsed = DashboardTemplate.parse(tpl);
+  } catch (error) {
+    templateError = error instanceof Error ? error.message : 'Invalid template format';
+  }
+
   return (
     <Box>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -56,18 +68,24 @@ export function DashboardPage() {
       {error && (
         <Alert severity="warning">{error}</Alert>
       )}
+
+      {templateError && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          Template validation error: {templateError}
+        </Alert>
+      )}
       
-      {!loading && !error && widgets.length > 0 && (
+      {!loading && !error && !templateError && call && parsed && (
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 2, mt: 2 }}>
-          {widgets.map((widget, index) => (
-            <Box key={index}>
-              {widget}
+          {parsed.widgets.map((widgetConfig, index) => (
+            <Box key={`${widgetConfig.slug}-${index}`}>
+              <WidgetRenderer config={widgetConfig} call={call} />
             </Box>
           ))}
         </Box>
       )}
       
-      {!loading && !error && widgets.length === 0 && (
+      {!loading && !error && !templateError && (!call || !parsed) && (
         <Alert severity="info" sx={{ mt: 2 }}>
           No dashboard configuration found for this node.
         </Alert>
