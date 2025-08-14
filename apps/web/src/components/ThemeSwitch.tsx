@@ -1,6 +1,5 @@
-import { useTheme } from "../theme/theme";
-
-type Theme = "light" | "dark" | "system";
+import { useTheme } from "../theme/hooks";
+import type { Theme } from "../theme/types";
 
 export function ThemeSwitch() {
   const { theme, setTheme } = useTheme();
