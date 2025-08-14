@@ -2,7 +2,6 @@ import { useParams } from 'react-router-dom';
 import { 
   Box, 
   Typography, 
-  Grid,
   Alert
 } from '@mui/material';
 import { useNode } from '../hooks/useNode';
@@ -59,13 +58,13 @@ export function DashboardPage() {
       )}
       
       {!loading && !error && widgets.length > 0 && (
-        <Grid container spacing={2} sx={{ mt: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 2, mt: 2 }}>
           {widgets.map((widget, index) => (
-            <Grid key={index} item xs={12} md={6}>
+            <Box key={index}>
               {widget}
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Box>
       )}
       
       {!loading && !error && widgets.length === 0 && (
