@@ -1,22 +1,39 @@
-import fs from "fs";
-import path from "path";
-import { validateSalesCall } from "../salesCall.schema.js";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+// ⬇️ Import the *actual* result type + validator from @protocol
+import { validateSalesCall } from "../salesCall.schema";
 
-function run(label: string, filename: string) {
-  const filePath = path.join(process.cwd(), "fixtures", filename);
-  const content = fs.readFileSync(filePath, "utf-8");
-  const json = JSON.parse(content);
-  
-  const result = validateSalesCall(json);
-  
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+function load(p: string) {
+  return JSON.parse(readFileSync(resolve(__dirname, "../../fixtures", p), "utf-8"));
+}
+
+function run(label: string, file: string, strict = false) {
+  const data = load(file);
+  const result = validateSalesCall(data); // { success: boolean, data?, errors? }
+
   if (result.success) {
     console.log(`✅ ${label}: valid`);
   } else {
     console.error(`❌ ${label}: invalid`);
-    console.error(JSON.stringify(result.errors, null, 2));
-    process.exitCode = 1;
+    // Guard print in case errors is undefined
+    if (result.errors) {
+      console.error(JSON.stringify(result.errors, null, 2));
+    }
+    if (strict) process.exitCode = 1;
   }
 }
 
-run("sample", "sales-call.sample.json");
-run("invalid", "sales-call.invalid.json");
+const target = process.argv[2] as "sample" | "invalid" | undefined;
+const strict = process.argv.includes("--strict");
+
+if (!target) {
+  // Default: run both, do not fail build (dev-friendly)
+  run("sample", "sales-call.sample.json", false);
+  run("invalid", "sales-call.invalid.json", false);
+} else {
+  run(target, target === "sample" ? "sales-call.sample.json" : "sales-call.invalid.json", strict);
+}

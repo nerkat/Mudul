@@ -5,9 +5,11 @@
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -b",
     "typecheck": "tsc -b --noEmit",
-    "test:schema": "tsx src/dev/validate-fixture.ts"
+    "build": "tsc -b",
+    "test:schema": "tsx src/dev/validate-fixture.ts",
+    "test:schema:valid": "tsx src/dev/validate-fixture.ts sample --strict",
+    "test:schema:invalid": "tsx src/dev/validate-fixture.ts invalid"
   },
   "dependencies": {
     "zod": "^3.23.8"
