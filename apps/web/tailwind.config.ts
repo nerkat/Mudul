@@ -8,11 +8,16 @@ export default {
     './index.html',
     './src/**/*.{js,jsx,ts,tsx,mdx,html,css}',
     // Scan shared workspace packages (adjust path depth if structure changes)
-    '../../packages/**/*.{js,jsx,ts,tsx,mdx}'
+    '../../packages/**/*.{js,jsx,ts,tsx,mdx}',
+    // Include Preline components
+    './node_modules/preline/preline.js'
   ],
   // If you introduce fully dynamic (computed) class names that JIT can't see,
   // add them to the safelist below to force generation.
   darkMode: 'class',
+  plugins: [
+    require('preline/plugin')
+  ],
   theme: {
     extend: {
       colors: {
