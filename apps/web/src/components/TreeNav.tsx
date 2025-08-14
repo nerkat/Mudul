@@ -63,19 +63,23 @@ function TreeNode({ node, orgId, level, currentPath, expandedNodes, onToggleExpa
 
   return (
     <li>
-      <div className={`hs-accordion ${isExpanded ? 'active' : ''} ${level === 0 ? '' : 'hs-accordion-child'}`}>
-        <div 
-          className={`hs-accordion-toggle flex items-center gap-x-3 py-2 px-2.5 text-sm text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-700 ${
-            isActive ? 'bg-gray-100 dark:bg-gray-700' : ''
-          } ${
-            isInActivePath ? 'text-blue-600 dark:text-blue-500' : ''
-          }`}
+      <div className={`flex items-center ${hasChildren ? 'hs-accordion' : ''} ${isExpanded ? 'active' : ''}`}>
+        <Link 
+          to={nodePath}
+          className={`min-h-[36px] w-full flex items-center gap-x-3.5 py-2 px-2.5 text-sm rounded-lg hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 ${
+            isActive 
+              ? 'bg-gray-100 text-gray-800 dark:bg-neutral-700 dark:text-white' 
+              : 'text-gray-800 dark:text-neutral-200'
+          } hs-overlay-minified:justify-center`}
           style={{ paddingLeft: `${0.625 + level * 1.5}rem` }}
         >
           {hasChildren && (
             <button
-              onClick={handleToggle}
-              className="hs-accordion-toggle-btn flex justify-center items-center w-4 h-4"
+              onClick={(e) => {
+                e.preventDefault();
+                handleToggle();
+              }}
+              className="hs-accordion-toggle flex justify-center items-center w-4 h-4 hover:bg-gray-200 dark:hover:bg-neutral-600 rounded"
               aria-expanded={isExpanded}
             >
               <svg 
@@ -96,44 +100,39 @@ function TreeNode({ node, orgId, level, currentPath, expandedNodes, onToggleExpa
           )}
           {!hasChildren && <div className="w-4 h-4"></div>}
           
-          <span className="text-lg mr-2">{getNodeIcon(node.kind)}</span>
+          <span className="text-lg mr-2 hs-overlay-minified:hidden">{getNodeIcon(node.kind)}</span>
           
-          <Link 
-            to={nodePath}
-            className="flex-1 text-left hover:text-blue-600 dark:hover:text-blue-500"
-          >
-            {node.name}
-          </Link>
+          <span className="hs-overlay-minified:hidden">{node.name}</span>
           
           {node.kind === 'call_session' && node.dashboardId && (
-            <span className="w-2 h-2 bg-green-500 rounded-full" title="Has dashboard"></span>
+            <span className="w-2 h-2 bg-green-500 rounded-full hs-overlay-minified:hidden" title="Has dashboard"></span>
+          )}
+        </Link>
+      </div>
+
+      {isExpanded && hasChildren && (
+        <div className="hs-accordion-content">
+          {loading ? (
+            <div className="py-2 px-8 text-xs text-gray-500 dark:text-gray-400">
+              Loading...
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {children.map((child) => (
+                <TreeNode
+                  key={child.id}
+                  node={child}
+                  orgId={orgId}
+                  level={level + 1}
+                  currentPath={currentPath}
+                  expandedNodes={expandedNodes}
+                  onToggleExpanded={onToggleExpanded}
+                />
+              ))}
+            </ul>
           )}
         </div>
-
-        {isExpanded && hasChildren && (
-          <div className="hs-accordion-content">
-            {loading ? (
-              <div className="py-2 px-8 text-xs text-gray-500 dark:text-gray-400">
-                Loading...
-              </div>
-            ) : (
-              <ul className="space-y-1">
-                {children.map((child) => (
-                  <TreeNode
-                    key={child.id}
-                    node={child}
-                    orgId={orgId}
-                    level={level + 1}
-                    currentPath={currentPath}
-                    expandedNodes={expandedNodes}
-                    onToggleExpanded={onToggleExpanded}
-                  />
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
+      )}
     </li>
   );
 }
@@ -218,17 +217,15 @@ export function TreeNav({ className = "" }: TreeNavProps) {
   }
 
   return (
-    <nav className={`hs-accordion-group ${className}`} data-hs-accordion-always-open>
-      <ul className="space-y-1">
-        <TreeNode
-          node={rootNode}
-          orgId={orgId}
-          level={0}
-          currentPath={location.pathname}
-          expandedNodes={expandedNodes}
-          onToggleExpanded={handleToggleExpanded}
-        />
-      </ul>
-    </nav>
+    <ul className="space-y-1">
+      <TreeNode
+        node={rootNode}
+        orgId={orgId}
+        level={0}
+        currentPath={location.pathname}
+        expandedNodes={expandedNodes}
+        onToggleExpanded={handleToggleExpanded}
+      />
+    </ul>
   );
 }
