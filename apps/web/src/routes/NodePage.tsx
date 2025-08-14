@@ -98,7 +98,7 @@ function DashboardPlaceholder({ node }: { node: Node }) {
   const { data, error, loading } = useSalesCall(sessionId);
 
   return (
-    <div className="rounded-xl border p-4 space-y-3">
+    <div className="rounded-xl border p-4 space-y-3" aria-busy={loading}>
       <div className="font-semibold">Dashboard</div>
       {loading && <div className="text-slate-500">Loading analysis…</div>}
       {error && <div className="text-red-600">Error: {error}</div>}
