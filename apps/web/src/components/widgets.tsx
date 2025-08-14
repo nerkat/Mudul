@@ -3,35 +3,35 @@ import { PaperCard } from "../widgets/shared/PaperCard";
 
 // Explicit minimal widget props - only the fields each widget actually uses
 export type SummaryWidgetProps = {
-  data: Pick<SalesCallMinimal, "summary">;
+  data: Partial<Pick<SalesCallMinimal, "summary">>;
 };
 
 export type SentimentWidgetProps = {
-  data: Pick<SalesCallMinimal, "sentiment">;
+  data: Partial<Pick<SalesCallMinimal, "sentiment">>;
 };
 
 export type BookingWidgetProps = {
-  data: Pick<SalesCallMinimal, "bookingLikelihood">;
+  data: Partial<Pick<SalesCallMinimal, "bookingLikelihood">>;
 };
 
 export type ObjectionsWidgetProps = {
-  data: Pick<SalesCallMinimal, "objections">;
+  data: Partial<Pick<SalesCallMinimal, "objections">>;
 };
 
 export type ActionItemsWidgetProps = {
-  data: Pick<SalesCallMinimal, "actionItems">;
+  data: Partial<Pick<SalesCallMinimal, "actionItems">>;
 };
 
 export type KeyMomentsWidgetProps = {
-  data: Pick<SalesCallMinimal, "keyMoments">;
+  data: Partial<Pick<SalesCallMinimal, "keyMoments">>;
 };
 
 export type EntitiesWidgetProps = {
-  data: Pick<SalesCallMinimal, "entities">;
+  data: Partial<Pick<SalesCallMinimal, "entities">>;
 };
 
 export type ComplianceWidgetProps = {
-  data: Pick<SalesCallMinimal, "complianceFlags">;
+  data: Partial<Pick<SalesCallMinimal, "complianceFlags">>;
 };
 
 // Legacy type for backward compatibility
@@ -60,7 +60,7 @@ export const Paper = {
   Objections: ({ data }: ObjectionsWidgetProps) => (
     <PaperCard title="Objections">
       {data.objections?.length
-        ? data.objections.map((o, i) => (
+        ? data.objections.map((o: { type: string; quote: string; ts: string }, i: number) => (
             <div key={i}>
               <em>{o.type}</em>: "{o.quote}" @ {o.ts}
             </div>
@@ -72,7 +72,7 @@ export const Paper = {
   ActionItems: ({ data }: ActionItemsWidgetProps) => (
     <PaperCard title="Action Items">
       {data.actionItems?.length
-        ? data.actionItems.map((a, i) => (
+        ? data.actionItems.map((a: { owner: string; text: string; due?: string | null }, i: number) => (
             <div key={i}>
               {a.owner}: {a.text}{a.due ? ` (due ${a.due})` : ""}
             </div>
@@ -84,7 +84,7 @@ export const Paper = {
   KeyMoments: ({ data }: KeyMomentsWidgetProps) => (
     <PaperCard title="Key Moments">
       {data.keyMoments?.length
-        ? data.keyMoments.map((k, i) => (
+        ? data.keyMoments.map((k: { label: string; ts: string }, i: number) => (
             <div key={i}>
               {k.label} @ {k.ts}
             </div>
@@ -141,7 +141,7 @@ export const Rich = {
       <div className="font-medium">Objections</div>
       <div className="mt-2 text-sm space-y-1">
         {data.objections?.length
-          ? data.objections.map((o, i) => (
+          ? data.objections.map((o: { type: string; quote: string; ts: string }, i: number) => (
               <div key={i}>
                 <em>{o.type}</em>: "{o.quote}" @ {o.ts}
               </div>
@@ -156,7 +156,7 @@ export const Rich = {
       <div className="font-medium">Action Items</div>
       <div className="mt-2 text-sm space-y-1">
         {data.actionItems?.length
-          ? data.actionItems.map((a, i) => (
+          ? data.actionItems.map((a: { owner: string; text: string; due?: string | null }, i: number) => (
               <div key={i}>
                 {a.owner}: {a.text}{a.due ? ` (due ${a.due})` : ""}
               </div>
@@ -171,7 +171,7 @@ export const Rich = {
       <div className="font-medium">Key Moments</div>
       <div className="mt-2 text-sm space-y-1">
         {data.keyMoments?.length
-          ? data.keyMoments.map((k, i) => (
+          ? data.keyMoments.map((k: { label: string; ts: string }, i: number) => (
               <div key={i}>
                 {k.label} @ {k.ts}
               </div>

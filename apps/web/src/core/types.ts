@@ -1,7 +1,10 @@
-// Re-export types from packages/core that we need
-export type { Node, NodeKind, Dashboard, Session, AnalysisRecord } from "@mudul/core";
+// Core types for web app - local definitions to avoid package dependencies
+export type NodeKind =
+  | "group"
+  | "sales_pipeline" | "lead" | "call_session"
+  | "hiring_position" | "candidate" | "interview_session"
+  | "custom";
 
-// Core types for web app
 export interface NodeBase {
   id: string;
   orgId: string;

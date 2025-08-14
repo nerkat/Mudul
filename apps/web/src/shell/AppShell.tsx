@@ -70,7 +70,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
       <Box sx={{ p: 2 }}>
         <SimpleTreeView 
           onItemClick={handleItemClick}
-          defaultExpandedItems={['navigation', root?.id, ...clients.map(c => c.id)]}
+          defaultExpandedItems={['navigation', ...(root ? [root.id] : []), ...clients.map(c => c.id)]}
         >
           <TreeItem itemId="navigation" label="Navigation">
             <TreeItem 
