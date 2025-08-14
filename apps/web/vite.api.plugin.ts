@@ -2,7 +2,7 @@ import type { Plugin } from "vite";
 import { validateSalesCall, type SalesCall } from "@mudul/protocol";
 import rawSample from "./fixtures/sales-call.sample.json";
 
-const sample: SalesCall = rawSample;
+const sample = rawSample as SalesCall;
 
 export default function apiPlugin(): Plugin {
   return {
