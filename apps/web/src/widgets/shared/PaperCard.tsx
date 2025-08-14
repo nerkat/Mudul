@@ -1,15 +1,8 @@
 export function PaperCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="paper-card" style={{ 
-      backgroundColor: '#ffffff',
-      color: '#000000',
-      fontFamily: 'monospace',
-      border: '1px solid #ccc', 
-      padding: '8px', 
-      marginBottom: '8px' 
-    }}>
-      <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{title}</div>
-      <div style={{ fontFamily: 'monospace' }}>
+    <div className="paper-card bg-surface text-fg border border-border rounded p-2 mb-2 font-mono">
+      <div className="font-bold mb-1">{title}</div>
+      <div className="font-mono">
         {children}
       </div>
     </div>

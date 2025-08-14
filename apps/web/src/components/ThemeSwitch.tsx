@@ -1,5 +1,7 @@
 import { useTheme } from "../theme/theme";
 
+type Theme = "light" | "dark" | "system";
+
 export function ThemeSwitch() {
   const { theme, setTheme } = useTheme();
   return (
@@ -7,8 +9,8 @@ export function ThemeSwitch() {
       <label className="ui-muted text-sm">Theme</label>
       <select
         value={theme}
-        onChange={(e) => setTheme(e.target.value as any)}
-        className="rounded-md border ui-border bg-bg px-2 py-1"
+        onChange={(e) => setTheme(e.target.value as Theme)}
+        className="rounded-md border border-border bg-surface text-fg px-2 py-1 hover:bg-border transition-colors"
         aria-label="Theme"
       >
         <option value="system">System</option>
