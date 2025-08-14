@@ -1,69 +1,140 @@
-# React + TypeScript + Vite
+# Mudul MUI Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern sales call analytics dashboard built with **MUI v7**, featuring a responsive design with AppBar, TreeView navigation, and data management capabilities.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🎨 **MUI v7 Dashboard Shell** - AppBar + responsive Drawer with TreeView sidebar
+- 📊 **Dashboard Page** - Statistical cards showing call analytics  
+- 📋 **Calls Page** - DataGrid with sorting, filtering, and pagination
+- ⚙️ **Settings Page** - File upload and data management with confirm dialogs
+- 🌙 **Light/Dark Theme** - Toggle between themes with instant updates
+- 📱 **Responsive Design** - Mobile-friendly with collapsible navigation
+- 🔍 **MUI MCP Integration** - AI assistance grounded in official MUI docs
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Node.js 18+
+- pnpm
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+### Installation
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Install dependencies
+pnpm install
+
+# Start development server
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app will be available at `http://localhost:5173`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Build for Production
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Type check
+pnpm typecheck
+
+# Lint code
+pnpm lint
+
+# Build for production
+pnpm build
 ```
+
+## Project Structure
+
+```
+src/
+├── App.tsx                    # Main app component with theme provider
+├── main.tsx                   # React entry point with routing
+├── theme.ts                   # MUI light/dark theme definitions
+├── shell/
+│   └── AppShell.tsx          # Main layout: AppBar + Drawer + TreeView
+├── pages/
+│   ├── DashboardPage.tsx     # Analytics dashboard with stat cards
+│   ├── CallsPage.tsx         # DataGrid for call management
+│   └── SettingsPage.tsx      # Settings with file upload & dialogs
+└── shared/
+    ├── FileUploadButton.tsx  # Reusable file upload component
+    └── ConfirmDialogButton.tsx # Reusable confirmation dialog
+```
+
+## Navigation
+
+The app uses **MUI X SimpleTreeView** for sidebar navigation:
+
+- **Dashboard** (`/`) - Overview with analytics cards
+- **Calls** (`/calls`) - Data table with call records  
+- **Settings** (`/settings`) - Configuration and data management
+
+## MUI MCP Setup
+
+To enable AI assistance with official MUI documentation, see [MCP_SETUP.md](../../MCP_SETUP.md) for detailed configuration instructions for VS Code, Cursor, Zed, and Claude Code.
+
+### Quick MCP Test
+
+After setup, try this in your editor's AI chat:
+```
+Using MUI DataGrid, show me how to add custom toolbar with export functionality. 
+Include official API references.
+```
+
+## Components Used
+
+### Core MUI Components
+- `AppBar`, `Drawer`, `Toolbar` - Navigation shell
+- `Paper`, `Card`, `CardContent` - Content containers  
+- `Typography`, `Box`, `Button` - Basic elements
+- `Dialog`, `IconButton` - Interactive elements
+
+### MUI X Components  
+- `SimpleTreeView`, `TreeItem` - Navigation tree
+- `DataGrid`, `GridToolbar` - Data tables
+
+### Theme Features
+- Custom `borderRadius: 12px`
+- Light/dark mode toggle
+- Button style overrides
+- Responsive breakpoints
+
+## Development
+
+### Adding New Pages
+
+1. Create component in `src/pages/`
+2. Add route to `main.tsx`
+3. Add navigation item to `AppShell.tsx` TreeView
+
+### Customizing Theme
+
+Edit `src/theme.ts` to modify:
+- Color palette
+- Shape properties (border radius, etc.)
+- Component style overrides
+- Typography scales
+
+### Using MCP for Development
+
+The MUI MCP server provides real-time access to:
+- Component API documentation
+- Working code examples  
+- Theming guides
+- Best practices
+
+Always query the MCP server for the latest MUI information rather than relying on memory.
+
+## Dependencies
+
+### Core
+- **React 19** - UI framework
+- **MUI v7** - Component library and design system
+- **MUI X** - Advanced components (DataGrid, TreeView)
+- **React Router v7** - Client-side routing
+
+### Development  
+- **TypeScript** - Type safety
+- **Vite** - Build tool and dev server
+- **ESLint** - Code linting
