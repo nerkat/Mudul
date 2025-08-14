@@ -3,7 +3,9 @@ import { useParams, Link } from "react-router-dom";
 import { seedRepos } from "@mudul/core";
 import type { Node } from "@mudul/core";
 import { useSalesCall } from "../hooks/useSalesCall";
-import { SummaryCard } from "../widgets/SummaryCard";
+import { useViewMode } from "../ctx/ViewModeContext";
+import { Paper, Rich } from "../widgets/registry";
+import { ModeSwitch } from "../components/ModeSwitch";
 
 const repos = seedRepos();
 
@@ -96,13 +98,29 @@ export function NodePage() {
 function DashboardPlaceholder({ node }: { node: Node }) {
   const sessionId = String(node.dataRef?.id ?? "");
   const { data, error, loading } = useSalesCall(sessionId);
+  const { mode } = useViewMode();
+  const W = mode === "paper" ? Paper : Rich;
 
   return (
     <div className="rounded-xl border p-4 space-y-3" aria-busy={loading}>
-      <div className="font-semibold">Dashboard</div>
+      <div className="flex justify-between items-center">
+        <div className="font-semibold">Dashboard</div>
+        <ModeSwitch />
+      </div>
       {loading && <div className="text-slate-500">Loading analysis…</div>}
       {error && <div className="text-red-600">Error: {error}</div>}
-      {!loading && !error && <SummaryCard text={data?.summary} />}
+      {!loading && !error && data && (
+        <div className="space-y-3">
+          <W.Summary data={data} />
+          <W.Sentiment data={data} />
+          <W.Booking data={data} />
+          <W.Objections data={data} />
+          <W.ActionItems data={data} />
+          <W.KeyMoments data={data} />
+          <W.Entities data={data} />
+          <W.Compliance data={data} />
+        </div>
+      )}
     </div>
   );
 }
