@@ -9,7 +9,7 @@ export function ThemeSwitch() {
       <select
         value={theme}
         onChange={(e) => setTheme(e.target.value as Theme)}
-        className="rounded-md border border-border bg-surface text-fg px-2 py-1 hover:bg-border transition-colors"
+        className="rounded border border-border bg-surface text-fg px-2 py-1 hover:bg-border transition-colors"
         aria-label="Theme"
       >
         <option value="system">System</option>
