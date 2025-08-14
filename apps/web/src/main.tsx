@@ -23,16 +23,32 @@ function App() {
     initializePreline();
   }, []);
 
+  // Reinitialize Preline components on location change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        // @ts-ignore - Preline adds HSStaticMethods to window
+        window.HSStaticMethods?.autoInit();
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  });
+
   const router = createBrowserRouter([
-    { path: "/:org/*", element: <NodePage /> },
+    { 
+      path: "/:org/*", 
+      element: (
+        <AppShell>
+          <NodePage />
+        </AppShell>
+      )
+    },
   ]);
 
   return (
     <ThemeProvider>
       <ViewModeProvider>
-        <AppShell>
-          <RouterProvider router={router} />
-        </AppShell>
+        <RouterProvider router={router} />
       </ViewModeProvider>
     </ThemeProvider>
   );
