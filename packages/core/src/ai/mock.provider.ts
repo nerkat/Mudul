@@ -23,12 +23,38 @@ if (!fixtureValidation.success) {
 
 export class MockAiProvider implements AiProvider {
   async analyzeCall(_input: AnalyzeInput): Promise<AnalyzeOutput> {
+    const startTime = Date.now();
+    const requestId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     // Add artificial delay as specified
     await new Promise(r => setTimeout(r, 300));
     
+    const duration = Date.now() - startTime;
+    
     // Deep clone to avoid accidental mutation - use structuredClone where available
-    return typeof structuredClone !== 'undefined' 
+    const baseResult = typeof structuredClone !== 'undefined' 
       ? structuredClone(SAMPLE_FIXTURE)
       : JSON.parse(JSON.stringify(SAMPLE_FIXTURE));
+    
+    // Add standardized meta shape
+    return {
+      ...baseResult,
+      meta: {
+        provider: 'mock',
+        model: 'mock',
+        duration_ms: duration,
+        request_id: requestId,
+        fallback: false,
+        failed_provider: null,
+        failed_error_code: null,
+        prompt_versions: {
+          system: 'salesCall.system@v1.0.0',
+          user: 'salesCall.user@v1.0.0'
+        },
+        truncated: false,
+        retries: 0,
+        schema_version: "SalesCallV1"
+      }
+    };
   }
 }
