@@ -1,0 +1,1 @@
+On local setup, Tailwind classes are still not compiled into the main CSS file referenced in index.html. Please ensure that the Tailwind build step is properly integrated and chained with the app dev command so styles are present without requiring manual build steps.
