@@ -35,6 +35,18 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
 
+  // Sample calls data for navigation - in a real app this would come from an API
+  const callsData = [
+    { id: 1, title: 'Discovery Call - Acme Corp', participant: 'John Smith' },
+    { id: 2, title: 'Demo Call - TechStart', participant: 'Sarah Johnson' },
+    { id: 3, title: 'Follow-up - Global Inc', participant: 'Mike Wilson' },
+    { id: 4, title: 'Pricing Discussion - StartupXYZ', participant: 'Lisa Chen' },
+    { id: 5, title: 'Technical Review - Enterprise Co', participant: 'David Brown' },
+    { id: 6, title: 'Initial Contact - Innovation Ltd', participant: 'Emma Davis' },
+    { id: 7, title: 'Contract Discussion - MegaCorp', participant: 'Robert Taylor' },
+    { id: 8, title: 'Support Call - Current Customer', participant: 'Jennifer Lee' },
+  ];
+
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
@@ -49,6 +61,13 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
         break;
       case 'settings':
         navigate('/settings');
+        break;
+      default:
+        // Handle individual call navigation (format: call-{id})
+        if (itemId.startsWith('call-')) {
+          const callId = itemId.replace('call-', '');
+          navigate(`/calls/${callId}`);
+        }
         break;
     }
     if (isMobile) {
@@ -66,7 +85,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
       <Box sx={{ p: 2 }}>
         <SimpleTreeView 
           onItemClick={handleItemClick}
-          defaultExpandedItems={['root']}
+          defaultExpandedItems={['root', 'calls']}
         >
           <TreeItem itemId="root" label="Navigation">
             <TreeItem 
@@ -86,7 +105,38 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
                   Calls
                 </Box>
               } 
-            />
+            >
+              {callsData.map((call) => (
+                <TreeItem
+                  key={call.id}
+                  itemId={`call-${call.id}`}
+                  label={
+                    <Box sx={{ 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      py: 0.5
+                    }}>
+                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                        Call #{call.id}
+                      </Typography>
+                      <Typography 
+                        variant="caption" 
+                        color="textSecondary"
+                        sx={{ 
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          maxWidth: '200px'
+                        }}
+                      >
+                        {call.participant}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              ))}
+            </TreeItem>
             <TreeItem 
               itemId="settings" 
               label={

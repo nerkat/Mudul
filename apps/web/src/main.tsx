@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { App } from "./App";
 import { DashboardPage } from "./pages/DashboardPage";
 import { CallsPage } from "./pages/CallsPage";
+import { CallDashboardPage } from "./pages/CallDashboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
 const router = createBrowserRouter([
@@ -13,6 +14,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "calls", element: <CallsPage /> },
+      { path: "calls/:id", element: <CallDashboardPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

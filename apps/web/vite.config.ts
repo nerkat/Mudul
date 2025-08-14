@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import apiPlugin from './vite.api.plugin'
+// import apiPlugin from './vite.api.plugin'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), apiPlugin()],
+  plugins: [react()], // Temporarily removed apiPlugin due to missing @mudul/protocol
 })
