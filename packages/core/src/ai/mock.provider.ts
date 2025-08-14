@@ -1,4 +1,4 @@
-import { type AiProvider, type AnalyzeInput, type AnalyzeOutput } from "@mudul/protocol";
+import { type AiProvider, type AnalyzeInput, type AnalyzeOutput, validateSalesCall } from "@mudul/protocol";
 // Read sample fixture from protocol package
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -14,13 +14,21 @@ function loadSampleFixture(): AnalyzeOutput {
   return JSON.parse(rawData);
 }
 
-export class MockProvider implements AiProvider {
+// Validate fixture at startup to catch issues early
+const SAMPLE_FIXTURE = loadSampleFixture();
+const fixtureValidation = validateSalesCall(SAMPLE_FIXTURE);
+if (!fixtureValidation.success) {
+  throw new Error(`MockProvider: Sample fixture failed validation: ${JSON.stringify(fixtureValidation.errors)}`);
+}
+
+export class MockAiProvider implements AiProvider {
   async analyzeCall(_input: AnalyzeInput): Promise<AnalyzeOutput> {
     // Add artificial delay as specified
     await new Promise(r => setTimeout(r, 300));
     
-    // Deep clone to avoid accidental mutation
-    const sample = loadSampleFixture();
-    return JSON.parse(JSON.stringify(sample));
+    // Deep clone to avoid accidental mutation - use structuredClone where available
+    return typeof structuredClone !== 'undefined' 
+      ? structuredClone(SAMPLE_FIXTURE)
+      : JSON.parse(JSON.stringify(SAMPLE_FIXTURE));
   }
 }
