@@ -102,13 +102,28 @@ async function testUtilities() {
     const isValidParse = parsed.id === 'test' && parsed.version === 'v1.0.0' && parsed.content === 'Content here';
     console.log(isValidParse ? '✅' : '❌', 'Prompt parsing works correctly');
     
-    // Test 3: PII redaction
-    const sensitiveText = 'Contact john@example.com or call 555-123-4567';
-    const redacted = redactForLogging(sensitiveText);
-    const isRedacted = redacted.includes('[EMAIL]') && redacted.includes('[PHONE]');
-    console.log(isRedacted ? '✅' : '❌', 'PII redaction works correctly');
+    // Test 3: PII redaction - comprehensive test
+    const testCases = [
+      { input: 'Contact john@example.com or call 555-123-4567', expectedRedactions: ['[EMAIL]', '[PHONE]'] },
+      { input: 'SSN: 123-45-6789', expectedRedactions: ['[SSN]'] },
+      { input: 'International: +1-555-123-4567', expectedRedactions: ['[INTL_PHONE]'] },
+      { input: 'Card: 1234 5678 9012 3456', expectedRedactions: ['[CARD]'] },
+      { input: 'Phone without separators: 5551234567', expectedRedactions: ['[PHONE]'] },
+      { input: 'UK phone: +44 20 7946 0958', expectedRedactions: ['[INTL_PHONE]'] },
+    ];
     
-    return isTruncated && isValidParse && isRedacted;
+    let allRedactionsPassed = true;
+    for (const testCase of testCases) {
+      const redacted = redactForLogging(testCase.input);
+      const hasAllRedactions = testCase.expectedRedactions.every(pattern => redacted.includes(pattern));
+      if (!hasAllRedactions) {
+        console.log('❌', `PII redaction failed for: "${testCase.input}" -> "${redacted}"`);
+        allRedactionsPassed = false;
+      }
+    }
+    console.log(allRedactionsPassed ? '✅' : '❌', 'PII redaction works correctly');
+    
+    return isTruncated && isValidParse && allRedactionsPassed;
     
   } catch (error) {
     console.log('❌', 'Failed to test utilities:', error.message);

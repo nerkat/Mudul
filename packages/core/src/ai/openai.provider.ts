@@ -22,14 +22,17 @@ export interface AnalyzeResponse extends AnalyzeOutput {
     provider: string;
     model: string;
     duration_ms: number;
-    fallback: boolean;
     request_id: string;
-    prompt: {
+    fallback: boolean;
+    failed_provider: string | null;
+    failed_error_code: string | null;
+    prompt_versions: {
       system: string;
       user: string;
     };
-    truncated?: boolean;
-    retry_count?: number;
+    truncated: boolean;
+    retries: number;
+    schema_version: string;
   };
 }
 
@@ -147,7 +150,14 @@ export class OpenAIProvider implements AiProvider {
           }
           
           metrics.increment('ai_error_total', { provider: 'openai', error_type: errorCode });
-          throw new Error(errorCode);
+          
+          // Only retry on 5xx server errors, not 4xx client errors
+          if (res.status >= 500 && res.status < 600) {
+            throw new Error(errorCode);
+          } else {
+            // Don't retry 4xx errors - they won't succeed on retry
+            throw new Error(errorCode);
+          }
         }
         
         const json = await res.json();
@@ -183,22 +193,38 @@ export class OpenAIProvider implements AiProvider {
             provider: 'openai',
             model: this.opts.model,
             duration_ms: duration,
-            fallback: false,
             request_id: requestId,
-            prompt: {
+            fallback: false,
+            failed_provider: null,
+            failed_error_code: null,
+            prompt_versions: {
               system: `${SYSTEM_PROMPT.id}@${SYSTEM_PROMPT.version}`,
               user: `${USER_PROMPT.id}@${USER_PROMPT.version}`
             },
-            ...(truncated && { truncated: true }),
-            ...(retryCount > 0 && { retry_count: retryCount })
+            truncated: truncated,
+            retries: retryCount,
+            schema_version: "SalesCallV1"
           }
         } as AnalyzeOutput;
         
       } catch (error) {
         retryCount++;
+        const errorMsg = error instanceof Error ? error.message : 'unknown_error';
         const isLastRetry = retryCount > maxRetries;
         
-        if (!isLastRetry && retryCount <= maxRetries) {
+        // Only retry on network errors or 5xx server errors, not 4xx client errors
+        const shouldRetry = !isLastRetry && 
+          (errorMsg.includes('timeout') || 
+           errorMsg.includes('network') ||
+           errorMsg.includes('fetch') ||
+           (errorMsg.includes('openai_http_5'))) && // Only 5xx errors
+          retryCount <= maxRetries;
+        
+        // Cap total wall-clock time: timeout * (retries+1) <= TIMEOUT * 2
+        const totalTime = Date.now() - startTime;
+        const maxTotalTime = (this.opts.timeoutMs ?? 30000) * 2;
+        
+        if (shouldRetry && totalTime < maxTotalTime) {
           // Small backoff for retries
           const backoffMs = Math.min(1000 * Math.pow(2, retryCount - 1), 5000);
           await new Promise(resolve => setTimeout(resolve, backoffMs));
@@ -206,7 +232,6 @@ export class OpenAIProvider implements AiProvider {
         }
         
         // Final retry failed, throw the error
-        const errorMsg = error instanceof Error ? error.message : 'unknown_error';
         metrics.increment('ai_error_total', { provider: 'openai', error_type: 'final_failure' });
         throw new Error(errorMsg);
       }

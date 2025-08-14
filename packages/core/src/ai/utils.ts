@@ -68,15 +68,18 @@ export function truncateTranscript(transcript: string, maxBytes = 16384): { cont
 
 /**
  * Redact potentially sensitive information from logs
+ * Includes common international phone patterns
  */
 export function redactForLogging(text: string): string {
   // Basic PII patterns - can be extended
   return text
     .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN]') // SSN pattern
     .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL]') // Email
-    .replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE]') // Phone numbers with separators
+    .replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE]') // US phone numbers with separators
     .replace(/\b\d{10,}\b/g, '[PHONE]') // Phone numbers without separators
-    .replace(/\b\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b/g, '[CARD]'); // Credit card patterns
+    .replace(/\+\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}/g, '[INTL_PHONE]') // International phone
+    .replace(/\b\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b/g, '[CARD]') // Credit card patterns
+    .replace(/\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g, '[CARD]'); // Credit card with dashes/spaces
 }
 
 /**

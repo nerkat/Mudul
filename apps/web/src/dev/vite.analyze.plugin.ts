@@ -25,14 +25,17 @@ interface ApiResponse {
     provider: string;
     model: string;
     duration_ms: number;
-    fallback: boolean;
     request_id: string;
-    prompt?: {
+    fallback: boolean;
+    failed_provider: string | null;
+    failed_error_code: string | null;
+    prompt_versions: {
       system: string;
       user: string;
     };
-    truncated?: boolean;
-    retry_count?: number;
+    truncated: boolean;
+    retries: number;
+    schema_version: string;
   };
   error?: string;
   details?: string[];
@@ -57,11 +60,40 @@ export default function analyzePlugin(): Plugin {
     apply: "serve", // dev only
     enforce: "pre", // ensures plugin runs before others
     configureServer(server) {
+      // Health endpoint for development metrics
       server.middlewares.use(async (req, res, next) => {
+        if (req.method === "GET" && req.url === "/api/_health/ai") {
+          res.setHeader("content-type", "application/json");
+          
+          const allMetrics = metrics.getAll();
+          const healthMetrics = {
+            live_success: metrics.get('ai_success_total', { provider: 'openai' }),
+            live_schema_fail: metrics.get('ai_schema_fail_total', { provider: 'openai' }),
+            live_http_fail: metrics.get('ai_error_total', { provider: 'openai' }),
+            fallback_used: metrics.get('ai_fallback_total', { provider: 'openai' }),
+            mock_success: metrics.get('ai_success_total', { provider: 'mock' }),
+            all_metrics: allMetrics
+          };
+          
+          res.statusCode = 200;
+          return res.end(JSON.stringify({ 
+            ok: true, 
+            metrics: healthMetrics,
+            provider_info: getProviderInfo(),
+            timestamp: new Date().toISOString()
+          }));
+        }
+        
         if (req.method !== "POST" || !req.url?.startsWith("/api/analyze")) return next();
 
         const startTime = Date.now();
         let requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Support trace_id passthrough from client
+        const traceId = req.headers['x-request-id'];
+        if (traceId && typeof traceId === 'string') {
+          requestId = traceId;
+        }
 
         try {
           // Check content-length for payload size limit
@@ -129,27 +161,16 @@ export default function analyzePlugin(): Plugin {
               }));
             }
 
-            // Provider selection based on configuration
+            // Provider selection based on configuration - use factory
             const useLive = process.env.USE_LIVE_AI === "true";
             const allowFallback = process.env.ALLOW_FALLBACK !== "false"; // default true
+            const provider = createProvider();
             
             let resultSource: "live" | "mock" | "fallback_mock" = useLive ? "live" : "mock";
-            let provider: any;
             let output: any;
             let failureDetails: { provider?: string; errorCode?: string } = {};
 
-            // Create the primary provider
-            if (useLive) {
-              provider = createProvider();
-            } else {
-              provider = new MockAiProvider();
-            }
-
             try {
-              // Validate API key if live mode
-              if (useLive && !process.env.OPENAI_API_KEY) {
-                throw new Error("missing_api_key");
-              }
               
               output = await provider.analyzeCall({ 
                 transcript: parsed.data.transcript 
@@ -169,7 +190,7 @@ export default function analyzePlugin(): Plugin {
               }
               
               // Success path
-              metrics.increment('ai_success_total', { provider: useLive ? 'openai' : 'mock' });
+              metrics.increment('ai_success_total', { provider: output.meta?.provider || 'unknown' });
               
               const response: ApiResponse = {
                 data: schemaValidation.data,
@@ -178,8 +199,17 @@ export default function analyzePlugin(): Plugin {
                   provider: useLive ? 'openai' : 'mock',
                   model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
                   duration_ms: duration,
+                  request_id: requestId,
                   fallback: false,
-                  request_id: requestId
+                  failed_provider: null,
+                  failed_error_code: null,
+                  prompt_versions: {
+                    system: 'salesCall.system@v1.0.0',
+                    user: 'salesCall.user@v1.0.0'
+                  },
+                  truncated: false,
+                  retries: 0,
+                  schema_version: "SalesCallV1"
                 }
               };
               
@@ -188,10 +218,11 @@ export default function analyzePlugin(): Plugin {
               
             } catch (error) {
               const errorMsg = error instanceof Error ? error.message : 'unknown_error';
-              failureDetails.provider = useLive ? 'openai' : 'mock';
+              const providerType = useLive ? 'openai' : 'mock';
+              failureDetails.provider = providerType;
               failureDetails.errorCode = errorMsg;
               
-              metrics.increment('ai_fallback_total', { provider: useLive ? 'openai' : 'mock' });
+              metrics.increment('ai_fallback_total', { provider: providerType });
               
               // Log error in development only
               if (process.env.NODE_ENV !== 'production') {
@@ -223,12 +254,21 @@ export default function analyzePlugin(): Plugin {
                       provider: 'mock',
                       model: 'mock',
                       duration_ms: duration,
+                      request_id: requestId,
                       fallback: true,
-                      request_id: requestId
+                      failed_provider: 'openai',
+                      failed_error_code: errorMsg,
+                      prompt_versions: {
+                        system: 'salesCall.system@v1.0.0',
+                        user: 'salesCall.user@v1.0.0'
+                      },
+                      truncated: false,
+                      retries: 0,
+                      schema_version: "SalesCallV1"
                     }
                   };
                   
-                  // Add fallback header as requested
+                  // Add fallback header as requested (lowercase)
                   res.setHeader("x-ai-fallback", "1");
                   res.statusCode = 200;
                   return res.end(JSON.stringify(response));
