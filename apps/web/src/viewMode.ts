@@ -9,5 +9,13 @@ export function getInitialViewMode(): ViewMode {
 }
 
 export function saveViewMode(m: ViewMode) { 
-  localStorage.setItem(KEY, m); 
+  localStorage.setItem(KEY, m);
+  // Update URL to keep query param and toggle in sync
+  const url = new URL(window.location.href);
+  if (m === "paper") {
+    url.searchParams.set("mode", "paper");
+  } else {
+    url.searchParams.delete("mode");
+  }
+  window.history.replaceState({}, "", url.toString());
 }

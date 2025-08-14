@@ -1,29 +1,63 @@
 import type { SalesCallMinimal } from "../hooks/useSalesCall";
 import { PaperCard } from "./shared/PaperCard";
 
+// Explicit minimal widget props - only the fields each widget actually uses
+export type SummaryWidgetProps = {
+  data: Pick<SalesCallMinimal, "summary">;
+};
+
+export type SentimentWidgetProps = {
+  data: Pick<SalesCallMinimal, "sentiment">;
+};
+
+export type BookingWidgetProps = {
+  data: Pick<SalesCallMinimal, "bookingLikelihood">;
+};
+
+export type ObjectionsWidgetProps = {
+  data: Pick<SalesCallMinimal, "objections">;
+};
+
+export type ActionItemsWidgetProps = {
+  data: Pick<SalesCallMinimal, "actionItems">;
+};
+
+export type KeyMomentsWidgetProps = {
+  data: Pick<SalesCallMinimal, "keyMoments">;
+};
+
+export type EntitiesWidgetProps = {
+  data: Pick<SalesCallMinimal, "entities">;
+};
+
+export type ComplianceWidgetProps = {
+  data: Pick<SalesCallMinimal, "complianceFlags">;
+};
+
+// Legacy type for backward compatibility
 export type WidgetProps = { data: SalesCallMinimal };
 
 // PAPER (unstyled)
 export const Paper = {
-  Summary: ({ data }: WidgetProps) => (
+  Summary: ({ data }: SummaryWidgetProps) => (
     <PaperCard title="Summary">
       {data.summary ?? "No summary"}
     </PaperCard>
   ),
   
-  Sentiment: ({ data }: WidgetProps) => (
+  Sentiment: ({ data }: SentimentWidgetProps) => (
     <PaperCard title="Sentiment">
       Overall: {data.sentiment?.overall ?? "-"} | Score: {data.sentiment?.score ?? "-"}
     </PaperCard>
   ),
   
-  Booking: ({ data }: WidgetProps) => (
+  Booking: ({ data }: BookingWidgetProps) => (
     <PaperCard title="Booking Likelihood">
       {data.bookingLikelihood ?? "-"}
     </PaperCard>
   ),
   
-  Objections: ({ data }: WidgetProps) => (
+  Objections: ({ data }: ObjectionsWidgetProps) => (
     <PaperCard title="Objections">
       {data.objections?.length
         ? data.objections.map((o, i) => (
@@ -35,7 +69,7 @@ export const Paper = {
     </PaperCard>
   ),
   
-  ActionItems: ({ data }: WidgetProps) => (
+  ActionItems: ({ data }: ActionItemsWidgetProps) => (
     <PaperCard title="Action Items">
       {data.actionItems?.length
         ? data.actionItems.map((a, i) => (
@@ -47,7 +81,7 @@ export const Paper = {
     </PaperCard>
   ),
   
-  KeyMoments: ({ data }: WidgetProps) => (
+  KeyMoments: ({ data }: KeyMomentsWidgetProps) => (
     <PaperCard title="Key Moments">
       {data.keyMoments?.length
         ? data.keyMoments.map((k, i) => (
@@ -59,7 +93,7 @@ export const Paper = {
     </PaperCard>
   ),
   
-  Entities: ({ data }: WidgetProps) => (
+  Entities: ({ data }: EntitiesWidgetProps) => (
     <PaperCard title="Entities">
       <div>Prospect: {data.entities?.prospect?.join(", ") || "-"}</div>
       <div>People: {data.entities?.people?.join(", ") || "-"}</div>
@@ -67,16 +101,16 @@ export const Paper = {
     </PaperCard>
   ),
   
-  Compliance: ({ data }: WidgetProps) => (
+  Compliance: ({ data }: ComplianceWidgetProps) => (
     <PaperCard title="Compliance Flags">
       {data.complianceFlags?.length ? data.complianceFlags.join(", ") : "None"}
     </PaperCard>
   ),
 };
 
-// RICH (for now reuse paper; swap out later per widget)
+// RICH (styled widgets)
 export const Rich = {
-  Summary: ({ data }: WidgetProps) => {
+  Summary: ({ data }: SummaryWidgetProps) => {
     if (!data.summary) return <div className="rounded-xl border p-4 text-slate-500">No summary yet</div>;
     return (
       <div className="rounded-xl border p-4">
@@ -86,7 +120,7 @@ export const Rich = {
     );
   },
   
-  Sentiment: ({ data }: WidgetProps) => (
+  Sentiment: ({ data }: SentimentWidgetProps) => (
     <div className="rounded-xl border p-4">
       <div className="font-medium">Sentiment</div>
       <div className="mt-2 text-sm">
@@ -95,14 +129,14 @@ export const Rich = {
     </div>
   ),
   
-  Booking: ({ data }: WidgetProps) => (
+  Booking: ({ data }: BookingWidgetProps) => (
     <div className="rounded-xl border p-4">
       <div className="font-medium">Booking Likelihood</div>
       <div className="mt-2 text-sm">{data.bookingLikelihood ?? "-"}</div>
     </div>
   ),
   
-  Objections: ({ data }: WidgetProps) => (
+  Objections: ({ data }: ObjectionsWidgetProps) => (
     <div className="rounded-xl border p-4">
       <div className="font-medium">Objections</div>
       <div className="mt-2 text-sm space-y-1">
@@ -117,7 +151,7 @@ export const Rich = {
     </div>
   ),
   
-  ActionItems: ({ data }: WidgetProps) => (
+  ActionItems: ({ data }: ActionItemsWidgetProps) => (
     <div className="rounded-xl border p-4">
       <div className="font-medium">Action Items</div>
       <div className="mt-2 text-sm space-y-1">
@@ -132,7 +166,7 @@ export const Rich = {
     </div>
   ),
   
-  KeyMoments: ({ data }: WidgetProps) => (
+  KeyMoments: ({ data }: KeyMomentsWidgetProps) => (
     <div className="rounded-xl border p-4">
       <div className="font-medium">Key Moments</div>
       <div className="mt-2 text-sm space-y-1">
@@ -147,7 +181,7 @@ export const Rich = {
     </div>
   ),
   
-  Entities: ({ data }: WidgetProps) => (
+  Entities: ({ data }: EntitiesWidgetProps) => (
     <div className="rounded-xl border p-4">
       <div className="font-medium">Entities</div>
       <div className="mt-2 text-sm space-y-1">
@@ -158,7 +192,7 @@ export const Rich = {
     </div>
   ),
   
-  Compliance: ({ data }: WidgetProps) => (
+  Compliance: ({ data }: ComplianceWidgetProps) => (
     <div className="rounded-xl border p-4">
       <div className="font-medium">Compliance Flags</div>
       <div className="mt-2 text-sm">

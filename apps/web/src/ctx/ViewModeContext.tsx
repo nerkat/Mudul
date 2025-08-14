@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState, useEffect } from "react";
 import { getInitialViewMode, saveViewMode, type ViewMode } from "../viewMode";
 
 interface ViewModeContextType {
@@ -15,6 +15,23 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
     setModeState(newMode);
     saveViewMode(newMode);
   }, []);
+
+  // Add keyboard shortcut for 'p' key to toggle paper mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger if not in an input field and 'p' key is pressed
+      if (e.key === 'p' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
+          e.preventDefault();
+          setMode(mode === "paper" ? "rich" : "paper");
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mode, setMode]);
 
   const value = useMemo(() => ({ mode, setMode }), [mode, setMode]);
 
