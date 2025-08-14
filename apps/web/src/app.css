@@ -1,11 +1,5 @@
+@import "tailwindcss";
+
 @import "./theme/tokens.css";
 @import "./theme/themes.css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  html, body, #root { height: 100%; }
-  body { @apply antialiased; }
-}

@@ -1,17 +1,11 @@
-import type { Config } from 'tailwindcss';
-
-// Tailwind v4 JIT only emits utilities it finds in the sources below.
-// In a monorepo we also scan shared workspace packages that might contain
-// React components with Tailwind className strings.
+/** @type {import('tailwindcss').Config} */
 export default {
+  // Include workspace packages so class names in shared components are picked up.
   content: [
     './index.html',
     './src/**/*.{js,jsx,ts,tsx,mdx,html,css}',
-    // Scan shared workspace packages (adjust path depth if structure changes)
     '../../packages/**/*.{js,jsx,ts,tsx,mdx}'
   ],
-  // If you introduce fully dynamic (computed) class names that JIT can't see,
-  // add them to the safelist below to force generation.
   darkMode: 'class',
   theme: {
     extend: {
@@ -40,4 +34,4 @@ export default {
       }
     }
   }
-} satisfies Config;
+};
