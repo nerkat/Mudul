@@ -75,3 +75,4 @@ Mudul is a data visualization and dashboard application with a theme system and 
 - **Test Both Themes**: Always verify changes work in both light and dark modes
 - **Preserve Functionality**: Maintain existing Paper/Rich mode switching
 - **Update Instructions**: Update these instructions when making significant architecture changes
+- **Error Prevention Rule**: Whenever you try something during a run and realize it's wrong (e.g., using `npm` instead of `pnpm`), add it to these instructions so you don't repeat the same mistake. This will prevent repeating the same dead ends and improve Copilot's future PRs.
