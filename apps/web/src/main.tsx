@@ -13,6 +13,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "node/:nodeId", element: <DashboardPage /> },
       { path: "calls", element: <CallsPage /> },
       { path: "calls/:id", element: <CallDashboardPage /> },
       { path: "settings", element: <SettingsPage /> },
