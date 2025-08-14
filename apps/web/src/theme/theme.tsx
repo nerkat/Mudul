@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-
-type Theme = "light" | "dark" | "system";
-const ThemeCtx = createContext<{ theme: Theme; setTheme: (t: Theme) => void }>({ theme: "system", setTheme: () => {} });
+import React, { useEffect, useMemo, useState } from "react";
+import type { Theme } from "./types";
+import { ThemeCtx } from "./hooks";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("theme") as Theme) || "system");
@@ -29,5 +28,3 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => ({ theme, setTheme }), [theme]);
   return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
 }
-
-export const useTheme = () => useContext(ThemeCtx);
