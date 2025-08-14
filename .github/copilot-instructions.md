@@ -33,8 +33,15 @@ Mudul is a data visualization and dashboard application with a theme system and 
 ### AI Provider Architecture
 - **Provider Interface**: `AiProvider` interface in `packages/protocol/src/ai.types.ts` defines contracts
 - **Mock Implementation**: `MockAiProvider` in `packages/core/src/ai/mock.provider.ts` for development
+- **OpenAI Provider**: Production `OpenAIProvider` in `packages/core/src/ai/openai.provider.ts` with fallback support
+- **Provider Factory**: `createProvider()` function automatically selects provider based on environment
+- **Environment Toggle**: `USE_LIVE_AI=true/false` controls live vs mock provider selection
+- **Fallback Policy**: When live provider fails, automatically falls back to mock (unless `ALLOW_FALLBACK=false`)
+- **Error Handling**: Failures are signaled via `x-ai-fallback: 1` header and response metadata
 - **Dev API Endpoint**: `POST /api/analyze` via Vite plugin for development testing (dev-only, not in production)
 - **Schema Validation**: All AI output must pass through `validateSalesCall` validation
+- **Metrics**: In-memory metrics tracking for success/failure rates during development
+- **Security**: PII redaction in logs, no secrets logged in production
 
 ## Route Structure
 - **Root**: `/` - Redirects to `/acme`
@@ -60,9 +67,25 @@ Mudul is a data visualization and dashboard application with a theme system and 
 
 ### Development Workflow
 1. Install dependencies: `pnpm install` (from root)
-2. Build workspace packages: `pnpm build` (from root) 
+2. Build workspace packages: `pnpm build` (from root) - or individually:
+   - `cd packages/protocol && pnpm build`
+   - `cd packages/core && pnpm build`
 3. Start web dev server: `cd apps/web && pnpm dev`
 4. Navigate to `/acme` for testing
+5. Run tests: `node test/prompt.test.js` for AI provider tests
+6. Test API: `./test/api-tests.sh` for comprehensive API testing with curl
+
+### AI Provider Configuration
+- **Environment Variables**: Configure in `.env` file (see `.env.example`)
+  - `USE_LIVE_AI=false` (default) - Use mock provider
+  - `USE_LIVE_AI=true` - Use OpenAI provider with fallback to mock
+  - `ALLOW_FALLBACK=true` (default) - Allow fallback on failure
+  - `ALLOW_FALLBACK=false` - Return 502 errors instead of fallback
+  - `OPENAI_API_KEY=` - Required for live mode
+  - `OPENAI_MODEL=gpt-4o-mini` (default)
+  - `OPENAI_TIMEOUT_MS=30000` (default)
+  - `OPENAI_BASE_URL=` (optional for Azure/OpenRouter)
+- **Testing**: Use the curl test suite to verify fallback behavior and error conditions
 
 ## Code Conventions
 - **Theme-Aware Styling**: Always use semantic color classes that respect light/dark themes
@@ -74,5 +97,7 @@ Mudul is a data visualization and dashboard application with a theme system and 
 ## When Making Changes
 - **Test Both Themes**: Always verify changes work in both light and dark modes
 - **Preserve Functionality**: Maintain existing Paper/Rich mode switching
+- **AI Provider Testing**: Run both `node test/prompt.test.js` and `./test/api-tests.sh` when modifying AI components
+- **Fallback Validation**: Test both successful and failed provider scenarios
 - **Update Instructions**: Update these instructions when making significant architecture changes
 - **Error Prevention Rule**: Whenever you try something during a run and realize it's wrong (e.g., using `npm` instead of `pnpm`), add it to these instructions so you don't repeat the same mistake. This will prevent repeating the same dead ends and improve Copilot's future PRs.
