@@ -70,28 +70,26 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
       <Box sx={{ p: 2 }}>
         <SimpleTreeView 
           onItemClick={handleItemClick}
-          defaultExpandedItems={['navigation', ...(root ? [root.id] : []), ...clients.map(c => c.id)]}
+          defaultExpandedItems={[...(root ? [root.id] : []), ...clients.map(c => c.id)]}
         >
-          <TreeItem itemId="navigation" label="Navigation">
-            <TreeItem 
-              itemId="dashboard" 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Dashboard fontSize="small" />
-                  Overview
-                </Box>
-              } 
-            />
-            <TreeItem 
-              itemId="settings" 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Settings fontSize="small" />
-                  Settings
-                </Box>
-              } 
-            />
-          </TreeItem>
+          <TreeItem 
+            itemId="dashboard" 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Dashboard fontSize="small" />
+                Overview
+              </Box>
+            } 
+          />
+          <TreeItem 
+            itemId="settings" 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Settings fontSize="small" />
+                Settings
+              </Box>
+            } 
+          />
           
           {root && (
             <TreeItem 

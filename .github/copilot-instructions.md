@@ -176,18 +176,33 @@ Exports: `Paper`, `Rich` and prop types using `Pick<SalesCallMinimal, ...>`:
 * **Dashboard renderer loop:**
 
   ```tsx
-  <Grid container spacing={2}>
-    {widgets.map((k) => (
-      <Grid key={k} item xs={12} md={6}>
-        {WidgetRegistry[k](call)}
-      </Grid>
+  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 2 }}>
+    {parsed.widgets.map((widgetConfig, index) => (
+      <Box key={`${widgetConfig.slug}-${index}`}>
+        <WidgetRenderer config={widgetConfig} call={call} />
+      </Box>
     ))}
-  </Grid>
+  </Box>
   ```
 
 ---
 
-## 12) Roadmap hints for the agent
+## 12) JSON-Driven Widgets Protocol
+
+* Use `WidgetSlug` and per-widget zod param schemas in `src/core/widgets/params.ts`.
+* When adding a widget:
+  1) Add slug to `WidgetSlug` enum in `protocol.ts`.
+  2) Create `Params` schema in `params.ts`.
+  3) Register in `WidgetRegistry` with `validate()` + `render()` functions.
+* Dashboard templates MUST be arrays of `{ slug, params? }` objects.
+* AI contract MUST return `AIDashboardPayload` (same shape/version).
+* All templates should validate via `DashboardTemplate.parse()` before rendering.
+* Prefer minimal data picks inside renderers; never fetch directly.
+* Use `WidgetRenderer` component for all widget rendering.
+
+---
+
+## 13) Roadmap hints for the agent
 
 * Later: move `DashboardTemplates` to JSON to enable runtime re-layout.
 * Later: add `client` and `org` aggregations (roll up from `calls` by relation).
