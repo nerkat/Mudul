@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { seedRepos } from "@mudul/core";
 import type { Node } from "@mudul/core";
+import { useSalesCall } from "../hooks/useSalesCall";
+import { SummaryCard } from "../widgets/SummaryCard";
 
 const repos = seedRepos();
 
@@ -92,71 +94,15 @@ export function NodePage() {
 }
 
 function DashboardPlaceholder({ node }: { node: Node }) {
-  const [dashboard, setDashboard] = useState<any>(null);
-  const [session, setSession] = useState<any>(null);
-
-  useEffect(() => {
-    async function loadDashboardData() {
-      if (node.dashboardId) {
-        const dash = await repos.dashboards.get(node.dashboardId);
-        setDashboard(dash);
-      }
-      
-      if (node.dataRef?.type === "session" && node.dataRef.id) {
-        const sess = await repos.sessions.get(node.dataRef.id);
-        setSession(sess);
-      }
-    }
-
-    loadDashboardData();
-  }, [node]);
-
-  const sessionId = node.dataRef?.type === "session" ? node.dataRef.id : null;
-  const apiPath = sessionId ? `/api/sessions/${sessionId}/analysis` : null;
+  const sessionId = String(node.dataRef?.id ?? "");
+  const { data, error, loading } = useSalesCall(sessionId);
 
   return (
-    <div className="border rounded-lg p-6 bg-gray-50">
-      <h2 className="text-xl font-semibold mb-4">Dashboard Placeholder</h2>
-      
-      <div className="space-y-3">
-        <div>
-          <span className="font-medium">Template ID:</span>{" "}
-          <code className="bg-gray-200 px-2 py-1 rounded text-sm">
-            {dashboard?.templateId || "loading..."}
-          </code>
-        </div>
-        
-        {sessionId && (
-          <div>
-            <span className="font-medium">Bound Session ID:</span>{" "}
-            <code className="bg-gray-200 px-2 py-1 rounded text-sm">
-              {sessionId}
-            </code>
-          </div>
-        )}
-        
-        {apiPath && (
-          <div>
-            <span className="font-medium">Future API Path:</span>{" "}
-            <code className="bg-blue-100 px-2 py-1 rounded text-sm">
-              {apiPath}
-            </code>
-          </div>
-        )}
-
-        {session && (
-          <div className="mt-4 p-3 bg-white rounded border">
-            <h3 className="font-medium mb-2">Session Details:</h3>
-            <div className="text-sm space-y-1">
-              <div>Type: {session.type}</div>
-              <div>Started: {new Date(session.startedAt).toLocaleString()}</div>
-              {session.durationSec && (
-                <div>Duration: {Math.floor(session.durationSec / 60)}m {session.durationSec % 60}s</div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+    <div className="rounded-xl border p-4 space-y-3">
+      <div className="font-semibold">Dashboard</div>
+      {loading && <div className="text-slate-500">Loading analysis…</div>}
+      {error && <div className="text-red-600">Error: {error}</div>}
+      {!loading && !error && <SummaryCard text={data?.summary} />}
     </div>
   );
 }
