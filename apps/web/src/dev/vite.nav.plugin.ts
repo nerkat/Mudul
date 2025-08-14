@@ -83,10 +83,13 @@ export default function navPlugin(): Plugin {
             out.chain.push(await toNavNode(node, org, buildPath));
           }
           
-          // Immediate children for last in chain
-          const last = chain[chain.length - 1];
-          const kids = await repos.nodes.children(org, last.id);
-          out.children[last.id] = await Promise.all(kids.map((k:any)=>toNavNode(k, org)));
+          // Children for all nodes in chain to build full tree
+          for (const node of chain) {
+            const kids = await repos.nodes.children(org, node.id);
+            if (kids.length > 0) {
+              out.children[node.id] = await Promise.all(kids.map((k:any)=>toNavNode(k, org)));
+            }
+          }
           res.statusCode = 200; 
           return res.end(JSON.stringify(out));
         }

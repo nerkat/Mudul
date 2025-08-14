@@ -31,32 +31,40 @@ export function SidebarItem({
   const paddingLeft = depth * 24; // 24px per level
 
   return (
-    <div className={`group rounded-md ${active ? "bg-surface/50" : ""}`}>
-      <div className="flex items-center gap-2 py-1" style={{ paddingLeft: `${paddingLeft}px` }}>
-        {node.hasChildren ? (
-          <button
-            onClick={handleExpandClick}
-            aria-expanded={isOpen}
-            className="w-6 h-6 inline-flex items-center justify-center rounded hover:bg-surface"
-          >
-            <span className="inline-block" aria-hidden>{isOpen ? "▾" : "▸"}</span>
-          </button>
-        ) : (
-          <span className="w-6 h-6" />
-        )}
+    <div className="mb-0.5">
+      <div className={`group rounded-md ${active ? "bg-accent/10 border border-accent/20" : ""}`}>
+        <div className="flex items-center gap-1 py-1.5" style={{ paddingLeft: `${paddingLeft + 8}px` }}>
+          {node.hasChildren ? (
+            <button
+              onClick={handleExpandClick}
+              aria-expanded={isOpen}
+              className="w-5 h-5 inline-flex items-center justify-center rounded hover:bg-surface focus:outline-none focus:ring-1 focus:ring-accent transition-colors"
+              title={isOpen ? "Collapse" : "Expand"}
+            >
+              <span className={`inline-block text-sm transition-transform ${isOpen ? "" : "-rotate-90"}`} aria-hidden>
+                ▾
+              </span>
+            </button>
+          ) : (
+            <span className="w-5 h-5" />
+          )}
 
-        <Link
-          to={node.path}
-          className={`flex-1 truncate px-2 py-1 rounded hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent ${
-            active ? "text-accent font-medium" : ""
-          }`}
-        >
-          <span className="text-sm">{node.name}</span>
-          <span className="ml-2 text-xs text-muted">{node.kind}</span>
-        </Link>
+          <Link
+            to={node.path}
+            className={`flex-1 truncate px-2 py-1 rounded hover:bg-surface focus:outline-none focus:ring-1 focus:ring-accent transition-colors ${
+              active ? "text-accent font-medium" : "text-fg"
+            }`}
+          >
+            <span className="text-sm">{node.name}</span>
+            {node.kind && (
+              <span className="ml-2 text-xs text-muted">({node.kind})</span>
+            )}
+          </Link>
+        </div>
       </div>
-      {isOpen && childrenList?.length ? (
-        <div>
+      
+      {isOpen && childrenList?.length > 0 && (
+        <div className="ml-1">
           {childrenList.map((c: NavNode) => (
             <SidebarItem
               key={c.id}
@@ -69,7 +77,7 @@ export function SidebarItem({
             />
           ))}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
