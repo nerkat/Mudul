@@ -3,5 +3,4 @@ packages:
   - apps/*
 
 ignoredBuiltDependencies:
-  - '@tailwindcss/oxide'
   - esbuild
