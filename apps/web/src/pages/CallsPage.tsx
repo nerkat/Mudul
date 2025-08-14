@@ -2,23 +2,27 @@ import { Box, Typography, Paper, IconButton } from '@mui/material';
 import { DataGrid, GridToolbar, type GridColDef } from '@mui/x-data-grid';
 import { Dashboard as DashboardIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useRepo } from '../hooks/useRepo';
 
 export function CallsPage() {
   const navigate = useNavigate();
+  const repo = useRepo();
+  
+  // Get all calls from the repo
+  const allCalls = repo.getAllCalls();
 
   const columns: GridColDef[] = [
-    { field: 'id', headerName: 'ID', width: 90 },
+    { field: 'id', headerName: 'ID', width: 150 },
     {
       field: 'title',
       headerName: 'Call Title',
-      width: 200,
+      width: 250,
       editable: false,
     },
     {
-      field: 'duration',
-      headerName: 'Duration (min)',
-      type: 'number',
-      width: 130,
+      field: 'clientName',
+      headerName: 'Client',
+      width: 150,
       editable: false,
     },
     {
@@ -48,12 +52,6 @@ export function CallsPage() {
       editable: false,
     },
     {
-      field: 'participant',
-      headerName: 'Participant',
-      width: 150,
-      editable: false,
-    },
-    {
       field: 'actions',
       headerName: 'Actions',
       width: 120,
@@ -62,7 +60,7 @@ export function CallsPage() {
       renderCell: (params) => (
         <IconButton
           color="primary"
-          onClick={() => navigate(`/calls/${params.row.id}`)}
+          onClick={() => navigate(`/node/${params.row.id}`)}
           title="Open Dashboard"
           size="small"
         >
@@ -72,72 +70,20 @@ export function CallsPage() {
     },
   ];
 
-  const rows = [
-    { 
-      id: 1, 
-      title: 'Discovery Call - Acme Corp', 
-      duration: 23, 
-      sentiment: 'positive',
-      date: new Date('2024-01-15'),
-      participant: 'John Smith'
-    },
-    { 
-      id: 2, 
-      title: 'Demo Call - TechStart', 
-      duration: 45, 
-      sentiment: 'neutral',
-      date: new Date('2024-01-14'),
-      participant: 'Sarah Johnson'
-    },
-    { 
-      id: 3, 
-      title: 'Follow-up - Global Inc', 
-      duration: 18, 
-      sentiment: 'positive',
-      date: new Date('2024-01-13'),
-      participant: 'Mike Wilson'
-    },
-    { 
-      id: 4, 
-      title: 'Pricing Discussion - StartupXYZ', 
-      duration: 31, 
-      sentiment: 'negative',
-      date: new Date('2024-01-12'),
-      participant: 'Lisa Chen'
-    },
-    { 
-      id: 5, 
-      title: 'Technical Review - Enterprise Co', 
-      duration: 52, 
-      sentiment: 'positive',
-      date: new Date('2024-01-11'),
-      participant: 'David Brown'
-    },
-    { 
-      id: 6, 
-      title: 'Initial Contact - Innovation Ltd', 
-      duration: 12, 
-      sentiment: 'neutral',
-      date: new Date('2024-01-10'),
-      participant: 'Emma Davis'
-    },
-    { 
-      id: 7, 
-      title: 'Contract Discussion - MegaCorp', 
-      duration: 38, 
-      sentiment: 'positive',
-      date: new Date('2024-01-09'),
-      participant: 'Robert Taylor'
-    },
-    { 
-      id: 8, 
-      title: 'Support Call - Current Customer', 
-      duration: 25, 
-      sentiment: 'neutral',
-      date: new Date('2024-01-08'),
-      participant: 'Jennifer Lee'
-    },
-  ];
+  // Transform call nodes into table rows
+  const rows = allCalls.map((call) => {
+    const client = repo.getNode(call.parentId || "");
+    const callData = repo.getCallByNode(call.id);
+    
+    return {
+      id: call.id,
+      title: call.name,
+      clientName: client?.name || "Unknown",
+      date: new Date(call.createdAt),
+      sentiment: callData?.sentiment?.overall || "unknown"
+    };
+  });
+
   return (
     <Box>
       <Typography variant="h4" component="h1" gutterBottom>
