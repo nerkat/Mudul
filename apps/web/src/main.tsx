@@ -1,10 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import "./app.css";
-import { ViewModeProvider } from "./ctx/ViewModeContext";
-import { ThemeProvider } from "./theme/theme";
-import { AppShell } from "./components/AppShell";
+import { App } from "./App";
+import { DashboardPage } from "./pages/DashboardPage";
+import { CallsPage } from "./pages/CallsPage";
+import { CallDashboardPage } from "./pages/CallDashboardPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
 const router = createBrowserRouter([
   {
@@ -21,12 +22,6 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <ViewModeProvider>
-        <AppShell>
-          <RouterProvider router={router} />
-        </AppShell>
-      </ViewModeProvider>
-    </ThemeProvider>
+    <RouterProvider router={router} />
   </React.StrictMode>
 );
