@@ -83,6 +83,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
       
       if (useLiveAI) {
         // Use direct AI client integration
+        const startTime = Date.now();
         const liveResult = await liveAnalyze({
           transcript,
           mode,
@@ -94,7 +95,18 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
           return;
         }
 
+        const durationMs = Date.now() - startTime;
+
         if (!liveResult.ok) {
+          // Log observability data for errors
+          console.log({
+            callId: nodeId,
+            provider: "unknown",
+            model: "unknown",
+            durationMs,
+            result: liveResult.error.code
+          });
+
           setState(prev => ({
             ...prev,
             loading: false,
@@ -130,12 +142,12 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
         // Persist analysis data with idempotency check
         const upsertResult = upsertCall(nodeId, cleanPatch);
 
-        // Log observability data
+        // Log observability data for success
         console.log({
           callId: nodeId,
           provider: liveResult.meta?.provider,
           model: liveResult.meta?.model,
-          durationMs: Date.now() - Date.now(), // TODO: track actual duration
+          durationMs,
           result: liveResult.ok ? "ok" : "error"
         });
 
@@ -147,7 +159,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
             meta: {
               provider: liveResult.meta?.provider || 'unknown',
               model: liveResult.meta?.model || 'unknown', 
-              duration_ms: 0, // TODO: track actual duration
+              duration_ms: durationMs,
               request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               content_hash: liveResult.meta?.contentHash || '',
               schema_version: liveResult.meta?.schemaVersion || ANALYSIS_SCHEMA_VERSION

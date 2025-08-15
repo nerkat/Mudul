@@ -22,6 +22,8 @@ vi.mock("openai", () => ({
   }))
 }));
 
+import OpenAI from "openai";
+
 describe("Live AI Client", () => {
   it("should have valid configuration", () => {
     expect(AI_CONFIG.provider).toBe("openai");
@@ -68,6 +70,37 @@ describe("Live AI Client", () => {
     if (result1.ok && result2.ok) {
       // Same input should produce same content hash
       expect(result1.meta.contentHash).toBe(result2.meta.contentHash);
+    }
+  });
+
+  it("should handle schema validation errors", async () => {
+    // Mock OpenAI to return invalid response
+    vi.mocked(OpenAI).mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [{
+              message: {
+                content: JSON.stringify({
+                  summary: "Test summary",
+                  sentiment: { overall: "invalid_sentiment", score: 2.5 } // Invalid values
+                })
+              }
+            }]
+          })
+        }
+      }
+    } as any));
+
+    const result = await analyze({
+      transcript: "Test transcript",
+      mode: "sales_v1",
+      schemaVersion: "v1.0.0"
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("SCHEMA_INVALID");
     }
   });
 });
