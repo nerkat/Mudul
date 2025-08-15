@@ -22,10 +22,21 @@ const bodySchema = z.object({
 const MAX_PAYLOAD_SIZE = 10 * 1024 * 1024; // 10MB limit
 const MAX_TRANSCRIPT_BYTES = 1024 * 1024; // 1MB transcript limit
 
-interface ApiResponse {
-  data?: any;
-  source: "live" | "mock" | "fallback_mock";
-  meta?: {
+// Server-side content hash computation for idempotency
+async function computeContentHash(transcript: string, schemaVersion: string): Promise<string> {
+  const content = `${schemaVersion}:${transcript}`;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(content);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+interface ApiSuccessResponse {
+  ok: true;
+  analysis: any;
+  dashboard?: any;
+  meta: {
     provider: string;
     model: string;
     duration_ms: number;
@@ -40,14 +51,20 @@ interface ApiResponse {
     truncated: boolean;
     retries: number;
     schema_version: string;
+    contentHash: string;
   };
-  error?: string;
-  details?: string[];
-  note?: string;
-  failedProvider?: string;
-  errorCode?: string;
-  timestamp?: string;
 }
+
+interface ApiErrorResponse {
+  ok: false;
+  error: {
+    code: 'SCHEMA_INVALID' | 'PROVIDER_ERROR' | 'TIMEOUT' | 'RATE_LIMITED' | 'CANCELLED';
+    retryable?: boolean;
+    details?: unknown;
+  };
+}
+
+type ApiResponse = ApiSuccessResponse | ApiErrorResponse;
 
 export default function analyzePlugin(): Plugin {
   // Validate configuration at startup
@@ -88,7 +105,7 @@ export default function analyzePlugin(): Plugin {
           }));
         }
         
-        if (req.method !== "POST" || !req.url?.startsWith("/api/analyze")) return next();
+        if (req.method !== "POST" || !req.url?.startsWith("/api/ai/analyze")) return next();
 
         const startTime = Date.now();
         let requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -165,6 +182,14 @@ export default function analyzePlugin(): Plugin {
               }));
             }
 
+            // Compute content hash server-side for idempotency
+            const schemaVersion = parsed.data.schemaVersion || "SalesCallV1";
+            const contentHash = await computeContentHash(parsed.data.transcript, schemaVersion);
+            
+            // TODO: Add server-side idempotency check here
+            // For now, we'll rely on the client-side check in the hook
+            // In a real implementation, we'd check against a database or cache
+
             // Provider selection based on configuration - use factory
             const useLive = process.env.USE_LIVE_AI === "true";
             const allowFallback = process.env.ALLOW_FALLBACK !== "false"; // default true
@@ -180,7 +205,7 @@ export default function analyzePlugin(): Plugin {
                 transcript: parsed.data.transcript 
               });
               
-              // Validate schema BEFORE fallback decision
+              // Validate schema BEFORE fallback decision - this is the primary gate
               const schemaValidation = validateSalesCall(output);
               if (!schemaValidation.success) {
                 metrics.increment('ai_schema_fail_total', { provider: useLive ? 'openai' : 'mock' });
@@ -190,7 +215,18 @@ export default function analyzePlugin(): Plugin {
                     errors: schemaValidation.errors.map(i => `${i.path.join('.')}: ${i.message}`)
                   });
                 }
-                throw new Error("schema_invalid");
+                
+                // Return error response for schema validation failure - no upsert should happen
+                res.statusCode = 422;
+                const errorResponse: ApiErrorResponse = {
+                  ok: false,
+                  error: {
+                    code: 'SCHEMA_INVALID',
+                    retryable: false,
+                    details: schemaValidation.errors.map(i => `${i.path.join('.')}: ${i.message}`)
+                  }
+                };
+                return res.end(JSON.stringify(errorResponse));
               }
               
               // Success path - log observability metrics
@@ -210,24 +246,26 @@ export default function analyzePlugin(): Plugin {
                 });
               }
               
-              const response: ApiResponse = {
-                data: schemaValidation.data,
-                source: resultSource,
-                meta: output.meta || {
-                  provider: useLive ? 'openai' : 'mock',
-                  model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-                  duration_ms: duration,
-                  request_id: requestId,
-                  fallback: false,
-                  failed_provider: null,
-                  failed_error_code: null,
-                  prompt_versions: {
+              const response: ApiSuccessResponse = {
+                ok: true,
+                analysis: schemaValidation.data,
+                meta: {
+                  ...output.meta,
+                  provider: output.meta?.provider || (useLive ? 'openai' : 'mock'),
+                  model: output.meta?.model || (process.env.OPENAI_MODEL || 'gpt-4o-mini'),
+                  duration_ms: output.meta?.duration_ms || duration,
+                  request_id: output.meta?.request_id || requestId,
+                  fallback: output.meta?.fallback || false,
+                  failed_provider: output.meta?.failed_provider || null,
+                  failed_error_code: output.meta?.failed_error_code || null,
+                  prompt_versions: output.meta?.prompt_versions || {
                     system: 'salesCall.system@v1.0.0',
                     user: 'salesCall.user@v1.0.0'
                   },
-                  truncated: false,
-                  retries: 0,
-                  schema_version: "SalesCallV1"
+                  truncated: output.meta?.truncated || false,
+                  retries: output.meta?.retries || 0,
+                  schema_version: schemaVersion,
+                  contentHash: contentHash // Server-computed content hash
                 }
               };
               
@@ -237,8 +275,18 @@ export default function analyzePlugin(): Plugin {
             } catch (error) {
               const errorMsg = error instanceof Error ? error.message : 'unknown_error';
               const providerType = useLive ? 'openai' : 'mock';
-              failureDetails.provider = providerType;
-              failureDetails.errorCode = errorMsg;
+              
+              // Map specific error types to appropriate error codes
+              let errorCode: 'TIMEOUT' | 'RATE_LIMITED' | 'CANCELLED' | 'PROVIDER_ERROR' = 'PROVIDER_ERROR';
+              let retryable = false;
+              
+              if (errorMsg.includes('timeout') || errorMsg.includes('AbortError')) {
+                errorCode = errorMsg.includes('AbortError') ? 'CANCELLED' : 'TIMEOUT';
+                retryable = errorCode === 'TIMEOUT';
+              } else if (errorMsg.includes('rate') || errorMsg.includes('429')) {
+                errorCode = 'RATE_LIMITED';
+                retryable = true;
+              }
               
               metrics.increment('ai_fallback_total', { provider: providerType });
               
@@ -255,7 +303,7 @@ export default function analyzePlugin(): Plugin {
               }
               
               // Fallback logic for live mode
-              if (useLive && allowFallback) {
+              if (useLive && allowFallback && errorCode !== 'CANCELLED') {
                 try {
                   const mockProvider = new MockAiProvider();
                   const fallbackOutput = await mockProvider.analyzeCall({ 
@@ -264,21 +312,26 @@ export default function analyzePlugin(): Plugin {
                   
                   const fallbackValidation = validateSalesCall(fallbackOutput);
                   if (!fallbackValidation.success) {
-                    throw new Error("fallback_schema_invalid");
+                    // Even fallback failed schema validation
+                    res.statusCode = 422;
+                    const errorResponse: ApiErrorResponse = {
+                      ok: false,
+                      error: {
+                        code: 'SCHEMA_INVALID',
+                        retryable: false,
+                        details: fallbackValidation.errors.map(i => `${i.path.join('.')}: ${i.message}`)
+                      }
+                    };
+                    return res.end(JSON.stringify(errorResponse));
                   }
                   
-                  resultSource = "fallback_mock";
-                  
-                  const response: ApiResponse = {
-                    data: fallbackValidation.data,
-                    source: resultSource,
-                    note: "live_failed_fallback_mock",
-                    failedProvider: "openai",
-                    errorCode: errorMsg,
+                  const response: ApiSuccessResponse = {
+                    ok: true,
+                    analysis: fallbackValidation.data,
                     meta: {
                       provider: 'mock',
                       model: 'mock',
-                      duration_ms: duration,
+                      duration_ms: Date.now() - startTime,
                       request_id: requestId,
                       fallback: true,
                       failed_provider: 'openai',
@@ -289,7 +342,8 @@ export default function analyzePlugin(): Plugin {
                       },
                       truncated: false,
                       retries: 0,
-                      schema_version: "SalesCallV1"
+                      schema_version: schemaVersion,
+                      contentHash: contentHash
                     }
                   };
                   
@@ -302,38 +356,40 @@ export default function analyzePlugin(): Plugin {
                   if (process.env.NODE_ENV !== 'production') {
                     console.error(`Fallback failed [${requestId}]:`, fallbackError);
                   }
+                  // Fallback failed too, return original error
                 }
               }
               
-              // No fallback allowed or fallback failed
-              if (useLive && !allowFallback) {
-                res.statusCode = 502;
-                return res.end(JSON.stringify({
-                  error: "provider_error",
-                  details: [`Provider ${failureDetails.provider} failed: ${failureDetails.errorCode}`],
-                  provider: failureDetails.provider,
-                  timestamp: new Date().toISOString()
-                }));
-              }
+              // Return error response based on error type
+              const statusCode = errorCode === 'TIMEOUT' ? 408 : 
+                                errorCode === 'RATE_LIMITED' ? 429 :
+                                errorCode === 'CANCELLED' ? 499 : 502;
               
-              // Final error response
-              res.statusCode = 502;
-              return res.end(JSON.stringify({ 
-                error: "provider_error",
-                details: ["All providers failed"],
-                timestamp: new Date().toISOString()
-              }));
+              res.statusCode = statusCode;
+              const errorResponse: ApiErrorResponse = {
+                ok: false,
+                error: {
+                  code: errorCode,
+                  retryable,
+                  details: errorMsg
+                }
+              };
+              return res.end(JSON.stringify(errorResponse));
             }
           });
           
         } catch (e) {
           console.error(`Server error [${requestId}]:`, e);
           res.statusCode = 500;
-          res.end(JSON.stringify({ 
-            error: "server_error", 
-            details: ["Internal server error"],
-            timestamp: new Date().toISOString()
-          }));
+          const errorResponse: ApiErrorResponse = {
+            ok: false,
+            error: {
+              code: 'PROVIDER_ERROR',
+              retryable: false,
+              details: "Internal server error"
+            }
+          };
+          res.end(JSON.stringify(errorResponse));
         }
       });
     }
