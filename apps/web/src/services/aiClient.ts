@@ -1,6 +1,6 @@
-import { validateSalesCallAnalysis, type SalesCallAnalysis } from "@mudul/protocol";
+import { validateSalesCallAnalysis } from "@mudul/protocol";
 import { AIDashboardPayload } from "../core/widgets/protocol";
-import type { AnalysisResult, AnalysisError } from "./errors";
+import type { AnalysisResult } from "./errors";
 import { success, failure, createAnalysisError, mapNetworkError, mapHttpError } from "./errors";
 import type { AnalysisMode, VersionedAnalysis } from "./versioning";
 import { createAnalysisContentHash, createAnalysisMeta, ANALYSIS_MODES } from "./versioning";
@@ -35,12 +35,10 @@ export interface AIClientConfig {
 export class AIClient {
   private baseUrl: string;
   private timeout: number;
-  private retries: number;
 
   constructor(config: AIClientConfig = {}) {
     this.baseUrl = config.baseUrl || "/api";
     this.timeout = config.timeout || 30000; // 30 second default timeout
-    this.retries = config.retries || 0;
   }
 
   async analyze(
@@ -179,6 +177,5 @@ export class AIClient {
 
 // Default client instance
 export const aiClient = new AIClient({
-  timeout: 30000, // 30 second timeout as requested
-  retries: 0
+  timeout: 30000 // 30 second timeout as requested
 });
