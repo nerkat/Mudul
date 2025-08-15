@@ -76,153 +76,19 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
         return;
       }
 
-      // Check if we should use live AI provider
-      const useLiveAI = import.meta.env.VITE_USE_LIVE_AI === "true";
-      
-      if (useLiveAI) {
-        // Make HTTP request to server-side AI endpoint
-        const startTime = Date.now();
-        
-        try {
-          const response = await fetch('/api/ai/analyze', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              transcript,
-              mode,
-              schemaVersion: ANALYSIS_SCHEMA_VERSION
-            }),
-            signal: abortController.signal
-          });
-
-          // Check if request was cancelled or nodeId changed
-          if (abortController.signal.aborted || currentNodeIdRef.current !== nodeId) {
-            return;
-          }
-
-          const durationMs = Date.now() - startTime;
-          const liveResult = await response.json();
-
-          if (!response.ok || !liveResult.ok) {
-            // Log observability data for errors
-            console.log({
-              callId: nodeId,
-              provider: "unknown",
-              model: "unknown",
-              durationMs,
-              result: liveResult.error?.code || "unknown_error"
-            });
-
-            setState(prev => ({
-              ...prev,
-              loading: false,
-              error: {
-                code: (liveResult.error?.code || "UNKNOWN_ERROR") as any,
-                message: liveResult.error?.code === "TIMEOUT" ? "Request timed out" : 
-                        liveResult.error?.code === "SCHEMA_INVALID" ? "Invalid analysis schema" :
-                        "Provider error occurred",
-                details: liveResult.error?.details
-              },
-            }));
-            return;
-          }
-
-          // Map live AI response to SalesCallMinimal format
-          const patch: Partial<SalesCallMinimal> = {
-            summary: liveResult.analysis?.summary,
-            sentiment: liveResult.analysis?.sentiment,
-            bookingLikelihood: liveResult.analysis?.bookingLikelihood,
-            objections: liveResult.analysis?.objections,
-            actionItems: liveResult.analysis?.actionItems,
-            keyMoments: liveResult.analysis?.keyMoments,
-            entities: liveResult.analysis?.entities,
-            complianceFlags: liveResult.analysis?.complianceFlags,
-            meta: {
-              ...liveResult.meta,
-              updatedAt: new Date().toISOString()
-            },
-          };
-
-          // Remove undefined values to avoid overwriting existing data
-          const cleanPatch = Object.fromEntries(
-            Object.entries(patch).filter(([_, value]) => value !== undefined)
-          );
-
-          // Persist analysis data with idempotency check
-          const upsertResult = upsertCall(nodeId, cleanPatch);
-
-          // Log observability data for success
-          console.log({
-            callId: nodeId,
-            provider: liveResult.meta?.provider,
-            model: liveResult.meta?.model,
-            durationMs,
-            result: liveResult.ok ? "ok" : "error"
-          });
-
-          setState(prev => ({
-            ...prev,
-            loading: false,
-            lastResponse: {
-              analysis: liveResult.analysis as any,
-              meta: {
-                provider: liveResult.meta?.provider || 'unknown',
-                model: liveResult.meta?.model || 'unknown', 
-                duration_ms: durationMs,
-                request_id: liveResult.meta?.request_id || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                content_hash: liveResult.meta?.contentHash || '',
-                schema_version: liveResult.meta?.schema_version || ANALYSIS_SCHEMA_VERSION
-              }
-            },
-            lastResult: upsertResult,
-          }));
-          return;
-        } catch (fetchError: any) {
-          // Check if request was cancelled or nodeId changed
-          if (abortController.signal.aborted || currentNodeIdRef.current !== nodeId) {
-            return;
-          }
-
-          const durationMs = Date.now() - startTime;
-          
-          // Handle fetch errors (network, timeout, etc.)
-          console.log({
-            callId: nodeId,
-            provider: "unknown",
-            model: "unknown", 
-            durationMs,
-            result: fetchError.name === "AbortError" ? "timeout" : "fetch_error"
-          });
-
-          setState(prev => ({
-            ...prev,
-            loading: false,
-            error: {
-              code: fetchError.name === "AbortError" ? "TIMEOUT" : "SERVER_ERROR",
-              message: fetchError.name === "AbortError" ? "Request timed out" : "Network error occurred",
-              details: fetchError.message
-            },
-          }));
-          return;
-        }
-      }
-
-      // Use HTTP API endpoint (handles both live AI and mock)
-      const request = {
-        nodeId,
-        transcript,
-        mode,
-        requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      };
-
+      // All requests now go through the unified API endpoint
       const response = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify({
+          nodeId,
+          transcript,
+          mode,
+          schemaVersion: ANALYSIS_SCHEMA_VERSION,
+          requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        }),
         signal: abortController.signal
       });
 
@@ -233,33 +99,37 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
 
       const result = await response.json();
 
-      if (!response.ok || !result.analysis) {
+      if (!response.ok || !result.ok) {
         setState(prev => ({
           ...prev,
           loading: false,
           error: {
-            code: 'SERVER_ERROR',
-            message: 'AI analysis failed',
-            details: result
+            code: (result.error?.code || "UNKNOWN_ERROR") as any,
+            message: result.error?.code === "TIMEOUT" ? "Request timed out" : 
+                    result.error?.code === "SCHEMA_INVALID" ? "Invalid analysis schema" :
+                    result.error?.code === "RATE_LIMITED" ? "Rate limited" :
+                    result.error?.code === "CANCELLED" ? "Request cancelled" :
+                    "Provider error occurred",
+            details: result.error?.details
           },
         }));
         return;
       }
 
-      // Map analysis to SalesCallMinimal format
+      // Map analysis response to SalesCallMinimal format
       const patch: Partial<SalesCallMinimal> = {
-        summary: result.analysis.summary,
-        sentiment: result.analysis.sentiment ? {
-          overall: result.analysis.sentiment.overall,
-          score: result.analysis.sentiment.score,
-        } : undefined,
-        bookingLikelihood: result.analysis.bookingLikelihood,
-        objections: result.analysis.objections,
-        actionItems: result.analysis.actionItems,
-        keyMoments: result.analysis.keyMoments,
-        entities: result.analysis.entities,
-        complianceFlags: result.analysis.complianceFlags,
-        meta: result.meta,
+        summary: result.analysis?.summary,
+        sentiment: result.analysis?.sentiment,
+        bookingLikelihood: result.analysis?.bookingLikelihood,
+        objections: result.analysis?.objections,
+        actionItems: result.analysis?.actionItems,
+        keyMoments: result.analysis?.keyMoments,
+        entities: result.analysis?.entities,
+        complianceFlags: result.analysis?.complianceFlags,
+        meta: {
+          ...result.meta,
+          updatedAt: new Date().toISOString()
+        },
       };
 
       // Remove undefined values to avoid overwriting existing data
@@ -286,7 +156,17 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
       setState(prev => ({
         ...prev,
         loading: false,
-        lastResponse: result,
+        lastResponse: {
+          analysis: result.analysis as any,
+          meta: {
+            provider: result.meta?.provider || 'unknown',
+            model: result.meta?.model || 'unknown', 
+            duration_ms: result.meta?.duration_ms || 0,
+            request_id: result.meta?.request_id || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            content_hash: result.meta?.contentHash || '',
+            schema_version: result.meta?.schema_version || ANALYSIS_SCHEMA_VERSION
+          }
+        },
         lastResult: upsertResult,
       }));
 
