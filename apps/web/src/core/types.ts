@@ -23,11 +23,23 @@ export interface SalesCallMinimal {
   summary?: string;
   sentiment?: { overall?: string; score?: number };
   bookingLikelihood?: number;
-  objections?: { type: string; quote: string; ts: string }[];
+  objections?: { type: string; quote: string; ts?: string }[];
   actionItems?: { owner: string; text: string; due?: string | null }[];
-  keyMoments?: { label: string; ts: string }[];
+  keyMoments?: { label: string; ts?: string }[];
   entities?: { prospect?: string[]; people?: string[]; products?: string[] };
   complianceFlags?: string[];
+  // Analysis metadata for idempotency and versioning
+  meta?: {
+    mode?: string;
+    schemaVersion?: string;
+    contentHash?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    requestId?: string;
+    provider?: string;
+    model?: string;
+    durationMs?: number;
+  };
 }
 
 // Widget configuration

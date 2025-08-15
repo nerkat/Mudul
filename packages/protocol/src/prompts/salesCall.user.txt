@@ -1,15 +1,22 @@
 PROMPT_ID: salesCall.user@v1.0.0
 
-Analyze the following sales call transcript and return a JSON object with these fields:
-- version: "1.0.0"
-- callId: string (use a stable id if provided, otherwise "unknown")
-- summary: 1-3 sentences
-- sentiment: { overall: "positive"|"neutral"|"negative", score: number in [0,1] }
-- bookingLikelihood: number in [0,1]
-- objections: [{ type: string, quote: string, ts: "HH:MM:SS" }]
-- actionItems: [{ owner: "sales_rep"|"prospect", text: string, due?: "YYYY-MM-DD" }]
-- keyMoments: [{ label: string, ts: "HH:MM:SS" }]
-- entities: { prospect?: string[], people?: string[], products?: string[] }
-- complianceFlags: string[]
+Analyze the sales call transcript below. Return JSON ONLY matching the SalesCallV1 schema.
+
+EXAMPLE VALID OUTPUT:
+{
+  "version": "1.0.0",
+  "callId": "call_123",
+  "summary": "Productive discovery call discussing pricing and timeline.",
+  "sentiment": { "overall": "positive", "score": 0.8 },
+  "bookingLikelihood": 0.75,
+  "objections": [{ "type": "pricing", "quote": "That seems expensive", "ts": "12:34:56" }],
+  "actionItems": [{ "owner": "sales_rep", "text": "Send pricing proposal", "due": "2024-01-15" }]
+}
+
+SELF-CHECK before responding:
+✓ All scores between 0-1?
+✓ sentiment.overall is lowercase?
+✓ Valid JSON structure?
+✓ No invented data?
 
 TRANSCRIPT:
