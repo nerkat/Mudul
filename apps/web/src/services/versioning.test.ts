@@ -83,8 +83,8 @@ describe('Content Hashing and Versioning', () => {
       durationMs
     });
 
-    expect(meta.createdAt).toBe(meta.updatedAt);
-    expect(new Date(meta.createdAt).getTime()).toBeGreaterThan(Date.now() - 1000);
+    expect(meta!.createdAt).toBe(meta!.updatedAt);
+    expect(new Date(meta!.createdAt).getTime()).toBeGreaterThan(Date.now() - 1000);
   });
 
   it('should update analysis metadata correctly', () => {
@@ -108,12 +108,12 @@ describe('Content Hashing and Versioning', () => {
       1500
     );
 
-    expect(updatedMeta.createdAt).toBe(originalMeta.createdAt); // Should preserve
-    expect(updatedMeta.updatedAt).not.toBe(originalMeta.updatedAt); // Should update
-    expect(updatedMeta.requestId).toBe("req_updated");
-    expect(updatedMeta.provider).toBe("openai");
-    expect(updatedMeta.model).toBe("gpt-4");
-    expect(updatedMeta.durationMs).toBe(1500);
+    expect(updatedMeta!.createdAt).toBe(originalMeta.createdAt); // Should preserve
+    expect(updatedMeta!.updatedAt).not.toBe(originalMeta.updatedAt); // Should update
+    expect(updatedMeta!.requestId).toBe("req_updated");
+    expect(updatedMeta!.provider).toBe("openai");
+    expect(updatedMeta!.model).toBe("gpt-4");
+    expect(updatedMeta!.durationMs).toBe(1500);
   });
 
   it('should throw error when updating missing metadata', () => {

@@ -189,7 +189,7 @@ describe('AIClient', () => {
 
   it('should timeout after configured duration', async () => {
     // Mock fetch to simulate a timeout by immediately calling the abort handler
-    (fetch as any).mockImplementationOnce((url: string, options: any) => {
+    (fetch as any).mockImplementationOnce((_url: string, options: any) => {
       // Simulate the abort signal being triggered after timeout
       setTimeout(() => {
         if (options.signal && !options.signal.aborted) {
@@ -199,7 +199,7 @@ describe('AIClient', () => {
         }
       }, 10);
       
-      return new Promise((resolve, reject) => {
+      return new Promise((_resolve, reject) => {
         options.signal?.addEventListener('abort', () => {
           const abortError = new Error('The operation was aborted');
           abortError.name = 'AbortError';
