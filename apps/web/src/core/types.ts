@@ -28,6 +28,18 @@ export interface SalesCallMinimal {
   keyMoments?: { label: string; ts?: string }[];
   entities?: { prospect?: string[]; people?: string[]; products?: string[] };
   complianceFlags?: string[];
+  // Analysis metadata for idempotency and versioning
+  meta?: {
+    mode?: string;
+    schemaVersion?: string;
+    contentHash?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    requestId?: string;
+    provider?: string;
+    model?: string;
+    durationMs?: number;
+  };
 }
 
 // Widget configuration
