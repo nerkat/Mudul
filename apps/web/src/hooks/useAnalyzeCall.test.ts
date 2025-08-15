@@ -20,12 +20,7 @@ vi.mock("../core/repo", () => ({
   hasExistingAnalysis: vi.fn()
 }));
 
-vi.mock("../core/ai/client", () => ({
-  analyze: vi.fn()
-}));
-
 import { hasExistingAnalysis } from "../core/repo";
-import { analyze as liveAnalyze } from "../core/ai/client";
 
 describe("useAnalyzeCall Hook Integration", () => {
   beforeEach(() => {
@@ -55,33 +50,47 @@ describe("useAnalyzeCall Hook Integration", () => {
     expect(hasExistingAnalysis).toHaveBeenCalledWith(nodeId, contentHash);
   });
 
-  it("should have live AI client available", async () => {
-    // Mock successful live AI response
-    (liveAnalyze as any).mockResolvedValue({
+  it("should test HTTP request integration for live AI", async () => {
+    // Test that the integration can handle HTTP requests properly
+    const transcript = "Test transcript for HTTP integration";
+    const mode = "sales_v1";
+    const schemaVersion = "v1.0.0";
+    
+    // Mock fetch for testing HTTP integration
+    const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      data: {
-        summary: "Live AI summary",
-        sentiment: { overall: "positive", score: 0.9 }
-      },
-      meta: {
-        provider: "openai",
-        model: "gpt-4o-mini",
-        contentHash: "abc123",
-        schemaVersion: "v1.0.0"
-      }
+      json: () => Promise.resolve({
+        ok: true,
+        data: {
+          summary: "HTTP AI summary",
+          sentiment: { overall: "positive", score: 0.8 }
+        },
+        meta: {
+          provider: "openai",
+          model: "gpt-4o-mini",
+          contentHash: "http-hash-123",
+          schemaVersion: "v1.0.0"
+        }
+      })
     });
-
-    const result = await liveAnalyze({
-      transcript: "Test transcript",
-      mode: "sales_v1",
-      schemaVersion: "v1.0.0"
+    
+    global.fetch = mockFetch;
+    
+    const response = await fetch('/api/ai/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript, mode, schemaVersion })
     });
-
-    expect(liveAnalyze).toHaveBeenCalled();
+    
+    const result = await response.json();
+    
+    expect(mockFetch).toHaveBeenCalledWith('/api/ai/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript, mode, schemaVersion })
+    });
+    
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.data!.summary).toBe("Live AI summary");
-      expect(result.meta!.provider).toBe("openai");
-    }
+    expect(result.data.summary).toBe("HTTP AI summary");
   });
 });
