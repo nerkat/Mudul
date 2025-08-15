@@ -1,7 +1,5 @@
 
-
 ````md
-# .github/copilot-instructions.md
 # Mudul • Copilot Agent Guide
 
 **Primary objective:** Build and modify the UI **without breaking the seed-driven data model**.  
@@ -13,8 +11,11 @@ Always read data from `apps/web/src/core/seed.ts` via `apps/web/src/core/repo.ts
 - React + MUI v7 (current working implementation)
 - Routing: React Router (`/node/:nodeId` for dashboards)
 - Data model: **seed → repo → hooks → pages → widgets**
+- **Adapters layer**: repo data → widget props (no repo imports in widgets)
+- **Design tokens**: theme comes from tokens JSON → MUI theme (swappable)
 - Sidebar: renders tree from **seed**, not from ad-hoc arrays
 - Dashboards: selected by `node.dashboardId` and rendered via **WidgetRegistry**
+- Paper mode: `?mode=paper` + keyboard `p` → **PaperWidgetRenderer** (text‑only), else rich
 
 ---
 
@@ -48,23 +49,38 @@ apps/web/src/shell/AppShell.tsx  // TreeView populated from repo.getRoot() & get
 ## 2) Widget/product registry contract
 
 **Widget code location:** `src/components/widgets.tsx`
-Exports: `Paper`, `Rich` and prop types using `Pick<SalesCallMinimal, ...>`:
+Widgets are **pure presentational**: accept `{ data, params }` only (no repo imports).
 
-* `SummaryWidgetProps`, `SentimentWidgetProps`, `BookingWidgetProps`, `ObjectionsWidgetProps`, `ActionItemsWidgetProps`, `KeyMomentsWidgetProps`, `EntitiesWidgetProps`, `ComplianceWidgetProps`
+Prop types should use `Pick<SalesCallMinimal, ...>` or custom minimal shapes.
 
 **Registry location:** `src/core/registry.tsx`
 
-* `DashboardTemplates: Record<string, WidgetKey[]>`
-* `WidgetRegistry: Record<WidgetKey, (c: SalesCallMinimal) => React.ReactNode>`
+* `DashboardTemplates: Record<string, WidgetConfig[]>` where each `WidgetConfig = { slug, params? }`
+* `WidgetRegistry: Record<WidgetSlug, React.FC<{ data:any; params?:any }>>`
 
 **Copilot:**
 
-* When adding a widget, **only pass minimal props** via `Pick<...>`; never pass the full object if not needed.
+* When adding a widget, **only pass minimal props**; never pass the full call object if not needed.
 * Update both `WidgetRegistry` and `DashboardTemplates` when introducing a new widget or layout.
 
 ---
 
-## 3) Side navigation (TreeView)
+## 3) Adapters (the **diff layer** — required pattern)
+
+**Location:** `src/adapters/*`
+
+* Convert **repo shapes → widget data**.
+* Widgets must **not** import repo or seed.
+* Example: `adapters/salesCall/sentiment.adapter.ts` exposes `toSentimentData(call) → { overall, score }`.
+
+**Copilot must:**
+
+* Add/modify adapters instead of touching widgets when backend fields change.
+* Keep dashboards as **config + adapters**, not view logic.
+
+---
+
+## 4) Side navigation (TreeView)
 
 * Build the nav entirely from `repo.getRoot()` → `repo.getChildren(...)`.
 * Clicking any node navigates to `/node/:nodeId`.
@@ -73,142 +89,158 @@ Exports: `Paper`, `Rich` and prop types using `Pick<SalesCallMinimal, ...>`:
 
 ---
 
-## 4) File boundaries Copilot must respect
+## 5) File boundaries Copilot must respect
 
 * **types**: `src/core/types.ts`
 * **seed**: `src/core/seed.ts` (single source of truth)
 * **repo**: `src/core/repo.ts` (only place to query seed)
+* **adapters**: `src/adapters/**/*` (map repo data → widget props)
 * **hooks**: `src/hooks/*` (no data shape changes here)
-* **widgets**: `src/components/widgets.tsx` (styling/props only)
+* **widgets**: `src/components/widgets.tsx` (presentational only)
 * **registry**: `src/core/registry.tsx` (mapping only; no IO)
 * **pages/shell**: UI composition only
+* **theme**: `src/core/theme/*` (create theme from tokens)
+* **tokens**: `src/core/tokens/*.json` (brand/theme JSON)
 
 ---
 
-## 5) Pull request checklist (must pass)
+## 6) Paper mode contract
+
+* Toggle by `?mode=paper` and keyboard **`p`**.
+* `usePaperMode()` reads/writes the URL param and exposes `{ isPaper, toggle }`.
+* `WidgetRenderer` must branch: `isPaper ? PaperWidgetRenderer : RichWidgetRenderer`.
+* `PaperWidgetRenderer` uses simple title + plaintext/JSON (or `paperTemplates[slug]`).
+
+---
+
+## 7) JSON‑Driven Widgets Protocol
+
+* Slugs + param schemas live in `src/core/widgets/protocol.ts` & `params.ts` (Zod).
+* Dashboard templates are arrays of `{ slug, params? }`.
+* Validate templates with `DashboardTemplate.parse()` **before** render.
+* **AI contract** returns optional `AIDashboardPayload` using the same template shape/version.
+
+---
+
+## 8) Live AI integration (guardrails)
+
+* Server-side Zod validation is the **primary boundary** (no UI writes on invalid JSON).
+* Determinism: `temperature:0`, `top_p:1`, pinned model string.
+* Idempotency: `contentHash` + `schemaVersion` check **before** `upsertCall`.
+* Timeouts/Abort → `TIMEOUT` / `CANCELLED`, **no** persistence on either path.
+* Observability logs redact transcript; include `{ callId, provider, model, durationMs, result }`.
+
+---
+
+## 9) Pull request checklist (must pass)
 
 * [ ] No mock/demo arrays introduced (`rg -n "mock|demoRows|sampleCalls"` returns nothing).
 * [ ] Sidebar tree comes from `repo` and reflects multi-client/multi-call seed.
 * [ ] `dashboardId` is respected and renders correct template via `WidgetRegistry`.
-* [ ] New widgets use **minimal** props (`Pick<...>`), not full objects.
+* [ ] Widgets receive minimal `{ data, params }`, no repo imports.
+* [ ] Adapters used for all data shaping; no widget reaches into repo/seed directly.
 * [ ] Types remain in `src/core/types.ts`; no duplicate type defs elsewhere.
-* [ ] `RepoProvider` wraps router at app root; pages use hooks, not repo directly.
+* [ ] `RepoProvider` wraps router; pages use hooks, not repo directly.
+* [ ] Paper mode works via URL + keyboard; renders `PaperWidgetRenderer`.
 
 ---
 
-## 6) Testing expectations (lightweight)
+## 10) Testing expectations (lightweight)
 
-* Add Jest/RTL tests (or Playwright later) for:
-
-  * Each `nodes` call-node has a matching `calls[nodeId]` (one assertion).
-  * Dashboard renders all widgets defined by its `dashboardId` template.
-  * Sidebar contains every call from seed (count check).
-
----
-
-## 7) Scripts Copilot can create/maintain (optional)
-
-* `seed:add-client` (Node script): append a new client + N calls into `seed.ts` with valid IDs, names, and `dashboardId`.
-* `lint:repo-contract`: quick script to assert no file imports `seed` directly except `repo.ts`.
+* Each call node in `nodes` has matching entry in `calls` (one assertion).
+* Dashboard renders all widgets defined by its `dashboardId` template.
+* Sidebar contains every call from seed (count check).
+* Paper mode: same dashboard renders using `PaperWidgetRenderer` with plaintext JSON.
 
 ---
 
-## 8) MCP usage (docs-aware coding for MUI/MUI X)
+## 11) Scripts Copilot may create/maintain (optional)
 
-> When generating or modifying MUI code, **ground it via the MUI MCP server** (Model Context Protocol) to avoid hallucinated APIs.
+* `seed:add-client`: Node script that appends a new client + N calls into `seed.ts` with valid IDs & `dashboardId`.
+* `lint:repo-contract`: CI script to assert no file imports `seed` outside `repo.ts`.
 
-**Assume the editor is configured with:**
+---
 
-```json
-{
-  "mcp": {
-    "servers": {
-      "mui-mcp": { "type": "stdio", "command": "npx", "args": ["-y", "@mui/mcp@latest"] }
-    }
-  }
-}
-```
+## 12) MCP usage (MUI/MUI X docs awareness)
 
-**Rules for Copilot/agent:**
+Use the MUI MCP server when generating or modifying MUI code to avoid hallucinated APIs.
 
-1. For any MUI / MUI X changes, first query `mui-mcp` for the relevant docs (DataGrid, TreeView, theming, etc.).
-2. Include the property names used (e.g., `expandedItems`, `onItemClick`) and ensure they match the current version.
-3. Prefer examples that work with React Router v6 for navigation.
-4. When migrating to Minimal/Next (future), still use MUI MCP for component APIs.
+**Rules:**
 
-**Prompts you (Copilot) should use:**
+1. Query MCP for the exact component API (TreeView, DataGrid, theming).
+2. Use property names from docs (version‑accurate).
+3. Prefer Router v6‑friendly examples.
+4. When we adopt Minimals, still consult MCP for component props.
+
+Prompts Copilot should use:
 
 * “Using MUI X `SimpleTreeView`, show router-aware nav with `expandedItems` and `onItemClick`.”
-* “DataGrid minimal table with pagination + sorting; cite the MUI X API properties used.”
-* “`createTheme` example to set `shape.borderRadius=12` and dark/light toggle.”
-
----
-
-## 9) When extending features
-
-* Add new node types only if needed; update `NodeType` union and seed accordingly.
-* For non-call dashboards (client/org), introduce dedicated renderers but keep the same **dashboardId → template → registry** pipeline.
-* Keep **business data** in seed; keep **presentation** in widgets.
-
----
-
-## 10) Anti-patterns (reject in review)
-
-* Inline JSON mocks or demo arrays in pages/components.
-* Fetching from `seed` outside of `repo.ts`.
-* Passing entire `SalesCallMinimal` to widgets that need only 1–2 fields.
-* Duplicating types or creating “view models” that drift from core types.
-
----
-
-## 11) Snippets Copilot may insert (allowed)
-
-* **Sidebar TreeView:**
-
-  ```tsx
-  <SimpleTreeView
-    expandedItems={[root.id, ...clients.map(c => c.id)]}
-    onItemClick={(_, id) => id && nav(`/node/${id}`)}
-  >
-    {/* build items from repo.getChildren(...) */}
-  </SimpleTreeView>
-  ```
-* **Dashboard renderer loop:**
-
-  ```tsx
-  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 2 }}>
-    {parsed.widgets.map((widgetConfig, index) => (
-      <Box key={`${widgetConfig.slug}-${index}`}>
-        <WidgetRenderer config={widgetConfig} call={call} />
-      </Box>
-    ))}
-  </Box>
-  ```
-
----
-
-## 12) JSON-Driven Widgets Protocol
-
-* Use `WidgetSlug` and per-widget zod param schemas in `src/core/widgets/params.ts`.
-* When adding a widget:
-  1) Add slug to `WidgetSlug` enum in `protocol.ts`.
-  2) Create `Params` schema in `params.ts`.
-  3) Register in `WidgetRegistry` with `validate()` + `render()` functions.
-* Dashboard templates MUST be arrays of `{ slug, params? }` objects.
-* AI contract MUST return `AIDashboardPayload` (same shape/version).
-* All templates should validate via `DashboardTemplate.parse()` before rendering.
-* Prefer minimal data picks inside renderers; never fetch directly.
-* Use `WidgetRenderer` component for all widget rendering.
+* “Create a MUI theme from tokens (palette/shape/typography) and provide a dark/light toggle.”
 
 ---
 
 ## 13) Roadmap hints for the agent
 
-* Later: move `DashboardTemplates` to JSON to enable runtime re-layout.
-* Later: add `client` and `org` aggregations (roll up from `calls` by relation).
-* Later: replace in-memory seed with DB adapter; keep `repo` API stable to avoid UI churn.
+* Later: move `DashboardTemplates` to JSON for runtime layouts.
+* Later: add client/org aggregate dashboards (rollups).
+* Later: DB adapter replaces in-memory seed; keep `repo` API stable to prevent UI churn.
 
 ```
 
-::contentReference[oaicite:0]{index=0}
+---
+
+# 2) Issue: “Immediate Do‑This‑Now” tasks (tokens/theme + adapters + paper branch)
+Create a new GitHub issue with this content:
+
+**Title:** Implement tokens/theme pipeline, adapters layer, and paper‑mode renderer branch
+
+**Goal**  
+Make the UI fully modular and swappable with minimal diffs:
+- Theme comes from **tokens JSON → MUI theme**.
+- Widgets are **pure presentational**; all data shaping via **adapters**.
+- **Paper mode** uses a simple renderer branch (title + plaintext/JSON).
+
+**Scope**
+- Add **design tokens** JSON (`src/core/tokens/default.json`) and a **theme factory** (`src/core/theme/createThemeFromTokens.ts`) to produce the MUI theme from tokens.
+- Wrap the app with `ThemeProvider(createThemeFromTokens(activeTokens))`.
+- Add a lightweight **ThemeSwitcher** to hot‑swap token files at runtime (for now, load `default.json` only; stub API for others).
+- Introduce **adapters**: `src/adapters/salesCall/*` to map repo shapes → widget props (e.g., `toSummaryData`, `toSentimentData`, etc).
+- Refactor **WidgetRenderer** to receive `{ data, params }` only. Widgets must **not** import repo/seed.
+- Add `usePaperMode()` hook and **branch** in `WidgetRenderer` to `PaperWidgetRenderer` when `?mode=paper` or `p` pressed.
+- Provide `paperTemplates.ts` for simple text renderers; fallback to JSON stringify.
+
+**Deliverables**
+1) `src/core/tokens/default.json` (palette, spacing, radius, typography).  
+2) `src/core/theme/createThemeFromTokens.ts` + `src/core/theme/index.ts` (ThemeProvider wrapper).  
+3) `src/adapters/salesCall/*.adapter.ts` (summary, sentiment, booking, objections, action items, key moments, entities).  
+4) `src/widgets/PaperWidgetRenderer.tsx` + `src/widgets/paperTemplates.ts`.  
+5) `src/hooks/usePaperMode.ts` + keyboard toggle in `AppShell` or `DashboardPage`.  
+6) Update `WidgetRenderer` to branch on paper mode and to pass `{ data, params }` to widgets.
+
+**Acceptance Criteria**
+- Changing values in `default.json` updates the app theme without code changes.
+- All widgets render using **adapter‑provided data** (no repo imports in widgets).
+- Paper mode toggles via URL (`?mode=paper`) and keyboard `p`, with no full reload.
+- Paper renderer shows a title and plaintext (or JSON) for **every** widget.
+- No inline demo arrays; all data comes from repo → adapters.
+
+**Checklist**
+- [ ] Add tokens JSON + theme factory; wrap ThemeProvider.  
+- [ ] Build `usePaperMode()` + keyboard toggle.  
+- [ ] Implement `PaperWidgetRenderer` + `paperTemplates`.  
+- [ ] Create adapters for all current widgets.  
+- [ ] Refactor widgets to accept `{ data, params }` only.  
+- [ ] Update `WidgetRegistry` to render widgets with adapter outputs.  
+- [ ] Verify Sidebar still uses repo and reflects seed hierarchy.  
+- [ ] Light tests: dashboard renders all template widgets; paper mode renders text; no widget imports repo/seed.
+
+**Notes for Copilot**
+- Do **not** bypass repo; never read `seed` outside `repo.ts`.
+- Keep widgets dumb; put all data shape logic in adapters.
+- Use MUI MCP server for component API references.
+- Maintain existing dashboard templates; only adjust the renderer and adapters.
+
+---
+
+
 ```
