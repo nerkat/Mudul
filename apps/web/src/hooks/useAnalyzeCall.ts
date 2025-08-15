@@ -1,14 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { aiClient, type AnalyzeCallRequest, type AnalyzeCallResponse } from "../services/aiClient";
 import { upsertCall, setDashboard, hasExistingAnalysis, type UpsertCallResult } from "../core/repo";
 import type { SalesCallMinimal } from "../core/types";
-import type { AnalysisResult, AnalysisError } from "../services/errors";
-import { createAnalysisContentHash, type AnalysisMode } from "../services/versioning";
+import type { AnalysisError } from "../services/errors";
+import { createAnalysisContentHash, type AnalysisMode, ANALYSIS_SCHEMA_VERSION } from "../services/versioning";
 
 export interface UseAnalyzeCallState {
   loading: boolean;
   error: AnalysisError | null;
-  lastResponse: AnalyzeCallResponse | null;
+  lastResponse: any | null; // Simplified since we're using HTTP response directly
   lastResult: UpsertCallResult | null;
 }
 
@@ -77,48 +76,60 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
         return;
       }
 
-      const request: AnalyzeCallRequest = {
-        nodeId,
-        transcript,
-        mode,
-        requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      };
-
-      const result: AnalysisResult<AnalyzeCallResponse> = await aiClient.analyze(
-        request, 
-        abortController.signal
-      );
+      // All requests now go through the unified API endpoint
+      const response = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nodeId,
+          transcript,
+          mode,
+          schemaVersion: ANALYSIS_SCHEMA_VERSION,
+          requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        }),
+        signal: abortController.signal
+      });
 
       // Check if request was cancelled or nodeId changed
       if (abortController.signal.aborted || currentNodeIdRef.current !== nodeId) {
         return;
       }
 
-      if (!result.ok) {
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
         setState(prev => ({
           ...prev,
           loading: false,
-          error: result.error,
+          error: {
+            code: (result.error?.code || "UNKNOWN_ERROR") as any,
+            message: result.error?.code === "TIMEOUT" ? "Request timed out" : 
+                    result.error?.code === "SCHEMA_INVALID" ? "Invalid analysis schema" :
+                    result.error?.code === "RATE_LIMITED" ? "Rate limited" :
+                    result.error?.code === "CANCELLED" ? "Request cancelled" :
+                    "Provider error occurred",
+            details: result.error?.details
+          },
         }));
         return;
       }
 
-      const response = result.data;
-
-      // Map analysis to SalesCallMinimal format with versioning
+      // Map analysis response to SalesCallMinimal format
       const patch: Partial<SalesCallMinimal> = {
-        summary: response.analysis.summary,
-        sentiment: response.analysis.sentiment ? {
-          overall: response.analysis.sentiment.overall,
-          score: response.analysis.sentiment.score,
-        } : undefined,
-        bookingLikelihood: response.analysis.bookingLikelihood,
-        objections: response.analysis.objections,
-        actionItems: response.analysis.actionItems,
-        keyMoments: response.analysis.keyMoments,
-        entities: response.analysis.entities,
-        complianceFlags: response.analysis.complianceFlags,
-        meta: response.analysis.meta,
+        summary: result.analysis?.summary,
+        sentiment: result.analysis?.sentiment,
+        bookingLikelihood: result.analysis?.bookingLikelihood,
+        objections: result.analysis?.objections,
+        actionItems: result.analysis?.actionItems,
+        keyMoments: result.analysis?.keyMoments,
+        entities: result.analysis?.entities,
+        complianceFlags: result.analysis?.complianceFlags,
+        meta: {
+          ...result.meta,
+          updatedAt: new Date().toISOString()
+        },
       };
 
       // Remove undefined values to avoid overwriting existing data
@@ -130,11 +141,11 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
       const upsertResult = upsertCall(nodeId, cleanPatch);
 
       // If dashboard template is provided, apply it
-      if (response.dashboard && upsertResult.updated) {
+      if (result.dashboard && upsertResult.updated) {
         try {
           setDashboard(nodeId, {
-            version: response.dashboard.version,
-            ...response.dashboard.dashboard,
+            version: result.dashboard.version,
+            ...result.dashboard.dashboard,
           });
         } catch (error) {
           console.warn("Failed to apply AI dashboard template:", error);
@@ -145,7 +156,17 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
       setState(prev => ({
         ...prev,
         loading: false,
-        lastResponse: response,
+        lastResponse: {
+          analysis: result.analysis as any,
+          meta: {
+            provider: result.meta?.provider || 'unknown',
+            model: result.meta?.model || 'unknown', 
+            duration_ms: result.meta?.duration_ms || 0,
+            request_id: result.meta?.request_id || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            content_hash: result.meta?.contentHash || '',
+            schema_version: result.meta?.schema_version || ANALYSIS_SCHEMA_VERSION
+          }
+        },
         lastResult: upsertResult,
       }));
 
