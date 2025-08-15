@@ -1,15 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { aiClient, type AnalyzeCallRequest, type AnalyzeCallResponse } from "../services/aiClient";
 import { upsertCall, setDashboard, hasExistingAnalysis, type UpsertCallResult } from "../core/repo";
 import type { SalesCallMinimal } from "../core/types";
-import type { AnalysisResult, AnalysisError } from "../services/errors";
+import type { AnalysisError } from "../services/errors";
 import { createAnalysisContentHash, type AnalysisMode, ANALYSIS_SCHEMA_VERSION } from "../services/versioning";
-import { analyze as liveAnalyze } from "../core/ai/client";
 
 export interface UseAnalyzeCallState {
   loading: boolean;
   error: AnalysisError | null;
-  lastResponse: AnalyzeCallResponse | null;
+  lastResponse: any | null; // Simplified since we're using HTTP response directly
   lastResult: UpsertCallResult | null;
 }
 
@@ -82,136 +80,183 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
       const useLiveAI = import.meta.env.VITE_USE_LIVE_AI === "true";
       
       if (useLiveAI) {
-        // Use direct AI client integration
+        // Make HTTP request to server-side AI endpoint
         const startTime = Date.now();
-        const liveResult = await liveAnalyze({
-          transcript,
-          mode,
-          schemaVersion: ANALYSIS_SCHEMA_VERSION
-        });
+        
+        try {
+          const response = await fetch('/api/ai/analyze', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              transcript,
+              mode,
+              schemaVersion: ANALYSIS_SCHEMA_VERSION
+            }),
+            signal: abortController.signal
+          });
 
-        // Check if request was cancelled or nodeId changed
-        if (abortController.signal.aborted || currentNodeIdRef.current !== nodeId) {
+          // Check if request was cancelled or nodeId changed
+          if (abortController.signal.aborted || currentNodeIdRef.current !== nodeId) {
+            return;
+          }
+
+          const durationMs = Date.now() - startTime;
+          const liveResult = await response.json();
+
+          if (!response.ok || !liveResult.ok) {
+            // Log observability data for errors
+            console.log({
+              callId: nodeId,
+              provider: "unknown",
+              model: "unknown",
+              durationMs,
+              result: liveResult.error?.code || "unknown_error"
+            });
+
+            setState(prev => ({
+              ...prev,
+              loading: false,
+              error: {
+                code: (liveResult.error?.code || "UNKNOWN_ERROR") as any,
+                message: liveResult.error?.code === "TIMEOUT" ? "Request timed out" : 
+                        liveResult.error?.code === "SCHEMA_INVALID" ? "Invalid analysis schema" :
+                        "Provider error occurred",
+                details: liveResult.error?.details
+              },
+            }));
+            return;
+          }
+
+          // Map live AI response to SalesCallMinimal format
+          const patch: Partial<SalesCallMinimal> = {
+            summary: liveResult.data?.summary,
+            sentiment: liveResult.data?.sentiment,
+            bookingLikelihood: liveResult.data?.bookingLikelihood,
+            objections: liveResult.data?.objections,
+            actionItems: liveResult.data?.actionItems,
+            keyMoments: liveResult.data?.keyMoments,
+            entities: liveResult.data?.entities,
+            complianceFlags: liveResult.data?.complianceFlags,
+            meta: liveResult.meta,
+          };
+
+          // Remove undefined values to avoid overwriting existing data
+          const cleanPatch = Object.fromEntries(
+            Object.entries(patch).filter(([_, value]) => value !== undefined)
+          );
+
+          // Persist analysis data with idempotency check
+          const upsertResult = upsertCall(nodeId, cleanPatch);
+
+          // Log observability data for success
+          console.log({
+            callId: nodeId,
+            provider: liveResult.meta?.provider,
+            model: liveResult.meta?.model,
+            durationMs,
+            result: liveResult.ok ? "ok" : "error"
+          });
+
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            lastResponse: {
+              analysis: liveResult.data as any,
+              meta: {
+                provider: liveResult.meta?.provider || 'unknown',
+                model: liveResult.meta?.model || 'unknown', 
+                duration_ms: durationMs,
+                request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                content_hash: liveResult.meta?.contentHash || '',
+                schema_version: liveResult.meta?.schemaVersion || ANALYSIS_SCHEMA_VERSION
+              }
+            },
+            lastResult: upsertResult,
+          }));
           return;
-        }
+        } catch (fetchError: any) {
+          // Check if request was cancelled or nodeId changed
+          if (abortController.signal.aborted || currentNodeIdRef.current !== nodeId) {
+            return;
+          }
 
-        const durationMs = Date.now() - startTime;
-
-        if (!liveResult.ok) {
-          // Log observability data for errors
+          const durationMs = Date.now() - startTime;
+          
+          // Handle fetch errors (network, timeout, etc.)
           console.log({
             callId: nodeId,
             provider: "unknown",
-            model: "unknown",
+            model: "unknown", 
             durationMs,
-            result: liveResult.error?.code || "unknown_error"
+            result: fetchError.name === "AbortError" ? "timeout" : "fetch_error"
           });
 
           setState(prev => ({
             ...prev,
             loading: false,
             error: {
-              code: (liveResult.error?.code || "UNKNOWN_ERROR") as any,
-              message: liveResult.error?.code === "TIMEOUT" ? "Request timed out" : 
-                      liveResult.error?.code === "SCHEMA_INVALID" ? "Invalid analysis schema" :
-                      "Provider error occurred",
-              details: liveResult.error?.details
+              code: fetchError.name === "AbortError" ? "TIMEOUT" : "SERVER_ERROR",
+              message: fetchError.name === "AbortError" ? "Request timed out" : "Network error occurred",
+              details: fetchError.message
             },
           }));
           return;
         }
-
-        // Map live AI response to SalesCallMinimal format
-        const patch: Partial<SalesCallMinimal> = {
-          summary: liveResult.data?.summary,
-          sentiment: liveResult.data?.sentiment,
-          bookingLikelihood: liveResult.data?.bookingLikelihood,
-          objections: liveResult.data?.objections,
-          actionItems: liveResult.data?.actionItems,
-          keyMoments: liveResult.data?.keyMoments,
-          entities: liveResult.data?.entities,
-          complianceFlags: liveResult.data?.complianceFlags,
-          meta: liveResult.meta,
-        };
-
-        // Remove undefined values to avoid overwriting existing data
-        const cleanPatch = Object.fromEntries(
-          Object.entries(patch).filter(([_, value]) => value !== undefined)
-        );
-
-        // Persist analysis data with idempotency check
-        const upsertResult = upsertCall(nodeId, cleanPatch);
-
-        // Log observability data for success
-        console.log({
-          callId: nodeId,
-          provider: liveResult.meta?.provider,
-          model: liveResult.meta?.model,
-          durationMs,
-          result: liveResult.ok ? "ok" : "error"
-        });
-
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          lastResponse: {
-            analysis: liveResult.data as any,
-            meta: {
-              provider: liveResult.meta?.provider || 'unknown',
-              model: liveResult.meta?.model || 'unknown', 
-              duration_ms: durationMs,
-              request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              content_hash: liveResult.meta?.contentHash || '',
-              schema_version: liveResult.meta?.schemaVersion || ANALYSIS_SCHEMA_VERSION
-            }
-          },
-          lastResult: upsertResult,
-        }));
-        return;
       }
 
-      const request: AnalyzeCallRequest = {
+      // Use HTTP API endpoint (handles both live AI and mock)
+      const request = {
         nodeId,
         transcript,
         mode,
         requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       };
 
-      const result: AnalysisResult<AnalyzeCallResponse> = await aiClient.analyze(
-        request, 
-        abortController.signal
-      );
+      const response = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+        signal: abortController.signal
+      });
 
       // Check if request was cancelled or nodeId changed
       if (abortController.signal.aborted || currentNodeIdRef.current !== nodeId) {
         return;
       }
 
-      if (!result.ok) {
+      const result = await response.json();
+
+      if (!response.ok || !result.analysis) {
         setState(prev => ({
           ...prev,
           loading: false,
-          error: result.error,
+          error: {
+            code: 'SERVER_ERROR',
+            message: 'AI analysis failed',
+            details: result
+          },
         }));
         return;
       }
 
-      const response = result.data;
-
-      // Map analysis to SalesCallMinimal format with versioning
+      // Map analysis to SalesCallMinimal format
       const patch: Partial<SalesCallMinimal> = {
-        summary: response.analysis.summary,
-        sentiment: response.analysis.sentiment ? {
-          overall: response.analysis.sentiment.overall,
-          score: response.analysis.sentiment.score,
+        summary: result.analysis.summary,
+        sentiment: result.analysis.sentiment ? {
+          overall: result.analysis.sentiment.overall,
+          score: result.analysis.sentiment.score,
         } : undefined,
-        bookingLikelihood: response.analysis.bookingLikelihood,
-        objections: response.analysis.objections,
-        actionItems: response.analysis.actionItems,
-        keyMoments: response.analysis.keyMoments,
-        entities: response.analysis.entities,
-        complianceFlags: response.analysis.complianceFlags,
-        meta: response.analysis.meta,
+        bookingLikelihood: result.analysis.bookingLikelihood,
+        objections: result.analysis.objections,
+        actionItems: result.analysis.actionItems,
+        keyMoments: result.analysis.keyMoments,
+        entities: result.analysis.entities,
+        complianceFlags: result.analysis.complianceFlags,
+        meta: result.meta,
       };
 
       // Remove undefined values to avoid overwriting existing data
@@ -223,11 +268,11 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
       const upsertResult = upsertCall(nodeId, cleanPatch);
 
       // If dashboard template is provided, apply it
-      if (response.dashboard && upsertResult.updated) {
+      if (result.dashboard && upsertResult.updated) {
         try {
           setDashboard(nodeId, {
-            version: response.dashboard.version,
-            ...response.dashboard.dashboard,
+            version: result.dashboard.version,
+            ...result.dashboard.dashboard,
           });
         } catch (error) {
           console.warn("Failed to apply AI dashboard template:", error);
@@ -238,7 +283,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
       setState(prev => ({
         ...prev,
         loading: false,
-        lastResponse: response,
+        lastResponse: result,
         lastResult: upsertResult,
       }));
 
