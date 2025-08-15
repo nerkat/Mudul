@@ -3,7 +3,8 @@ import { aiClient, type AnalyzeCallRequest, type AnalyzeCallResponse } from "../
 import { upsertCall, setDashboard, hasExistingAnalysis, type UpsertCallResult } from "../core/repo";
 import type { SalesCallMinimal } from "../core/types";
 import type { AnalysisResult, AnalysisError } from "../services/errors";
-import { createAnalysisContentHash, type AnalysisMode } from "../services/versioning";
+import { createAnalysisContentHash, type AnalysisMode, ANALYSIS_SCHEMA_VERSION } from "../services/versioning";
+import { analyze as liveAnalyze } from "../core/ai/client";
 
 export interface UseAnalyzeCallState {
   loading: boolean;
@@ -73,6 +74,86 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
             isDuplicate: true,
             reason: 'Analysis already exists for this transcript and schema version'
           }
+        }));
+        return;
+      }
+
+      // Check if we should use live AI provider
+      const useLiveAI = import.meta.env.VITE_USE_LIVE_AI === "true";
+      
+      if (useLiveAI) {
+        // Use direct AI client integration
+        const liveResult = await liveAnalyze({
+          transcript,
+          mode,
+          schemaVersion: ANALYSIS_SCHEMA_VERSION
+        });
+
+        // Check if request was cancelled or nodeId changed
+        if (abortController.signal.aborted || currentNodeIdRef.current !== nodeId) {
+          return;
+        }
+
+        if (!liveResult.ok) {
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: {
+              code: liveResult.error.code as any,
+              message: liveResult.error.code === "TIMEOUT" ? "Request timed out" : 
+                      liveResult.error.code === "SCHEMA_INVALID" ? "Invalid analysis schema" :
+                      "Provider error occurred",
+              details: liveResult.error.details
+            },
+          }));
+          return;
+        }
+
+        // Map live AI response to SalesCallMinimal format
+        const patch: Partial<SalesCallMinimal> = {
+          summary: liveResult.data.summary,
+          sentiment: liveResult.data.sentiment,
+          bookingLikelihood: liveResult.data.bookingLikelihood,
+          objections: liveResult.data.objections,
+          actionItems: liveResult.data.actionItems,
+          keyMoments: liveResult.data.keyMoments,
+          entities: liveResult.data.entities,
+          complianceFlags: liveResult.data.complianceFlags,
+          meta: liveResult.meta,
+        };
+
+        // Remove undefined values to avoid overwriting existing data
+        const cleanPatch = Object.fromEntries(
+          Object.entries(patch).filter(([_, value]) => value !== undefined)
+        );
+
+        // Persist analysis data with idempotency check
+        const upsertResult = upsertCall(nodeId, cleanPatch);
+
+        // Log observability data
+        console.log({
+          callId: nodeId,
+          provider: liveResult.meta?.provider,
+          model: liveResult.meta?.model,
+          durationMs: Date.now() - Date.now(), // TODO: track actual duration
+          result: liveResult.ok ? "ok" : "error"
+        });
+
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          lastResponse: {
+            analysis: liveResult.data as any,
+            meta: {
+              provider: liveResult.meta?.provider || 'unknown',
+              model: liveResult.meta?.model || 'unknown', 
+              duration_ms: 0, // TODO: track actual duration
+              request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              content_hash: liveResult.meta?.contentHash || '',
+              schema_version: liveResult.meta?.schemaVersion || ANALYSIS_SCHEMA_VERSION
+            }
+          },
+          lastResult: upsertResult,
         }));
         return;
       }
