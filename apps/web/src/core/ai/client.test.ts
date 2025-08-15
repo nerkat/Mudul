@@ -42,12 +42,12 @@ describe("Live AI Client", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data.summary).toBe("Test summary");
-      expect(result.data.sentiment?.overall).toBe("positive");
-      expect(result.data.sentiment?.score).toBe(0.8);
-      expect(result.meta.provider).toBe("openai");
-      expect(result.meta.model).toBe("gpt-4o-mini");
-      expect(result.meta.contentHash).toMatch(/^[a-f0-9]+$/);
+      expect(result.data!.summary).toBe("Test summary");
+      expect(result.data!.sentiment?.overall).toBe("positive");
+      expect(result.data!.sentiment?.score).toBe(0.8);
+      expect(result.meta!.provider).toBe("openai");
+      expect(result.meta!.model).toBe("gpt-4o-mini");
+      expect(result.meta!.contentHash).toMatch(/^[a-f0-9]+$/);
     }
   });
 
@@ -69,7 +69,7 @@ describe("Live AI Client", () => {
     
     if (result1.ok && result2.ok) {
       // Same input should produce same content hash
-      expect(result1.meta.contentHash).toBe(result2.meta.contentHash);
+      expect(result1.meta!.contentHash).toBe(result2.meta!.contentHash);
     }
   });
 
@@ -100,7 +100,7 @@ describe("Live AI Client", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.code).toBe("SCHEMA_INVALID");
+      expect(result.error!.code).toBe("SCHEMA_INVALID");
     }
   });
 });

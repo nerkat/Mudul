@@ -47,8 +47,8 @@ export async function analyze({
         max_tokens: AI_CONFIG.maxTokens,
         temperature: 0,
         top_p: 1,
-        messages,
-        system: "Output JSON only.",
+        messages: messages.filter(m => m.role !== "system") as any[], // Anthropic doesn't support system messages in messages array
+        system: messages.find(m => m.role === "system")?.content || "Output JSON only.",
       }, {
         signal: abort.signal
       });

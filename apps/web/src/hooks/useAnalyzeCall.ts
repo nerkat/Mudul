@@ -104,18 +104,18 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
             provider: "unknown",
             model: "unknown",
             durationMs,
-            result: liveResult.error.code
+            result: liveResult.error?.code || "unknown_error"
           });
 
           setState(prev => ({
             ...prev,
             loading: false,
             error: {
-              code: liveResult.error.code as any,
-              message: liveResult.error.code === "TIMEOUT" ? "Request timed out" : 
-                      liveResult.error.code === "SCHEMA_INVALID" ? "Invalid analysis schema" :
+              code: (liveResult.error?.code || "UNKNOWN_ERROR") as any,
+              message: liveResult.error?.code === "TIMEOUT" ? "Request timed out" : 
+                      liveResult.error?.code === "SCHEMA_INVALID" ? "Invalid analysis schema" :
                       "Provider error occurred",
-              details: liveResult.error.details
+              details: liveResult.error?.details
             },
           }));
           return;
@@ -123,14 +123,14 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
 
         // Map live AI response to SalesCallMinimal format
         const patch: Partial<SalesCallMinimal> = {
-          summary: liveResult.data.summary,
-          sentiment: liveResult.data.sentiment,
-          bookingLikelihood: liveResult.data.bookingLikelihood,
-          objections: liveResult.data.objections,
-          actionItems: liveResult.data.actionItems,
-          keyMoments: liveResult.data.keyMoments,
-          entities: liveResult.data.entities,
-          complianceFlags: liveResult.data.complianceFlags,
+          summary: liveResult.data?.summary,
+          sentiment: liveResult.data?.sentiment,
+          bookingLikelihood: liveResult.data?.bookingLikelihood,
+          objections: liveResult.data?.objections,
+          actionItems: liveResult.data?.actionItems,
+          keyMoments: liveResult.data?.keyMoments,
+          entities: liveResult.data?.entities,
+          complianceFlags: liveResult.data?.complianceFlags,
           meta: liveResult.meta,
         };
 
