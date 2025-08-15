@@ -11,8 +11,12 @@ import {
 } from "@mudul/core";
 
 const bodySchema = z.object({
-  sessionId: z.string().min(1),
-  transcript: z.string().min(1)
+  nodeId: z.string().min(1),
+  transcript: z.string().min(1),
+  mode: z.string().min(1),
+  requestId: z.string().optional(),
+  schemaVersion: z.string().optional(),
+  contentHash: z.string().optional()
 });
 
 const MAX_PAYLOAD_SIZE = 10 * 1024 * 1024; // 10MB limit
@@ -189,8 +193,22 @@ export default function analyzePlugin(): Plugin {
                 throw new Error("schema_invalid");
               }
               
-              // Success path
+              // Success path - log observability metrics
               metrics.increment('ai_success_total', { provider: output.meta?.provider || 'unknown' });
+              
+              // Add minimal server logs with redacted transcripts (only in development)
+              if (process.env.NODE_ENV !== 'production') {
+                console.log(`Analysis completed [${requestId}]:`, {
+                  nodeId: parsed.data.nodeId,
+                  provider: output.meta?.provider || 'unknown',
+                  model: output.meta?.model || 'unknown',
+                  durationMs: duration,
+                  tokensIn: output.meta?.tokens_in || 'unknown',
+                  tokensOut: output.meta?.tokens_out || 'unknown',
+                  result: 'success',
+                  transcriptLength: redactForLogging(`${parsed.data.transcript.length} chars`)
+                });
+              }
               
               const response: ApiResponse = {
                 data: schemaValidation.data,
@@ -224,9 +242,16 @@ export default function analyzePlugin(): Plugin {
               
               metrics.increment('ai_fallback_total', { provider: providerType });
               
-              // Log error in development only
+              // Log error in development only with enhanced observability
               if (process.env.NODE_ENV !== 'production') {
-                console.error(`Provider error [${requestId}]:`, redactForLogging(errorMsg));
+                console.error(`Provider error [${requestId}]:`, {
+                  nodeId: parsed.data.nodeId,
+                  provider: providerType,
+                  durationMs: Date.now() - startTime,
+                  result: 'error',
+                  error: redactForLogging(errorMsg),
+                  transcriptLength: redactForLogging(`${parsed.data.transcript.length} chars`)
+                });
               }
               
               // Fallback logic for live mode

@@ -2,6 +2,7 @@ import { nodes, calls } from "./seed";
 import { DashboardTemplates } from "./registry-json";
 import type { NodeBase, SalesCallMinimal } from "./types";
 import type { DashboardTemplate } from "./widgets/protocol";
+import { isAnalysisDuplicate } from "../services/versioning";
 
 export function getRoot(): NodeBase | null {
   return nodes["root"] || null;
@@ -42,12 +43,63 @@ export function getAllCalls(): NodeBase[] {
 
 // ----- Mutation methods for AI analysis -----
 
+export interface UpsertCallResult {
+  updated: boolean;
+  isDuplicate: boolean;
+  reason?: string;
+}
+
 /**
- * Update a call record with analysis data from AI
+ * Update a call record with analysis data from AI.
+ * Safely merges only provided fields, preserving existing data.
+ * Returns information about whether update was performed and why.
  */
-export function upsertCall(nodeId: string, patch: Partial<SalesCallMinimal>): void {
+export function upsertCall(nodeId: string, patch: Partial<SalesCallMinimal>): UpsertCallResult {
   const existing = calls[nodeId] || {};
-  calls[nodeId] = { ...existing, ...patch };
+  
+  // Check for duplicate analysis using content hash
+  if (patch.meta?.contentHash) {
+    const isDuplicate = isAnalysisDuplicate(
+      existing as any, // Type assertion since we added meta to SalesCallMinimal
+      patch.meta.contentHash,
+      patch.meta.schemaVersion
+    );
+    
+    if (isDuplicate) {
+      return {
+        updated: false,
+        isDuplicate: true,
+        reason: 'Analysis already exists for this content and schema version'
+      };
+    }
+  }
+
+  // Perform safe merge - only overwrite fields that are explicitly provided
+  // and not undefined/null, preserving existing optional fields
+  const merged: SalesCallMinimal = { ...existing };
+  
+  // Merge top-level fields
+  Object.entries(patch).forEach(([key, value]) => {
+    if (key === 'meta') {
+      // Special handling for meta field - merge metadata
+      merged.meta = {
+        ...existing.meta,
+        ...patch.meta,
+        updatedAt: new Date().toISOString()
+      };
+    } else if (value !== undefined) {
+      // Only override if the new value is explicitly provided
+      (merged as any)[key] = value;
+    }
+  });
+  
+  calls[nodeId] = merged;
+  
+  return {
+    updated: true,
+    isDuplicate: false,
+    reason: 'Call data merged successfully'
+  };
 }
 
 /**
@@ -65,4 +117,18 @@ export function setDashboard(nodeId: string, template: DashboardTemplate): void 
     node.dashboardId = templateKey;
     node.updatedAt = new Date().toISOString();
   }
+}
+
+/**
+ * Check if analysis exists for given content hash (for idempotency)
+ */
+export function hasExistingAnalysis(
+  nodeId: string, 
+  contentHash: string, 
+  schemaVersion?: string
+): boolean {
+  const existing = calls[nodeId];
+  if (!existing) return false;
+  
+  return isAnalysisDuplicate(existing as any, contentHash, schemaVersion);
 }
