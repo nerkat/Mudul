@@ -1,5 +1,3 @@
-import { SalesCallAnalysis } from "@mudul/protocol";
-
 export function buildAnalysisPrompt({
   transcript,
   mode,

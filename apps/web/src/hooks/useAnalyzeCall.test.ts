@@ -80,8 +80,8 @@ describe("useAnalyzeCall Hook Integration", () => {
     expect(liveAnalyze).toHaveBeenCalled();
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data.summary).toBe("Live AI summary");
-      expect(result.meta.provider).toBe("openai");
+      expect(result.data!.summary).toBe("Live AI summary");
+      expect(result.meta!.provider).toBe("openai");
     }
   });
 });
