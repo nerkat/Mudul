@@ -1,8 +1,8 @@
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
+import {
+  Box,
+  Typography,
   Alert,
   Button,
   Snackbar,
@@ -22,23 +22,23 @@ export function DashboardPage() {
   const node = useNode(nodeId || "");
   const { data: call, error, loading } = useSalesCall(nodeId || "");
   const { analyze, loading: analyzing, error: analyzeError, lastResult, cancel } = useAnalyzeCall();
-  
+
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
-  // Handle analysis results
+  // Handle analysis results (no full page reload)
   useEffect(() => {
-    if (lastResult) {
-      if (lastResult.updated) {
-        setToastMessage("Analysis completed successfully!");
-        setShowSuccessToast(true);
-        // Force a re-render by updating the key or refreshing data
-        setTimeout(() => window.location.reload(), 500);
-      } else if (lastResult.isDuplicate) {
-        setToastMessage("Analysis already exists for this transcript");
-        setShowSuccessToast(true); // Show as success since it's not an error
-      }
+    if (!lastResult) return;
+
+    if (lastResult.updated) {
+      setToastMessage("Analysis completed successfully!");
+      setShowSuccessToast(true);
+      // If your data hook doesn't auto-refresh on repo mutation,
+      // expose a refetch() from useSalesCall and call it here.
+    } else if (lastResult.isDuplicate) {
+      setToastMessage("Analysis already exists for this transcript");
+      setShowSuccessToast(true); // Treat as success since nothing went wrong
     }
   }, [lastResult]);
 
@@ -81,10 +81,10 @@ export function DashboardPage() {
 
   const handleAnalyze = async () => {
     if (!nodeId) return;
-    
+
     // For demo purposes, use a mock transcript
     const mockTranscript = "This is a mock sales call transcript for analysis.";
-    
+
     await analyze(nodeId, mockTranscript);
   };
 
@@ -145,22 +145,22 @@ export function DashboardPage() {
             {node.kind === "call_session" ? "Sales Call Dashboard" : "Node Dashboard"}
           </Typography>
           {call?.meta?.schemaVersion && (
-            <Chip 
-              size="small" 
-              label={`Schema: ${call.meta.schemaVersion}`} 
+            <Chip
+              size="small"
+              label={`Schema: ${call.meta.schemaVersion}`}
               variant="outlined"
               sx={{ mr: 1 }}
             />
           )}
           {call?.meta?.provider && (
-            <Chip 
-              size="small" 
-              label={`Provider: ${call.meta.provider}`} 
+            <Chip
+              size="small"
+              label={`Provider: ${call.meta.provider}`}
               variant="outlined"
             />
           )}
         </Box>
-        
+
         {isCallSession && (
           <Box sx={{ display: 'flex', gap: 1 }}>
             {analyzing && (
@@ -175,6 +175,7 @@ export function DashboardPage() {
               </Button>
             )}
             <Button
+              type="button"
               variant={hasAnalysisData ? "outlined" : "contained"}
               startIcon={hasAnalysisData ? <Refresh /> : <PlayArrow />}
               onClick={handleAnalyze}
@@ -186,11 +187,11 @@ export function DashboardPage() {
           </Box>
         )}
       </Box>
-      
+
       {loading && (
         <Alert severity="info">Loading dashboard data...</Alert>
       )}
-      
+
       {error && (
         <Alert severity="warning">{error}</Alert>
       )}
@@ -215,7 +216,7 @@ export function DashboardPage() {
           Template validation error: {templateError}
         </Alert>
       )}
-      
+
       {!loading && !error && !templateError && call && parsed && (
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 2, mt: 2 }}>
           {parsed.widgets.map((widgetConfig, index) => (
@@ -225,7 +226,7 @@ export function DashboardPage() {
           ))}
         </Box>
       )}
-      
+
       {!loading && !error && !templateError && (!call || !parsed) && (
         <Alert severity="info" sx={{ mt: 2 }}>
           No dashboard configuration found for this node.
@@ -239,7 +240,7 @@ export function DashboardPage() {
         onClose={() => setShowSuccessToast(false)}
         message={toastMessage}
       />
-      
+
       <Snackbar
         open={showErrorToast}
         autoHideDuration={6000}
