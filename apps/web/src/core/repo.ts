@@ -78,7 +78,7 @@ export function upsertCall(nodeId: string, patch: Partial<SalesCallMinimal>): Up
   // and not undefined/null, preserving existing optional fields
   const merged: SalesCallMinimal = { ...existing };
   
-  // Merge top-level fields
+  // Merge top-level fields - only overwrite if value is not undefined AND not null
   Object.entries(patch).forEach(([key, value]) => {
     if (key === 'meta') {
       // Special handling for meta field - merge metadata
@@ -87,9 +87,17 @@ export function upsertCall(nodeId: string, patch: Partial<SalesCallMinimal>): Up
         ...patch.meta,
         updatedAt: new Date().toISOString()
       };
-    } else if (value !== undefined) {
-      // Only override if the new value is explicitly provided
-      (merged as any)[key] = value;
+    } else if (value !== undefined && value !== null) {
+      // Only override if the new value is explicitly provided and not null
+      if (key === 'sentiment' && typeof value === 'object') {
+        // Deep merge for sentiment object
+        merged.sentiment = { ...existing.sentiment, ...(value as any) };
+      } else if (key === 'entities' && typeof value === 'object') {
+        // Deep merge for entities object
+        merged.entities = { ...existing.entities, ...(value as any) };
+      } else {
+        (merged as any)[key] = value;
+      }
     }
   });
   

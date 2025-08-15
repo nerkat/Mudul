@@ -131,15 +131,18 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
 
           // Map live AI response to SalesCallMinimal format
           const patch: Partial<SalesCallMinimal> = {
-            summary: liveResult.data?.summary,
-            sentiment: liveResult.data?.sentiment,
-            bookingLikelihood: liveResult.data?.bookingLikelihood,
-            objections: liveResult.data?.objections,
-            actionItems: liveResult.data?.actionItems,
-            keyMoments: liveResult.data?.keyMoments,
-            entities: liveResult.data?.entities,
-            complianceFlags: liveResult.data?.complianceFlags,
-            meta: liveResult.meta,
+            summary: liveResult.analysis?.summary,
+            sentiment: liveResult.analysis?.sentiment,
+            bookingLikelihood: liveResult.analysis?.bookingLikelihood,
+            objections: liveResult.analysis?.objections,
+            actionItems: liveResult.analysis?.actionItems,
+            keyMoments: liveResult.analysis?.keyMoments,
+            entities: liveResult.analysis?.entities,
+            complianceFlags: liveResult.analysis?.complianceFlags,
+            meta: {
+              ...liveResult.meta,
+              updatedAt: new Date().toISOString()
+            },
           };
 
           // Remove undefined values to avoid overwriting existing data
@@ -163,14 +166,14 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
             ...prev,
             loading: false,
             lastResponse: {
-              analysis: liveResult.data as any,
+              analysis: liveResult.analysis as any,
               meta: {
                 provider: liveResult.meta?.provider || 'unknown',
                 model: liveResult.meta?.model || 'unknown', 
                 duration_ms: durationMs,
-                request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                request_id: liveResult.meta?.request_id || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 content_hash: liveResult.meta?.contentHash || '',
-                schema_version: liveResult.meta?.schemaVersion || ANALYSIS_SCHEMA_VERSION
+                schema_version: liveResult.meta?.schema_version || ANALYSIS_SCHEMA_VERSION
               }
             },
             lastResult: upsertResult,
