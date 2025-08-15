@@ -110,6 +110,7 @@ export class OpenAIProvider implements AiProvider {
       model: this.opts.model,
       messages,
       temperature: 0, // Explicitly set to 0 for deterministic output
+      top_p: 1, // Set to 1 for deterministic output
       max_tokens: 1500,
       response_format: { type: "json_object" as const }, // Ensure JSON output
       metadata: {
