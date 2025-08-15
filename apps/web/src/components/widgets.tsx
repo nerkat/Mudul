@@ -60,9 +60,9 @@ export const Paper = {
   Objections: ({ data }: ObjectionsWidgetProps) => (
     <PaperCard title="Objections">
       {data.objections?.length
-        ? data.objections.map((o: { type: string; quote: string; ts: string }, i: number) => (
+        ? data.objections.map((o: { type: string; quote: string; ts?: string }, i: number) => (
             <div key={i}>
-              <em>{o.type}</em>: "{o.quote}" @ {o.ts}
+              <em>{o.type}</em>: "{o.quote}" {o.ts ? `@ ${o.ts}` : ''}
             </div>
           ))
         : "None"}
@@ -84,9 +84,9 @@ export const Paper = {
   KeyMoments: ({ data }: KeyMomentsWidgetProps) => (
     <PaperCard title="Key Moments">
       {data.keyMoments?.length
-        ? data.keyMoments.map((k: { label: string; ts: string }, i: number) => (
+        ? data.keyMoments.map((k: { label: string; ts?: string }, i: number) => (
             <div key={i}>
-              {k.label} @ {k.ts}
+              {k.label} {k.ts ? `@ ${k.ts}` : ''}
             </div>
           ))
         : "None"}
@@ -141,9 +141,9 @@ export const Rich = {
       <div className="font-medium">Objections</div>
       <div className="mt-2 text-sm space-y-1">
         {data.objections?.length
-          ? data.objections.map((o: { type: string; quote: string; ts: string }, i: number) => (
+          ? data.objections.map((o: { type: string; quote: string; ts?: string }, i: number) => (
               <div key={i}>
-                <em>{o.type}</em>: "{o.quote}" @ {o.ts}
+                <em>{o.type}</em>: "{o.quote}" {o.ts ? `@ ${o.ts}` : ''}
               </div>
             ))
           : "None"}
@@ -171,9 +171,9 @@ export const Rich = {
       <div className="font-medium">Key Moments</div>
       <div className="mt-2 text-sm space-y-1">
         {data.keyMoments?.length
-          ? data.keyMoments.map((k: { label: string; ts: string }, i: number) => (
+          ? data.keyMoments.map((k: { label: string; ts?: string }, i: number) => (
               <div key={i}>
-                {k.label} @ {k.ts}
+                {k.label} {k.ts ? `@ ${k.ts}` : ''}
               </div>
             ))
           : "None"}
