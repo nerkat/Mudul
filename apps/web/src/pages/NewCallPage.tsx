@@ -64,27 +64,30 @@ export function NewCallPage() {
       setCurrentDraftNodeId(draftNodeId);
 
       // Analyze the call
-      await analyzeCall.analyze(draftNodeId, transcript.trim());
+      const outcome = await analyzeCall.analyze(draftNodeId, transcript.trim());
 
-      // Check results
-      if (analyzeCall.error) {
-        // Analysis failed, rollback
-        deleteNode(draftNodeId);
-        setCurrentDraftNodeId(null);
-        setErrors({ 
-          general: analyzeCall.error.message || 'Analysis failed. Please try again.' 
-        });
-      } else if (analyzeCall.lastResult?.updated || analyzeCall.lastResult?.isDuplicate) {
-        // Mark as active and redirect
-        markNodeActive(draftNodeId);
-        setSuccessMessage('Call created and analyzed successfully!');
-        setTimeout(() => navigate(`/node/${draftNodeId}`), 1000);
-      } else {
-        // Analysis failed, rollback
-        deleteNode(draftNodeId);
-        setCurrentDraftNodeId(null);
-        setErrors({ general: 'Analysis failed. Please try again.' });
+      // Decide based on direct outcome to avoid stale state reads
+      if (outcome.status === 'success' || outcome.status === 'duplicate') {
+        const updated = outcome.result?.updated || outcome.result?.isDuplicate;
+        if (updated) {
+          markNodeActive(draftNodeId);
+          setSuccessMessage('Call created and analyzed successfully!');
+          setTimeout(() => navigate(`/node/${draftNodeId}`), 1000);
+          return;
+        }
       }
+
+      if (outcome.status === 'error') {
+        deleteNode(draftNodeId);
+        setCurrentDraftNodeId(null);
+        setErrors({ general: outcome.error?.message || 'Analysis failed. Please try again.' });
+        return;
+      }
+
+      // Fallback (aborted or unexpected)
+      deleteNode(draftNodeId);
+      setCurrentDraftNodeId(null);
+      setErrors({ general: 'Analysis was cancelled or did not complete.' });
     } catch (error) {
       // Rollback on error
       if (currentDraftNodeId) {
