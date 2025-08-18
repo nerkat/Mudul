@@ -14,6 +14,10 @@ export function getInitialViewMode(): ViewMode {
   
   const q = new URLSearchParams(window.location.search).get("mode");
   if (q === "paper") return "paper";
+  
+  // Guard for missing localStorage
+  if (typeof localStorage === 'undefined') return "rich";
+  
   const saved = localStorage.getItem(KEY);
   return (saved === "paper" || saved === "rich") ? (saved as ViewMode) : "rich";
 }
@@ -24,7 +28,7 @@ export function saveViewMode(m: ViewMode) {
   
   localStorage.setItem(KEY, m);
 
-  // Update URL param while preserving other query parameters
+  // Update URL param while preserving other query parameters and hash
   const url = new URL(window.location.href);
   if (m === "paper") {
     url.searchParams.set("mode", "paper");
@@ -32,7 +36,7 @@ export function saveViewMode(m: ViewMode) {
     url.searchParams.delete("mode");
   }
   
-  // Use replaceState to avoid adding to history
+  // Use replaceState to avoid adding to history, preserving hash
   window.history.replaceState({}, "", url.toString());
 
   // Notify listeners in this tab

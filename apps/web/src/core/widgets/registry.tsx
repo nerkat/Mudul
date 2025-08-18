@@ -171,9 +171,19 @@ export function WidgetRenderer({ config, call }: WidgetRendererProps) {
   const entry = WidgetRegistry[config.slug];
   
   if (!entry) {
+    const errorMessage = `Unknown widget: ${config.slug}`;
+    if (mode === "paper") {
+      return (
+        <PaperRenderer 
+          slug="error" 
+          title="Error" 
+          data={{ error: errorMessage, type: "missing-widget" }} 
+        />
+      );
+    }
     return (
-      <div className="rounded-xl border border-red-200 p-4 text-red-600">
-        Unknown widget: {config.slug}
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
+        <strong>⚠️ {errorMessage}</strong>
       </div>
     );
   }
@@ -181,16 +191,46 @@ export function WidgetRenderer({ config, call }: WidgetRendererProps) {
   const validation = entry.validate(config.params || {});
   
   if (!validation.success) {
+    const errorMessage = `Widget error (${config.slug}): ${validation.error}`;
+    if (mode === "paper") {
+      return (
+        <PaperRenderer 
+          slug="error" 
+          title="Validation Error" 
+          data={{ error: validation.error, widget: config.slug, type: "validation-error" }} 
+        />
+      );
+    }
     return (
-      <div className="rounded-xl border border-red-200 p-4 text-red-600">
-        Widget error ({config.slug}): {validation.error}
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
+        <strong>⚠️ {errorMessage}</strong>
       </div>
     );
   }
 
   // Use adapters to project data
   const adapter = Adapters[config.slug];
-  const data = adapter ? adapter.project(call, validation.data, { mode }) : call;
+  
+  if (!adapter) {
+    const errorMessage = `No adapter for ${config.slug}`;
+    if (mode === "paper") {
+      return (
+        <PaperRenderer 
+          slug="error" 
+          title="Missing Adapter" 
+          data={{ error: errorMessage, widget: config.slug, type: "missing-adapter" }} 
+        />
+      );
+    }
+    return (
+      <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-700">
+        <strong>⚠️ {errorMessage}</strong>
+        <div className="mt-1 text-sm">Using fallback data projection</div>
+      </div>
+    );
+  }
+  
+  const data = adapter.project(call, validation.data, { mode });
 
   // Branch between paper and rich mode
   if (mode === "paper") {
@@ -200,9 +240,10 @@ export function WidgetRenderer({ config, call }: WidgetRendererProps) {
   try {
     return <>{entry.render(call, validation.data)}</>;
   } catch (error) {
+    const errorMessage = `Render error (${config.slug}): ${error instanceof Error ? error.message : 'Unknown error'}`;
     return (
-      <div className="rounded-xl border border-red-200 p-4 text-red-600">
-        Render error ({config.slug}): {error instanceof Error ? error.message : 'Unknown error'}
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
+        <strong>⚠️ {errorMessage}</strong>
       </div>
     );
   }
