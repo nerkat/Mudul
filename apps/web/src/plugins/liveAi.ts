@@ -119,14 +119,15 @@ export function liveAiPlugin(): Plugin {
             return;
           }
 
-          // Return successful response
+          // Return successful response with structure matching mock plugin
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({
-            ok: true,
-            data: validatedData.data,
+            analysis: validatedData.data,
             meta: {
               provider: aiConfig.provider,
               model: aiConfig.model,
+              duration_ms: durationMs,
+              request_id: `live_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               schemaVersion,
               contentHash,
               updatedAt: new Date().toISOString()
