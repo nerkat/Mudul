@@ -13,6 +13,11 @@ import {
   PieChartParams
 } from "./params";
 
+// Import adapters and paper renderer
+import { Adapters } from '../adapters';
+import { PaperRenderer } from './paper/PaperRenderer';
+import { useViewMode } from '../../ctx/ViewModeContext';
+
 // Component implementations (use existing Paper/Rich widgets internally)
 import { Rich as WRich } from "../../components/widgets";
 
@@ -162,6 +167,7 @@ interface WidgetRendererProps {
 }
 
 export function WidgetRenderer({ config, call }: WidgetRendererProps) {
+  const { mode } = useViewMode();
   const entry = WidgetRegistry[config.slug];
   
   if (!entry) {
@@ -180,6 +186,15 @@ export function WidgetRenderer({ config, call }: WidgetRendererProps) {
         Widget error ({config.slug}): {validation.error}
       </div>
     );
+  }
+
+  // Use adapters to project data
+  const adapter = Adapters[config.slug];
+  const data = adapter ? adapter.project(call, validation.data, { mode }) : call;
+
+  // Branch between paper and rich mode
+  if (mode === "paper") {
+    return <PaperRenderer slug={config.slug} title={config.slug} data={data} params={validation.data} />;
   }
 
   try {

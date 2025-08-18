@@ -13,8 +13,6 @@ import {
 } from '@mui/material';
 import { 
   Menu as MenuIcon, 
-  Brightness4, 
-  Brightness7,
   Dashboard,
   Business,
   Call,
@@ -28,12 +26,7 @@ import { useRepo } from '../hooks/useRepo';
 
 const drawerWidth = 280;
 
-interface AppShellProps {
-  isDark: boolean;
-  onThemeToggle: () => void;
-}
-
-export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
+export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -195,9 +188,6 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             Mudul
           </Typography>
-          <IconButton color="inherit" onClick={onThemeToggle}>
-            {isDark ? <Brightness7 /> : <Brightness4 />}
-          </IconButton>
         </Toolbar>
       </AppBar>
       
