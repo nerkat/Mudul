@@ -9,6 +9,9 @@ const bus = new EventTarget();
 const EVT = "viewmode:changed";
 
 export function getInitialViewMode(): ViewMode {
+  // Guard for SSR
+  if (typeof window === 'undefined') return "rich";
+  
   const q = new URLSearchParams(window.location.search).get("mode");
   if (q === "paper") return "paper";
   const saved = localStorage.getItem(KEY);
@@ -16,12 +19,20 @@ export function getInitialViewMode(): ViewMode {
 }
 
 export function saveViewMode(m: ViewMode) {
+  // Guard for SSR
+  if (typeof window === 'undefined') return;
+  
   localStorage.setItem(KEY, m);
 
-  // Update URL param to keep it in sync
+  // Update URL param while preserving other query parameters
   const url = new URL(window.location.href);
-  if (m === "paper") url.searchParams.set("mode", "paper");
-  else url.searchParams.delete("mode");
+  if (m === "paper") {
+    url.searchParams.set("mode", "paper");
+  } else {
+    url.searchParams.delete("mode");
+  }
+  
+  // Use replaceState to avoid adding to history
   window.history.replaceState({}, "", url.toString());
 
   // Notify listeners in this tab
@@ -39,15 +50,22 @@ export function useViewMode() {
   const [mode, setMode] = useState<ViewMode>(() => getInitialViewMode());
 
   const applyFromUrl = useCallback(() => {
+    // Guard for SSR
+    if (typeof window === 'undefined') return;
+    
     const q = new URLSearchParams(window.location.search).get("mode");
-    if (q === "paper") setMode("paper");
-    else {
+    if (q === "paper") {
+      setMode("paper");
+    } else {
       const saved = localStorage.getItem(KEY);
       setMode((saved === "paper" || saved === "rich") ? (saved as ViewMode) : "rich");
     }
   }, []);
 
   useEffect(() => {
+    // Guard for SSR
+    if (typeof window === 'undefined') return;
+    
     // 1) In-tab updates via our bus
     const onBus = (e: Event) => {
       const m = (e as CustomEvent<ViewMode>).detail;

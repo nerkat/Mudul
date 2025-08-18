@@ -28,16 +28,23 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
 
   // React to browser back/forward or manual URL changes
   useEffect(() => {
+    // Guard for SSR
+    if (typeof window === 'undefined') return;
+    
     const applyFromUrl = () => {
       const next = getInitialViewMode(); // prioritizes URL param
       setModeState(next);
     };
+    
     window.addEventListener("popstate", applyFromUrl);
     return () => window.removeEventListener("popstate", applyFromUrl);
   }, []);
 
   // React to cross-tab/localStorage changes
   useEffect(() => {
+    // Guard for SSR
+    if (typeof window === 'undefined') return;
+    
     const onStorage = (ev: StorageEvent) => {
       if (ev.key === STORAGE_KEY || ev.key === null) {
         // Re-read from URL/localStorage to resolve precedence correctly
@@ -45,12 +52,16 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
         setModeState(next);
       }
     };
+    
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   // Keyboard shortcut: 'p' toggles (unless in an input/textarea or with modifiers)
   useEffect(() => {
+    // Guard for SSR
+    if (typeof window === 'undefined') return;
+    
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === "p" || e.key === "P") && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const target = e.target as HTMLElement | null;
@@ -62,6 +73,7 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
         }
       }
     };
+    
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [toggleMode]);

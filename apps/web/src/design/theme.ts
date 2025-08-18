@@ -1,11 +1,11 @@
 // src/design/theme.ts
 import { createTheme } from '@mui/material/styles';
-import { tokens } from './tokens';
+import { tokens, px, shadow } from './tokens';
 
 export const appTheme = createTheme({
   palette: {
     mode: 'dark',
-    primary:   { main: tokens.color.brand[600] },
+    primary:   { main: tokens.color.brand.base },
     success:   { main: tokens.color.success },
     warning:   { main: tokens.color.warning },
     error:     { main: tokens.color.error },
@@ -15,14 +15,14 @@ export const appTheme = createTheme({
   shape: { borderRadius: tokens.radius.md },
   typography: {
     fontFamily: tokens.font.family,
-    h1: { fontSize: tokens.font.size.h1, fontWeight: 600 },
-    h2: { fontSize: tokens.font.size.h2, fontWeight: 600 },
-    body1: { fontSize: tokens.font.size.lg },
-    body2: { fontSize: tokens.font.size.md }
+    h1: { fontSize: px(tokens.font.size.h1), fontWeight: 600 },
+    h2: { fontSize: px(tokens.font.size.h2), fontWeight: 600 },
+    body1: { fontSize: px(tokens.font.size.lg) },
+    body2: { fontSize: px(tokens.font.size.md) }
   },
   components: {
-    MuiButton: { styleOverrides: { root: { borderRadius: tokens.radius.lg } } },
+    MuiButton: { styleOverrides: { root: { borderRadius: px(tokens.radius.lg) } } },
     MuiChip:   { styleOverrides: { root: { borderColor: tokens.color.chip.border, background: tokens.color.chip.bg } } },
-    MuiPaper:  { styleOverrides: { root: { borderRadius: tokens.radius.lg, boxShadow: tokens.shadow.md } } },
+    MuiPaper:  { styleOverrides: { root: { borderRadius: px(tokens.radius.lg), boxShadow: shadow(tokens.shadow.md) } } },
   }
 });
