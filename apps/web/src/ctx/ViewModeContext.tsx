@@ -23,8 +23,8 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleMode = useCallback(() => {
-    setMode(prev => (prev === "paper" ? "rich" : "paper"));
-  }, [setMode]);
+    setMode(mode === "paper" ? "rich" : "paper");
+  }, [mode, setMode]);
 
   // React to browser back/forward or manual URL changes
   useEffect(() => {
