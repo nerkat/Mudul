@@ -6,6 +6,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { CallsPage } from "./pages/CallsPage";
 import { CallDashboardPage } from "./pages/CallDashboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { NewCallPage } from "./pages/NewCallPage";
 
 const router = createBrowserRouter([
   {
@@ -15,6 +16,7 @@ const router = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
       { path: "node/:nodeId", element: <DashboardPage /> },
       { path: "calls", element: <CallsPage /> },
+      { path: "calls/new", element: <NewCallPage /> },
       { path: "calls/:id", element: <CallDashboardPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
