@@ -140,3 +140,62 @@ export function hasExistingAnalysis(
   
   return isAnalysisDuplicate(existing as any, contentHash, schemaVersion);
 }
+
+// ----- Call creation and lifecycle management -----
+
+/**
+ * Create a new call node under the specified client.
+ * Returns the new node ID.
+ */
+export function createCallNode({ clientId, title }: { clientId: string; title: string }): string {
+  const now = new Date().toISOString();
+  const nodeId = `call-${clientId}-${Date.now()}`;
+  
+  // Create the node
+  nodes[nodeId] = {
+    id: nodeId,
+    orgId: "acme",
+    parentId: clientId,
+    kind: "call_session",
+    name: title,
+    slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    dashboardId: "sales-call-default",
+    dataRef: { type: "session", id: `session-${nodeId}` },
+    createdAt: now,
+    updatedAt: now
+  };
+  
+  // Create an empty call record
+  calls[nodeId] = {
+    summary: "",
+    sentiment: { overall: "neutral", score: 0 },
+    bookingLikelihood: 0,
+    objections: [],
+    actionItems: [],
+    keyMoments: [],
+    entities: { prospect: [], people: [], products: [] },
+    complianceFlags: []
+  };
+  
+  return nodeId;
+}
+
+/**
+ * Delete a node and its associated call data.
+ * Used for rollback when call creation fails.
+ */
+export function deleteNode(nodeId: string): void {
+  delete nodes[nodeId];
+  delete calls[nodeId];
+}
+
+/**
+ * Mark a node as active (no-op for now, but could be used for draft state).
+ * In a full implementation, this might update a status field.
+ */
+export function markNodeActive(nodeId: string): void {
+  const node = nodes[nodeId];
+  if (node) {
+    node.updatedAt = new Date().toISOString();
+  }
+}
