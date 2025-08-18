@@ -130,8 +130,8 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
           // prefer server meta but enforce our canonical keys for idempotency
           provider: result.meta?.provider ?? "unknown",
           model: result.meta?.model ?? "unknown",
-          duration_ms: result.meta?.duration_ms ?? 0,
-          request_id: result.meta?.request_id ?? `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          durationMs: result.meta?.duration_ms ?? 0,
+          requestId: result.meta?.request_id ?? `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           contentHash,                        // <— camelCase, same value used in pre-check
           schemaVersion: ANALYSIS_SCHEMA_VERSION, // <— camelCase
           updatedAt: new Date().toISOString(),
