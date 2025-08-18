@@ -37,8 +37,8 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
   const currentNodeIdRef = useRef<string | null>(null);
 
   const analyze = useCallback(async (
-    nodeId: string, 
-    transcript: string, 
+    nodeId: string,
+    transcript: string,
     mode: AnalysisMode = "sales_v1"
   ) => {
     // Cancel any existing request
@@ -51,18 +51,18 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
     abortControllerRef.current = abortController;
     currentNodeIdRef.current = nodeId;
 
-    setState(prev => ({ 
-      ...prev, 
-      loading: true, 
+    setState(prev => ({
+      ...prev,
+      loading: true,
       error: null,
-      lastResult: null 
+      lastResult: null
     }));
 
     try {
       // Check for duplicate analysis before making request
       const contentHash = createAnalysisContentHash(transcript, mode);
       const isDuplicate = hasExistingAnalysis(nodeId, contentHash);
-      
+
       if (isDuplicate) {
         setState(prev => ({
           ...prev,
@@ -99,22 +99,29 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
 
       const result = await response.json();
 
-      if (!response.ok || !result.ok) {
+      // Treat success as: HTTP ok AND no error object AND we actually have analysis data
+      const hasHttpError = !response.ok;
+      const hasBodyError = typeof result?.error?.code === 'string' && result.error.code.length > 0;
+      const hasAnalysis = !!result?.analysis;
+
+      if (hasHttpError || hasBodyError || !hasAnalysis) {
         setState(prev => ({
           ...prev,
           loading: false,
           error: {
-            code: (result.error?.code || "UNKNOWN_ERROR") as any,
-            message: result.error?.code === "TIMEOUT" ? "Request timed out" : 
-                    result.error?.code === "SCHEMA_INVALID" ? "Invalid analysis schema" :
-                    result.error?.code === "RATE_LIMITED" ? "Rate limited" :
-                    result.error?.code === "CANCELLED" ? "Request cancelled" :
-                    "Provider error occurred",
-            details: result.error?.details
+            code: (result?.error?.code || "UNKNOWN_ERROR") as any,
+            message: result?.error?.message ||
+              (result?.error?.code === "TIMEOUT" ? "Request timed out" :
+                result?.error?.code === "SCHEMA_INVALID" ? "Invalid analysis schema" :
+                  result?.error?.code === "RATE_LIMITED" ? "Rate limited" :
+                    result?.error?.code === "CANCELLED" ? "Request cancelled" :
+                      "Provider error occurred"),
+            details: result?.error?.details
           },
         }));
         return;
       }
+
 
       // Map analysis response to SalesCallMinimal format
       const patch: Partial<SalesCallMinimal> = {
@@ -160,7 +167,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
           analysis: result.analysis as any,
           meta: {
             provider: result.meta?.provider || 'unknown',
-            model: result.meta?.model || 'unknown', 
+            model: result.meta?.model || 'unknown',
             duration_ms: result.meta?.duration_ms || 0,
             request_id: result.meta?.request_id || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             content_hash: result.meta?.contentHash || '',
