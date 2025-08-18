@@ -130,6 +130,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
 
       // === Map + persist ===
       const patch: Partial<SalesCallMinimal> = {
+  transcript, // persist original transcript for future re-analysis
         summary: result.analysis?.summary,
         sentiment: result.analysis?.sentiment,
         bookingLikelihood: result.analysis?.bookingLikelihood,

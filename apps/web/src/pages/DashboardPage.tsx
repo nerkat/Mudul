@@ -100,9 +100,13 @@ export function DashboardPage() {
 
   const handleAnalyze = async () => {
     if (!nodeId) return;
-    // For demo purposes, use a mock transcript
-    const mockTranscript = "This is a mock sales call transcript for analysis.";
-    await analyze(nodeId, mockTranscript);
+    const sourceTranscript = call?.transcript?.trim();
+    if (!sourceTranscript || sourceTranscript.length < 20) {
+      setToastMessage("No transcript stored for this call. Re-run from creation page.");
+      setShowErrorToast(true);
+      return;
+    }
+    await analyze(nodeId, sourceTranscript);
   };
 
   const handleCancel = () => {

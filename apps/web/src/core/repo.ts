@@ -167,6 +167,7 @@ export function createCallNode({ clientId, title }: { clientId: string; title: s
   
   // Create an empty call record
   calls[nodeId] = {
+  transcript: "",
     summary: "",
     sentiment: { overall: "neutral", score: 0 },
     bookingLikelihood: 0,
