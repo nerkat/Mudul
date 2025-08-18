@@ -1,39 +1,72 @@
-import { createContext, useContext, useMemo, useState, useEffect } from "react";
+import { createContext, useContext, useMemo, useState, useEffect, useCallback } from "react";
 import { getInitialViewMode, saveViewMode, type ViewMode } from "../viewMode";
 
 interface ViewModeContextType {
   mode: ViewMode;
   setMode: (mode: ViewMode) => void;
+  toggleMode: () => void;
 }
 
 const Ctx = createContext<ViewModeContextType | null>(null);
 
-export function ViewModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ViewMode>(getInitialViewMode);
+// Keep in sync with the key used inside viewMode.ts
+const STORAGE_KEY = "mudul:viewMode";
 
-  const setMode = useMemo(() => (newMode: ViewMode) => {
+export function ViewModeProvider({ children }: { children: React.ReactNode }) {
+  // Initialize from URL (?mode=paper) > localStorage > default
+  const [mode, setModeState] = useState<ViewMode>(() => getInitialViewMode());
+
+  // Persist + URL-sync + state update
+  const setMode = useCallback((newMode: ViewMode) => {
     setModeState(newMode);
     saveViewMode(newMode);
   }, []);
 
-  // Add keyboard shortcut for 'p' key to toggle paper mode
+  const toggleMode = useCallback(() => {
+    setMode(prev => (prev === "paper" ? "rich" : "paper"));
+  }, [setMode]);
+
+  // React to browser back/forward or manual URL changes
+  useEffect(() => {
+    const applyFromUrl = () => {
+      const next = getInitialViewMode(); // prioritizes URL param
+      setModeState(next);
+    };
+    window.addEventListener("popstate", applyFromUrl);
+    return () => window.removeEventListener("popstate", applyFromUrl);
+  }, []);
+
+  // React to cross-tab/localStorage changes
+  useEffect(() => {
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key === STORAGE_KEY || ev.key === null) {
+        // Re-read from URL/localStorage to resolve precedence correctly
+        const next = getInitialViewMode();
+        setModeState(next);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // Keyboard shortcut: 'p' toggles (unless in an input/textarea or with modifiers)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only trigger if not in an input field and 'p' key is pressed
-      if (e.key === 'p' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const target = e.target as HTMLElement;
-        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
+      if ((e.key === "p" || e.key === "P") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement | null;
+        const tag = (target?.tagName ?? "").toUpperCase();
+        const isEditable = !!target && (target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA");
+        if (!isEditable) {
           e.preventDefault();
-          setMode(mode === "paper" ? "rich" : "paper");
+          toggleMode();
         }
       }
     };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [toggleMode]);
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [mode, setMode]);
-
-  const value = useMemo(() => ({ mode, setMode }), [mode, setMode]);
+  const value = useMemo(() => ({ mode, setMode, toggleMode }), [mode, setMode, toggleMode]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
