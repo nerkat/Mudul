@@ -1,4 +1,5 @@
 import type { Plugin } from 'vite';
+import { loadEnv } from 'vite';
 import { SalesCallAnalysis } from "@mudul/protocol";
 
 /**
@@ -9,6 +10,19 @@ export function liveAiPlugin(): Plugin {
   return {
     name: 'live-ai-plugin',
     configureServer(server) {
+      // Ensure non VITE_ env vars are loaded (OPENAI_API_KEY etc.)
+      const envAll = loadEnv(server.config.mode, process.cwd(), '');
+      for (const [k,v] of Object.entries(envAll)) {
+        if (!(k in process.env)) process.env[k] = v;
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[LIVE AI INIT]', {
+          mode: server.config.mode,
+            hasOPENAI: !!process.env.OPENAI_API_KEY,
+            hasAI: !!process.env.AI_API_KEY,
+            provider: process.env.AI_PROVIDER || 'openai'
+        });
+      }
       server.middlewares.use('/api/ai/analyze', async (req, res, next) => {
         if (req.method !== 'POST') {
           next();
@@ -16,6 +30,15 @@ export function liveAiPlugin(): Plugin {
         }
 
         try {
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[LIVE AI PLUGIN] request start', {
+              VITE_USE_LIVE_AI: process.env.VITE_USE_LIVE_AI,
+              USE_LIVE_AI: process.env.USE_LIVE_AI,
+              AI_PROVIDER: process.env.AI_PROVIDER,
+              OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'present' : 'missing',
+              AI_API_KEY: process.env.AI_API_KEY ? 'present' : 'missing'
+            });
+          }
           // Parse request body
           let body = '';
           req.on('data', chunk => {
@@ -63,13 +86,28 @@ export function liveAiPlugin(): Plugin {
           }
           
           if (!aiConfig) {
-            res.statusCode = 500;
+            const details = {
+              AI_PROVIDER: process.env.AI_PROVIDER,
+              hasAI_API_KEY: !!process.env.AI_API_KEY,
+              hasOPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+              keys: Object.keys(process.env).filter(k => /AI_|OPENAI_/.test(k)).sort()
+            };
+            const stub = buildStubAnalysis('Stub analysis (no API key configured)');
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn('[LIVE AI CONFIG_ERROR] missing api key → stub', details);
+            }
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({
-              ok: false,
-              error: {
-                code: 'CONFIG_ERROR',
-                message: 'AI provider not configured'
+              analysis: stub,
+              meta: {
+                provider: 'openai',
+                model: process.env.AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                duration_ms: 1,
+                request_id: `stub_${Date.now()}`,
+                schemaVersion,
+                contentHash,
+                stub: true,
+                configError: details
               }
             }));
             return;
@@ -135,14 +173,15 @@ export function liveAiPlugin(): Plugin {
           }));
 
         } catch (error) {
-          console.error('Live AI plugin error:', error);
+          console.error('[LIVE AI UNHANDLED]', error);
           res.statusCode = 500;
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({
             ok: false,
             error: {
               code: 'SERVER_ERROR',
-              message: 'Internal server error'
+              message: 'Internal server error',
+              details: error instanceof Error ? error.message : String(error)
             }
           }));
         }
@@ -203,7 +242,13 @@ async function callAIProvider({
   const timer = setTimeout(() => abort.abort(), config.timeoutMs);
 
   try {
-    if (config.provider === "openai") {
+    // Fast stub path for local fake keys to avoid external network + long timeout
+    if (config.apiKey.startsWith('sk-test-fake-key')) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[AI LIVE] stub openai response (fake key detected)');
+      }
+      rawJSON = buildStubAnalysis('Stub analysis (fake key) for local testing');
+    } else if (config.provider === "openai") {
       if (process.env.NODE_ENV !== 'production') {
         console.log('[AI LIVE] openai branch running');
       }
@@ -258,6 +303,19 @@ async function callAIProvider({
   return { ok: true, data: rawJSON };
 }
 
+function buildStubAnalysis(summary: string) {
+  return {
+    summary,
+    sentiment: { overall: 'neutral', score: 0.5 },
+    bookingLikelihood: 0.4,
+    objections: [],
+    actionItems: [],
+    keyMoments: [],
+    entities: { prospect: [], people: [], products: [] },
+    complianceFlags: []
+  };
+}
+
 function buildAnalysisPrompt({ transcript, mode, schemaVersion }: {
   transcript: string;
   mode: string;
@@ -308,8 +366,6 @@ Required JSON Schema:
       "severity": "low" | "medium" | "high"
     }
   ]
-}
-
 VALIDATION RULES:
 - sentiment.score must be between 0.0 and 1.0
 - bookingLikelihood must be between 0.0 and 1.0  
