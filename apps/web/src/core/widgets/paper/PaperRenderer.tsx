@@ -17,17 +17,51 @@ function sanitizeText(text: string): string {
     .replace(/\//g, '&#x2F;');
 }
 
-// Safe text renderer that sanitizes content
+// Safe text renderer that uses text nodes only (no HTML injection risk)
 function SafeText({ children, ...props }: { children: string } & any) {
-  const sanitized = sanitizeText(children);
-  return <Box {...props} dangerouslySetInnerHTML={{ __html: sanitized }} />;
+  // Use text nodes only - no dangerouslySetInnerHTML to prevent any HTML injection
+  return <Box {...props}>{sanitizeText(children)}</Box>;
 }
 
 // Deterministic JSON stringifier with sorted keys and circular detection
-function stableStringify(input: unknown, seen = new WeakSet()): string {
+function stableStringify(input: unknown, seen = new WeakSet(), depth = 0): string {
+  // Depth guard to prevent stack overflow
+  if (depth > 10) return '"[Max Depth Exceeded]"';
+  
   // Handle primitive types first
   if (input === null) return 'null';
   if (input === undefined) return 'undefined';
+  
+  // Handle special number values
+  if (typeof input === 'number') {
+    if (Number.isNaN(input)) return '"NaN"';
+    if (input === Infinity) return '"Infinity"';
+    if (input === -Infinity) return '"-Infinity"';
+    return JSON.stringify(input);
+  }
+  
+  // Handle bigint
+  if (typeof input === 'bigint') {
+    return `"${input.toString()}"`;
+  }
+  
+  // Handle dates
+  if (input instanceof Date) {
+    return `"${input.toISOString()}"`;
+  }
+  
+  // Handle Map and Set
+  if (input instanceof Map) {
+    const entries = Array.from(input.entries()).sort(([a], [b]) => String(a).localeCompare(String(b)));
+    return stableStringify(entries, seen, depth + 1);
+  }
+  
+  if (input instanceof Set) {
+    const values = Array.from(input).sort((a, b) => String(a).localeCompare(String(b)));
+    return stableStringify(values, seen, depth + 1);
+  }
+  
+  // Handle other primitives
   if (typeof input !== 'object') return JSON.stringify(input);
   
   // Circular reference detection
@@ -36,13 +70,16 @@ function stableStringify(input: unknown, seen = new WeakSet()): string {
   
   // Handle arrays
   if (Array.isArray(input)) {
-    return `[${input.map(item => stableStringify(item, seen)).join(', ')}]`;
+    const items = input.map(item => stableStringify(item, seen, depth + 1));
+    return `[${items.join(', ')}]`;
   }
   
-  // Handle objects with sorted keys
+  // Handle objects with sorted keys, omitting undefined values
   const obj = input as Record<string, unknown>;
-  const sortedKeys = Object.keys(obj).sort();
-  const pairs = sortedKeys.map(key => `"${key}": ${stableStringify(obj[key], seen)}`);
+  const sortedKeys = Object.keys(obj)
+    .filter(key => obj[key] !== undefined) // Omit undefined keys
+    .sort();
+  const pairs = sortedKeys.map(key => `"${key}": ${stableStringify(obj[key], seen, depth + 1)}`);
   return `{${pairs.join(', ')}}`;
 }
 

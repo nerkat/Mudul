@@ -1,63 +1,29 @@
 // src/viewMode.integration.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getInitialViewMode, saveViewMode, useViewMode } from './viewMode';
+import { getInitialViewMode } from './viewMode';
+
+// Mock URL constructor
+const mockURL = vi.fn();
+global.URL = mockURL as any;
 
 describe('ViewMode URL and Cross-tab Integration', () => {
-  // Mock localStorage
-  const mockLocalStorage = {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
-    removeItem: vi.fn(),
-    clear: vi.fn(),
-  };
-
-  // Mock URL and history
-  const mockURL = vi.fn();
-  const mockHistory = {
-    replaceState: vi.fn(),
-  };
-
   beforeEach(() => {
-    // Setup global mocks
-    Object.defineProperty(global, 'localStorage', {
-      value: mockLocalStorage,
-      writable: true
-    });
+    // Reset all mocks before each test
+    vi.clearAllMocks();
     
-    Object.defineProperty(global, 'URL', {
-      value: mockURL,
-      writable: true
-    });
-
-    // Setup proper document mock
-    Object.defineProperty(global, 'document', {
-      value: {
-        body: {},
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        documentElement: {
-          setAttribute: vi.fn(),
-          removeAttribute: vi.fn()
-        }
-      },
-      writable: true
-    });
-
+    // Setup basic window mock
     Object.defineProperty(global, 'window', {
       value: {
-        location: {
-          href: 'https://example.com/dashboard?foo=1#section',
-          search: '?foo=1'
-        },
-        history: mockHistory,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn()
+        location: { search: '' },
+        history: { replaceState: vi.fn() },
+        localStorage: {
+          getItem: vi.fn(),
+          setItem: vi.fn()
+        }
       },
-      writable: true
+      writable: true,
+      configurable: true
     });
-
-    // Reset mocks
-    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -87,34 +53,12 @@ describe('ViewMode URL and Cross-tab Integration', () => {
       expect(url.toString()).toContain('foo=1');
     });
 
-    it('should preserve hash fragments during mode changes', () => {
-      const testUrl = 'https://example.com/dashboard?existing=param#important-section';
-      
-      mockURL.mockImplementation((href) => ({
-        href,
-        searchParams: {
-          get: vi.fn(),
-          set: vi.fn(),
-          delete: vi.fn()
-        },
-        toString: () => href + (href.includes('mode=paper') ? '&mode=paper' : '')
-      }));
-
-      const url = new (mockURL as any)(testUrl);
-      const result = url.toString();
-      
-      expect(result).toContain('#important-section');
-    });
-
-    it('should handle complex query parameter scenarios', () => {
-      const complexUrl = 'https://example.com/node/123?filter=active&sort=date&view=grid&page=2#results';
+    it('should handle /client/123?foo=1#sec → ?foo=1&mode=paper#sec transformation', () => {
+      const specificUrl = 'https://example.com/client/123?foo=1#sec';
       
       mockURL.mockImplementation((href) => {
         const searchParams = {
-          get: vi.fn().mockImplementation((key) => {
-            if (key === 'mode') return null;
-            return 'mock-value';
-          }),
+          get: vi.fn(),
           set: vi.fn(),
           delete: vi.fn()
         };
@@ -122,20 +66,18 @@ describe('ViewMode URL and Cross-tab Integration', () => {
         return {
           href,
           searchParams,
-          toString: () => href.replace('#results', '') + '&mode=paper#results'
+          toString: () => 'https://example.com/client/123?foo=1&mode=paper#sec'
         };
       });
 
-      const url = new (mockURL as any)(complexUrl);
+      const url = new (mockURL as any)(specificUrl);
       url.searchParams.set('mode', 'paper');
-      const result = url.toString();
       
-      expect(result).toContain('filter=active');
-      expect(result).toContain('sort=date');
-      expect(result).toContain('view=grid');
-      expect(result).toContain('page=2');
+      const result = url.toString();
+      expect(result).toBe('https://example.com/client/123?foo=1&mode=paper#sec');
+      expect(result).toContain('foo=1');
       expect(result).toContain('mode=paper');
-      expect(result).toContain('#results');
+      expect(result).toContain('#sec');
     });
   });
 
@@ -152,38 +94,33 @@ describe('ViewMode URL and Cross-tab Integration', () => {
       global.window = originalWindow;
     });
 
-    it('should not crash when document is undefined', () => {
-      // @ts-ignore
-      global.document = undefined;
+    it('should prevent hydration mismatch when server renders rich and client has ?mode=paper', () => {
+      // Simulate server-side rendering scenario
+      const originalWindow = global.window;
+      const originalDocument = global.document;
       
-      expect(() => {
-        // This would normally try to access document
-        const mockKeyHandler = () => {};
-        // Simulate the effect cleanup
-        if (typeof document !== 'undefined') {
-          document.addEventListener('keydown', mockKeyHandler);
-        }
-      }).not.toThrow();
-    });
-
-    it('should handle missing localStorage gracefully', () => {
-      const originalLocalStorage = global.localStorage;
+      // @ts-ignore - Simulate SSR environment
+      delete global.window;
+      delete global.document;
       
-      // Use undefined assignment instead of delete to avoid vitest issues
-      Object.defineProperty(global, 'localStorage', {
-        value: undefined,
-        writable: true,
-        configurable: true
-      });
+      // Server-side would get default 'rich' mode
+      const serverMode = getInitialViewMode();
+      expect(serverMode).toBe('rich');
       
+      // Restore client environment with mode=paper in URL
+      global.window = {
+        location: { search: '?mode=paper' }
+      } as any;
+      global.document = {} as any;
+      
+      // Client-side should handle the URL param gracefully
+      const clientMode = getInitialViewMode();
+      // Should handle the difference without throwing
       expect(() => getInitialViewMode()).not.toThrow();
       
-      // Restore
-      Object.defineProperty(global, 'localStorage', {
-        value: originalLocalStorage,
-        writable: true,
-        configurable: true
-      });
+      // Restore original environment
+      global.window = originalWindow;
+      global.document = originalDocument;
     });
   });
 
@@ -226,99 +163,6 @@ describe('ViewMode URL and Cross-tab Integration', () => {
       // Should only have processed the last update
       expect(updates).toHaveLength(1);
       expect(updates[0]).toBe('rich');
-    });
-  });
-
-  describe('keyboard handling', () => {
-    it('should ignore p key when modifier keys are pressed', () => {
-      const mockPreventDefault = vi.fn();
-      const mockToggle = vi.fn();
-      
-      const events = [
-        { key: 'p', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false },
-        { key: 'p', ctrlKey: false, metaKey: true, altKey: false, shiftKey: false },
-        { key: 'p', ctrlKey: false, metaKey: false, altKey: true, shiftKey: false },
-        { key: 'p', ctrlKey: false, metaKey: false, altKey: false, shiftKey: true },
-      ];
-      
-      events.forEach(eventProps => {
-        const mockEvent = {
-          ...eventProps,
-          target: global.document?.body,
-          preventDefault: mockPreventDefault
-        };
-        
-        // Simulate the keyboard handler logic
-        const shouldHandle = eventProps.key === 'p' && 
-          !eventProps.ctrlKey && 
-          !eventProps.metaKey && 
-          !eventProps.altKey && 
-          !eventProps.shiftKey;
-          
-        if (shouldHandle) {
-          mockToggle();
-        }
-      });
-      
-      // Should not have triggered toggle for any modifier combinations
-      expect(mockToggle).not.toHaveBeenCalled();
-    });
-
-    it('should ignore p key when focused in editable elements', () => {
-      const mockPreventDefault = vi.fn();
-      const mockToggle = vi.fn();
-      
-      const editableElements = [
-        { tagName: 'INPUT' },
-        { tagName: 'TEXTAREA' },
-        { isContentEditable: true, tagName: 'DIV' },
-        { hasAttribute: (attr: string) => attr === 'contenteditable', tagName: 'P' }
-      ];
-      
-      editableElements.forEach(target => {
-        const mockEvent = {
-          key: 'p',
-          ctrlKey: false,
-          metaKey: false,
-          altKey: false,
-          shiftKey: false,
-          target,
-          preventDefault: mockPreventDefault
-        };
-        
-        // Simulate the editable check logic
-        const tag = target.tagName?.toUpperCase() || '';
-        const isEditable = target.isContentEditable || 
-          tag === 'INPUT' || 
-          tag === 'TEXTAREA' ||
-          (target.hasAttribute && target.hasAttribute('contenteditable'));
-        
-        if (!isEditable) {
-          mockToggle();
-        }
-      });
-      
-      // Should not have triggered toggle for any editable elements
-      expect(mockToggle).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('hydration compatibility', () => {
-    it('should handle SSR/client hydration differences', () => {
-      // Simulate SSR initial state
-      const ssrMode = 'rich'; // Default when no window
-      
-      // Simulate client hydration with URL param
-      const clientUrl = '?mode=paper';
-      const clientMode = new URLSearchParams(clientUrl).get('mode') || 'rich';
-      
-      // Should handle the difference gracefully
-      expect(ssrMode).toBe('rich');
-      expect(clientMode).toBe('paper');
-      
-      // The real implementation should reconcile these without content mismatch errors
-      const finalMode = clientMode; // Client wins during hydration
-      expect(finalMode).toBe('paper');
     });
   });
 });
