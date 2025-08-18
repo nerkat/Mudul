@@ -3,7 +3,7 @@ import { createAnalysisContentHash } from "../services/versioning";
 
 // Mock environment variable
 Object.defineProperty(import.meta, 'env', {
-  value: { VITE_USE_LIVE_AI: "false" }, // Default to mock mode for tests
+  value: { USE_LIVE_AI: "false" }, // Default to mock mode for tests
   writable: true
 });
 

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_USE_LIVE_AI?: string;
+  readonly USE_LIVE_AI?: string;
 }
 
 interface ImportMeta {

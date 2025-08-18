@@ -5,7 +5,6 @@ import { redactForLogging } from "./utils.js";
 
 export interface ProviderConfig {
   USE_LIVE_AI?: string;
-  VITE_USE_LIVE_AI?: string; // Support both env var names for flexibility
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
   OPENAI_BASE_URL?: string;
@@ -24,7 +23,7 @@ export interface ProviderValidationResult {
  * Check if live AI is enabled from either environment variable
  */
 function isLiveAiEnabled(env: ProviderConfig): boolean {
-  return ['USE_LIVE_AI', 'VITE_USE_LIVE_AI']
+return ['USE_LIVE_AI']
     .some(k => String(env[k as keyof ProviderConfig]).toLowerCase() === 'true');
 }
 
@@ -79,7 +78,6 @@ export function createProvider(env: ProviderConfig = process.env as ProviderConf
     console.log('[AI SELECTOR]', {
       useLive,
       USE_LIVE_AI: env.USE_LIVE_AI,
-      VITE_USE_LIVE_AI: env.VITE_USE_LIVE_AI,
       hasKey: !!env.OPENAI_API_KEY,
       provider: 'openai' // hardcoded for now, can be made configurable later
     });
