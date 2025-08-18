@@ -6,9 +6,13 @@ import {
   Alert,
   Button,
   Snackbar,
-  Chip
+  Chip,
+  IconButton,
+  Tooltip,
+  Divider,
+  Stack
 } from '@mui/material';
-import { PlayArrow, Refresh, Cancel } from '@mui/icons-material';
+import { PlayArrow, Refresh, Cancel, Description, InsertChartOutlined } from '@mui/icons-material';
 import { useNode } from '../hooks/useNode';
 import { useSalesCall } from '../hooks/useSalesCall';
 import { useAnalyzeCall } from '../hooks/useAnalyzeCall';
@@ -16,16 +20,31 @@ import { WidgetRenderer } from '../core/widgets/registry';
 import { DashboardTemplate } from '../core/widgets/protocol';
 import { DashboardTemplates } from '../core/registry-json';
 import type { AnalysisError } from '../services/errors';
+import { useViewMode } from '../viewMode';  // <-- add hook
 
 export function DashboardPage() {
   const { nodeId } = useParams<{ nodeId: string }>();
   const node = useNode(nodeId || "");
-  const { data: call, error, loading } = useSalesCall(nodeId || "");
+  const { data: call, error, loading /*, refetch */ } = useSalesCall(nodeId || "");
   const { analyze, loading: analyzing, error: analyzeError, lastResult, cancel } = useAnalyzeCall();
+
+  const { mode, toggleViewMode, setViewMode } = useViewMode(); // <-- subscribe to mode
 
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+
+  // Keyboard: press "p" to toggle paper/rich mode (no modifiers)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        toggleViewMode();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toggleViewMode]);
 
   // Handle analysis results (no full page reload)
   useEffect(() => {
@@ -34,8 +53,8 @@ export function DashboardPage() {
     if (lastResult.updated) {
       setToastMessage("Analysis completed successfully!");
       setShowSuccessToast(true);
-      // If your data hook doesn't auto-refresh on repo mutation,
-      // expose a refetch() from useSalesCall and call it here.
+      // If your data hook doesn't auto-refresh on repo mutation, call refetch() here.
+      // refetch?.();
     } else if (lastResult.isDuplicate) {
       setToastMessage("Analysis already exists for this transcript");
       setShowSuccessToast(true); // Treat as success since nothing went wrong
@@ -81,10 +100,8 @@ export function DashboardPage() {
 
   const handleAnalyze = async () => {
     if (!nodeId) return;
-
     // For demo purposes, use a mock transcript
     const mockTranscript = "This is a mock sales call transcript for analysis.";
-
     await analyze(nodeId, mockTranscript);
   };
 
@@ -95,7 +112,7 @@ export function DashboardPage() {
   };
 
   const isCallSession = node?.kind === "call_session";
-  const hasAnalysisData = call && Object.keys(call).length > 0;
+  const hasAnalysisData = !!call && Object.keys(call).length > 0;
 
   if (!nodeId) {
     return (
@@ -125,17 +142,44 @@ export function DashboardPage() {
 
   // Get dashboard template and validate
   const tpl = DashboardTemplates[node?.dashboardId ?? "sales-call-default"];
-  let parsed: DashboardTemplate | null = null;
+  let parsed: ReturnType<typeof DashboardTemplate.parse> | null = null;
   let templateError: string | null = null;
 
   try {
     parsed = DashboardTemplate.parse(tpl);
-  } catch (error) {
-    templateError = error instanceof Error ? error.message : 'Invalid template format';
+  } catch (e) {
+    templateError = e instanceof Error ? e.message : 'Invalid template format';
   }
+
+  // Helper: map widget slug → call data for paper mode
+  const paperDataForSlug = (slug: string) => {
+    switch (slug) {
+      case 'summary': return call?.summary ?? null;
+      case 'sentiment': return call?.sentiment ?? null;
+      case 'booking': return call?.bookingLikelihood ?? null;
+      case 'objections': return call?.objections ?? null;
+      case 'actionItems': return call?.actionItems ?? null;
+      case 'keyMoments': return call?.keyMoments ?? null;
+      default:
+        // fallback: try property by slug if exists
+        return (call as any)?.[slug] ?? null;
+    }
+  };
+
+  const ModeChip = (
+    <Chip
+      size="small"
+      variant="outlined"
+      color={mode === 'paper' ? 'default' : 'primary'}
+      label={mode === 'paper' ? 'Mode: Paper' : 'Mode: Rich'}
+      sx={{ mr: 1 }}
+      onClick={() => setViewMode(mode === 'paper' ? 'rich' : 'paper')}
+    />
+  );
 
   return (
     <Box>
+      {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
@@ -144,56 +188,72 @@ export function DashboardPage() {
           <Typography variant="body1" color="textSecondary" gutterBottom>
             {node.kind === "call_session" ? "Sales Call Dashboard" : "Node Dashboard"}
           </Typography>
-          {call?.meta?.schemaVersion && (
-            <Chip
-              size="small"
-              label={`Schema: ${call.meta.schemaVersion}`}
-              variant="outlined"
-              sx={{ mr: 1 }}
-            />
-          )}
-          {call?.meta?.provider && (
-            <Chip
-              size="small"
-              label={`Provider: ${call.meta.provider}`}
-              variant="outlined"
-            />
-          )}
+
+          <Stack direction="row" spacing={1} alignItems="center">
+            {ModeChip}
+
+            {call?.meta?.schemaVersion && (
+              <Chip
+                size="small"
+                label={`Schema: ${call.meta.schemaVersion}`}
+                variant="outlined"
+              />
+            )}
+            {call?.meta?.provider && (
+              <Chip
+                size="small"
+                label={`Provider: ${call.meta.provider}`}
+                variant="outlined"
+              />
+            )}
+          </Stack>
         </Box>
 
-        {isCallSession && (
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            {analyzing && (
+        {/* Actions */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Tooltip title={mode === 'paper' ? 'Switch to rich view (P)' : 'Switch to paper mode (P)'}>
+            <IconButton onClick={toggleViewMode} color="default">
+              {mode === 'paper' ? <InsertChartOutlined /> : <Description />}
+            </IconButton>
+          </Tooltip>
+
+          {isCallSession && (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {analyzing && (
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<Cancel />}
+                  onClick={handleCancel}
+                  size="small"
+                >
+                  Cancel
+                </Button>
+              )}
               <Button
-                variant="outlined"
-                color="secondary"
-                startIcon={<Cancel />}
-                onClick={handleCancel}
-                size="small"
+                type="button"
+                variant={hasAnalysisData ? "outlined" : "contained"}
+                startIcon={hasAnalysisData ? <Refresh /> : <PlayArrow />}
+                onClick={handleAnalyze}
+                disabled={analyzing}
+                sx={{ minWidth: 120 }}
               >
-                Cancel
+                {analyzing ? "Analyzing..." : hasAnalysisData ? "Reanalyze" : "Analyze"}
               </Button>
-            )}
-            <Button
-              type="button"
-              variant={hasAnalysisData ? "outlined" : "contained"}
-              startIcon={hasAnalysisData ? <Refresh /> : <PlayArrow />}
-              onClick={handleAnalyze}
-              disabled={analyzing}
-              sx={{ minWidth: 120 }}
-            >
-              {analyzing ? "Analyzing..." : hasAnalysisData ? "Reanalyze" : "Analyze"}
-            </Button>
-          </Box>
-        )}
+            </Box>
+          )}
+        </Box>
       </Box>
 
+      <Divider />
+
+      {/* Loading / errors */}
       {loading && (
-        <Alert severity="info">Loading dashboard data...</Alert>
+        <Alert severity="info" sx={{ mt: 2 }}>Loading dashboard data...</Alert>
       )}
 
       {error && (
-        <Alert severity="warning">{error}</Alert>
+        <Alert severity="warning" sx={{ mt: 2 }}>{error}</Alert>
       )}
 
       {analyzeError && (
@@ -217,11 +277,32 @@ export function DashboardPage() {
         </Alert>
       )}
 
+      {/* Widgets */}
       {!loading && !error && !templateError && call && parsed && (
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 2, mt: 2 }}>
           {parsed.widgets.map((widgetConfig, index) => (
             <Box key={`${widgetConfig.slug}-${index}`}>
-              <WidgetRenderer config={widgetConfig} call={call} />
+              {mode === 'paper' ? (
+                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 2 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    {widgetConfig.slug}
+                  </Typography>
+                  <Box
+                    component="pre"
+                    sx={{
+                      m: 0,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    {JSON.stringify(paperDataForSlug(widgetConfig.slug), null, 2)}
+                  </Box>
+                </Box>
+              ) : (
+                <WidgetRenderer config={widgetConfig} call={call} />
+              )}
             </Box>
           ))}
         </Box>
