@@ -47,6 +47,21 @@ export function liveAiPlugin(): Plugin {
 
           // Get AI configuration from environment
           const aiConfig = getAIConfig();
+          
+          // Debug logging for server environment (as suggested in issue)
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[SERVER ENV]', {
+              cwd: process.cwd(),
+              VITE_USE_LIVE_AI: process.env.VITE_USE_LIVE_AI,
+              AI_API_KEY: process.env.AI_API_KEY,
+              OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+              hasKey: !!(process.env.AI_API_KEY || process.env.OPENAI_API_KEY),
+              AI_MODEL: process.env.AI_MODEL,
+              OPENAI_MODEL: process.env.OPENAI_MODEL,
+              AI_TIMEOUT_MS: process.env.AI_TIMEOUT_MS
+            });
+          }
+          
           if (!aiConfig) {
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
@@ -145,9 +160,10 @@ async function generateContentHash(input: string): Promise<string> {
 
 function getAIConfig() {
   const provider = process.env.AI_PROVIDER || "openai";
-  const model = process.env.AI_MODEL || "gpt-4o-mini";
-  const apiKey = process.env.AI_API_KEY;
-  const timeoutMs = parseInt(process.env.AI_TIMEOUT_MS || "30000", 10);
+  const model = process.env.AI_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini";
+  // Support both AI_API_KEY and OPENAI_API_KEY for consistency with core provider factory
+  const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
+  const timeoutMs = parseInt(process.env.AI_TIMEOUT_MS || process.env.OPENAI_TIMEOUT_MS || "30000", 10);
   const maxTokens = parseInt(process.env.AI_MAX_TOKENS || "1500", 10);
 
   if (!apiKey) {
@@ -187,6 +203,10 @@ async function callAIProvider({
 
   try {
     if (config.provider === "openai") {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[AI LIVE] openai branch running');
+      }
+      
       const { default: OpenAI } = await import("openai");
       const client = new OpenAI({ apiKey: config.apiKey });
       
@@ -203,6 +223,10 @@ async function callAIProvider({
       
       rawJSON = JSON.parse(res.choices[0]?.message?.content || "{}");
     } else if (config.provider === "anthropic") {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[AI LIVE] anthropic branch running');
+      }
+      
       const { default: Anthropic } = await import("@anthropic-ai/sdk");
       const client = new Anthropic({ apiKey: config.apiKey });
       
