@@ -1,5 +1,6 @@
 export interface RawEnv {
   USE_LIVE_AI?: string;
+  VITE_USE_LIVE_AI?: string;
   OPENAI_API_KEY?: string;
   AI_API_KEY?: string;
   OPENAI_MODEL?: string;
