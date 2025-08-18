@@ -45,28 +45,48 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
     // Guard for SSR
     if (typeof window === 'undefined') return;
     
+    // Throttle storage events to prevent flicker when multiple tabs update rapidly
+    let throttleTimer: NodeJS.Timeout | null = null;
+    
     const onStorage = (ev: StorageEvent) => {
       if (ev.key === STORAGE_KEY || ev.key === null) {
-        // Re-read from URL/localStorage to resolve precedence correctly
-        const next = getInitialViewMode();
-        setModeState(next);
+        // Clear any pending throttled update
+        if (throttleTimer) clearTimeout(throttleTimer);
+        
+        // Throttle updates to prevent rapid flickering
+        throttleTimer = setTimeout(() => {
+          // Re-read from URL/localStorage to resolve precedence correctly
+          const next = getInitialViewMode();
+          setModeState(next);
+          throttleTimer = null;
+        }, 50); // 50ms throttle
       }
     };
     
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      if (throttleTimer) clearTimeout(throttleTimer);
+    };
   }, []);
 
-  // Keyboard shortcut: 'p' toggles (unless in an input/textarea or with modifiers)
+  // Keyboard shortcut: 'p' toggles (unless in an input/textarea, with modifiers, or contentEditable)
   useEffect(() => {
     // Guard for SSR
     if (typeof window === 'undefined') return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === "p" || e.key === "P") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // Only respond to 'p' key without any modifier keys
+      if ((e.key === "p" || e.key === "P") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
         const target = e.target as HTMLElement | null;
         const tag = (target?.tagName ?? "").toUpperCase();
-        const isEditable = !!target && (target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA");
+        const isEditable = !!target && (
+          target.isContentEditable || 
+          tag === "INPUT" || 
+          tag === "TEXTAREA" ||
+          target.hasAttribute('contenteditable')
+        );
+        
         if (!isEditable) {
           e.preventDefault();
           toggleMode();

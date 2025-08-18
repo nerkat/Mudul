@@ -94,6 +94,7 @@ export function toCssVars(tokensInput: Tokens): Record<string, string> {
 export function injectCssVars(tokensInput: Tokens): void {
   // Guard for SSR
   if (typeof window === 'undefined') return;
+  if (typeof document === 'undefined') return;
   
   const root = document.documentElement;
   const vars = toCssVars(tokensInput);

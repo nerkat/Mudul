@@ -10,7 +10,11 @@ export const appTheme = createTheme({
     warning:   { main: tokens.color.warning },
     error:     { main: tokens.color.error },
     background:{ default: tokens.color.bg.base, paper: tokens.color.bg.surface },
-    text:      { primary: tokens.color.text.primary, secondary: tokens.color.text.secondary }
+    text:      { 
+      primary: tokens.color.text.primary, 
+      secondary: tokens.color.text.secondary,
+      disabled: tokens.color.text.muted  // Map muted to disabled for consistency
+    }
   },
   shape: { borderRadius: tokens.radius.md },
   typography: {

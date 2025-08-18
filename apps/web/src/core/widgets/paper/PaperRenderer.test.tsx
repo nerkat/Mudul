@@ -188,6 +188,172 @@ describe('PaperRenderer', () => {
     });
   });
 
+  describe('error handling', () => {
+    it('should render error widget with proper styling and accessibility', () => {
+      const errorData = {
+        error: "Widget validation failed",
+        widget: "unknown-widget",
+        type: "validation-error"
+      };
+      
+      renderWithTheme(
+        <PaperRenderer 
+          slug="error" 
+          data={errorData} 
+        />
+      );
+      
+      // Should have alert role
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      
+      // Should display error message
+      expect(screen.getByText(/Widget validation failed/)).toBeInTheDocument();
+      expect(screen.getByText(/unknown-widget/)).toBeInTheDocument();
+      expect(screen.getByText(/validation-error/)).toBeInTheDocument();
+      
+      // Should have error styling
+      const errorBox = screen.getByRole('alert');
+      expect(errorBox).toHaveClass('paper-error');
+    });
+
+    it('should sanitize error content', () => {
+      const maliciousErrorData = {
+        error: '<script>alert("xss")</script>',
+        widget: '<img src="x" onerror="alert(1)">',
+        type: 'malicious'
+      };
+      
+      renderWithTheme(
+        <PaperRenderer 
+          slug="error" 
+          data={maliciousErrorData} 
+        />
+      );
+      
+      // Content should be sanitized
+      expect(screen.queryByText('<script>')).not.toBeInTheDocument();
+      expect(screen.queryByText('<img')).not.toBeInTheDocument();
+      
+      // But sanitized content should be present
+      expect(screen.getByText(/&lt;script&gt;/)).toBeInTheDocument();
+    });
+  });
+
+  describe('list truncation and performance', () => {
+    it('should truncate long objections lists with "more" indicator', () => {
+      const longObjectionsList = {
+        items: Array.from({ length: 100 }, (_, i) => ({
+          type: `Type${i}`,
+          quote: `Quote ${i}`,
+          ts: `00:${String(i % 60).padStart(2, '0')}:00`
+        }))
+      };
+      
+      renderWithTheme(
+        <PaperRenderer 
+          slug="objections" 
+          data={longObjectionsList} 
+        />
+      );
+      
+      // Should show count of all items
+      expect(screen.getByText('Objections (100):')).toBeInTheDocument();
+      
+      // Should only render first 50 items
+      expect(screen.getAllByRole('listitem')).toHaveLength(51); // 50 items + 1 "more" indicator
+      
+      // Should show "more" indicator
+      expect(screen.getByText('+50 more objections...')).toBeInTheDocument();
+    });
+
+    it('should truncate action items and key moments similarly', () => {
+      const longActionItems = {
+        items: Array.from({ length: 75 }, (_, i) => ({
+          text: `Action ${i}`,
+          owner: i % 3 === 0 ? `Owner${i}` : undefined
+        }))
+      };
+      
+      renderWithTheme(
+        <PaperRenderer 
+          slug="actionItems" 
+          data={longActionItems} 
+        />
+      );
+      
+      expect(screen.getByText('Action Items (75):')).toBeInTheDocument();
+      expect(screen.getByText('+25 more action items...')).toBeInTheDocument();
+    });
+
+    it('should not show truncation for small lists', () => {
+      const smallList = {
+        items: Array.from({ length: 10 }, (_, i) => ({
+          type: `Type${i}`,
+          quote: `Quote ${i}`,
+          ts: `00:${String(i).padStart(2, '0')}:00`
+        }))
+      };
+      
+      renderWithTheme(
+        <PaperRenderer 
+          slug="objections" 
+          data={smallList} 
+        />
+      );
+      
+      expect(screen.getAllByRole('listitem')).toHaveLength(10);
+      expect(screen.queryByText(/more objections/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('sanitization integration', () => {
+    it('should sanitize all text content in objections', () => {
+      const maliciousObjections = {
+        items: [
+          { 
+            type: '<script>alert("xss")</script>', 
+            quote: '"><img src="x" onerror="alert(1)">', 
+            ts: "00:05:30" 
+          }
+        ]
+      };
+      
+      renderWithTheme(
+        <PaperRenderer 
+          slug="objections" 
+          data={maliciousObjections} 
+        />
+      );
+      
+      // Should not contain unescaped HTML
+      expect(screen.queryByText('<script>')).not.toBeInTheDocument();
+      expect(screen.queryByText('<img')).not.toBeInTheDocument();
+      expect(screen.queryByText('onerror')).not.toBeInTheDocument();
+    });
+
+    it('should sanitize entity names', () => {
+      const maliciousEntities = {
+        entities: {
+          prospect: ['<script>Acme</script>'],
+          people: ['<b>John</b> Doe'],
+          products: ['Pro<iframe>Plan</iframe>']
+        }
+      };
+      
+      renderWithTheme(
+        <PaperRenderer 
+          slug="entities" 
+          data={maliciousEntities} 
+        />
+      );
+      
+      // Should escape HTML in entity names
+      expect(screen.queryByText('<script>')).not.toBeInTheDocument();
+      expect(screen.queryByText('<iframe>')).not.toBeInTheDocument();
+      expect(screen.queryByText('<b>')).not.toBeInTheDocument();
+    });
+  });
+
   describe('deterministic JSON fallback', () => {
     it('should render sorted JSON for unknown widgets', () => {
       const data = { zebra: 'last', alpha: 'first', beta: 123 };
@@ -223,6 +389,21 @@ describe('PaperRenderer', () => {
       // Keys should be sorted
       expect(text).toContain('"config": {"alpha": 2, "zebra": 1}');
       expect(text).toContain('[{"a": 1, "z": 3}]');
+    });
+
+    it('should handle circular references safely', () => {
+      const data: any = { a: 1 };
+      data.self = data; // Create circular reference
+      
+      renderWithTheme(
+        <PaperRenderer 
+          slug="unknown-widget" 
+          data={data} 
+        />
+      );
+      
+      const jsonElement = screen.getByRole('code');
+      expect(jsonElement.textContent).toBe('{"a": 1, "self": "[Circular]"}');
     });
 
     it('should handle null values correctly', () => {
@@ -272,6 +453,20 @@ describe('PaperRenderer', () => {
       );
       
       expect(screen.getByText('summary')).toBeInTheDocument();
+    });
+  });
+
+  describe('print compatibility', () => {
+    it('should have paper-widget class for print styling', () => {
+      renderWithTheme(
+        <PaperRenderer 
+          slug="summary" 
+          data={{ text: "test" }} 
+        />
+      );
+      
+      const paperElement = screen.getByRole('article').closest('.paper-widget');
+      expect(paperElement).toBeInTheDocument();
     });
   });
 });
