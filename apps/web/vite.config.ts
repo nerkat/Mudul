@@ -10,14 +10,6 @@ export default defineConfig(({ mode }) => {
     .map(v => String(v).toLowerCase())
     .includes('true');
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[VITE CONFIG] AI mode selection', {
-      mode,
-      VITE_USE_LIVE_AI: env.VITE_USE_LIVE_AI,
-      USE_LIVE_AI: env.USE_LIVE_AI,
-      useLive
-    });
-  }
 
   return {
     plugins: [

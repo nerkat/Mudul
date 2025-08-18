@@ -55,7 +55,6 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
       const normalized = normalizeTranscript(transcript);
       const contentHash = createAnalysisContentHash(normalized, mode);
       const isDuplicate = hasExistingAnalysis(nodeId, contentHash);
-      console.log("[DUPCHECK]", { nodeId, mode, schema: ANALYSIS_SCHEMA_VERSION, contentHash, isDuplicate });
 
       if (isDuplicate) {
         if (runIdRef.current !== runId) return;
