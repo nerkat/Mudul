@@ -185,62 +185,45 @@ Prompts Copilot should use:
 * Later: add client/org aggregate dashboards (rollups).
 * Later: DB adapter replaces in-memory seed; keep `repo` API stable to prevent UI churn.
 
-```
+
+#---# 
+
+14) Vision Roadmap Anchors (conceptual only)
+
+> These are **not immediate tasks**. They are milestone concepts to guide long-term architecture.
+
+### Bog (Live PDF / Static + Interactive Export)
+- Replace static PDF export with interactive “Bog” pages.
+- Shared dashboards can be locked (read-only) but still interactive (filters, drill-downs).
+- First verticals: **Sales briefs**, **Hiring candidate dashboards**.
+- Later: board reports, marketing decks, client project overviews.
+- Endgame: Bog becomes a new standard for live/static data sharing, beyond PDFs.
+
+### Storefront OS (Data Consuming Interfaces, DCI)
+- Universal “soft page” where user searches in natural language.
+- AI parses query → outputs JSON structure → fed into relevant DCI template.
+- Examples: 
+  - **Flights/Hotels booking**
+  - **Doctors/Nails/Services appointments**
+  - **E-commerce product sliders**
+- Templates (DCIs) = “Tuulada”; Themes/skins = “Maaskaro”.
+- Potential to evolve into a user-owned interface layer for consuming all internet data.
+
+### Service Governance Protocol (SGP) + Tuulada Network
+- Blockchain-backed governance per org (private chains/ledgers).
+- Inner org tokens for salary/bonus pegging; profit-sharing with staff.
+- Affiliate/reward layer bootstraps on Mudul token (external currency rail).
+- Smart contracts for rules, payouts, compliance.
+- Token utility grows from micro uses → refunds/discounts → colony ads → protocol rails.
+- Long-term: decentralized, modular governance with org memory + AI summarization/indexing.
 
 ---
 
-# 2) Issue: “Immediate Do‑This‑Now” tasks (tokens/theme + adapters + paper branch)
-Create a new GitHub issue with this content:
-
-**Title:** Implement tokens/theme pipeline, adapters layer, and paper‑mode renderer branch
-
-**Goal**  
-Make the UI fully modular and swappable with minimal diffs:
-- Theme comes from **tokens JSON → MUI theme**.
-- Widgets are **pure presentational**; all data shaping via **adapters**.
-- **Paper mode** uses a simple renderer branch (title + plaintext/JSON).
-
-**Scope**
-- Add **design tokens** JSON (`src/core/tokens/default.json`) and a **theme factory** (`src/core/theme/createThemeFromTokens.ts`) to produce the MUI theme from tokens.
-- Wrap the app with `ThemeProvider(createThemeFromTokens(activeTokens))`.
-- Add a lightweight **ThemeSwitcher** to hot‑swap token files at runtime (for now, load `default.json` only; stub API for others).
-- Introduce **adapters**: `src/adapters/salesCall/*` to map repo shapes → widget props (e.g., `toSummaryData`, `toSentimentData`, etc).
-- Refactor **WidgetRenderer** to receive `{ data, params }` only. Widgets must **not** import repo/seed.
-- Add `usePaperMode()` hook and **branch** in `WidgetRenderer` to `PaperWidgetRenderer` when `?mode=paper` or `p` pressed.
-- Provide `paperTemplates.ts` for simple text renderers; fallback to JSON stringify.
-
-**Deliverables**
-1) `src/core/tokens/default.json` (palette, spacing, radius, typography).  
-2) `src/core/theme/createThemeFromTokens.ts` + `src/core/theme/index.ts` (ThemeProvider wrapper).  
-3) `src/adapters/salesCall/*.adapter.ts` (summary, sentiment, booking, objections, action items, key moments, entities).  
-4) `src/widgets/PaperWidgetRenderer.tsx` + `src/widgets/paperTemplates.ts`.  
-5) `src/hooks/usePaperMode.ts` + keyboard toggle in `AppShell` or `DashboardPage`.  
-6) Update `WidgetRenderer` to branch on paper mode and to pass `{ data, params }` to widgets.
-
-**Acceptance Criteria**
-- Changing values in `default.json` updates the app theme without code changes.
-- All widgets render using **adapter‑provided data** (no repo imports in widgets).
-- Paper mode toggles via URL (`?mode=paper`) and keyboard `p`, with no full reload.
-- Paper renderer shows a title and plaintext (or JSON) for **every** widget.
-- No inline demo arrays; all data comes from repo → adapters.
-
-**Checklist**
-- [ ] Add tokens JSON + theme factory; wrap ThemeProvider.  
-- [ ] Build `usePaperMode()` + keyboard toggle.  
-- [ ] Implement `PaperWidgetRenderer` + `paperTemplates`.  
-- [ ] Create adapters for all current widgets.  
-- [ ] Refactor widgets to accept `{ data, params }` only.  
-- [ ] Update `WidgetRegistry` to render widgets with adapter outputs.  
-- [ ] Verify Sidebar still uses repo and reflects seed hierarchy.  
-- [ ] Light tests: dashboard renders all template widgets; paper mode renders text; no widget imports repo/seed.
-
-**Notes for Copilot**
-- Do **not** bypass repo; never read `seed` outside `repo.ts`.
-- Keep widgets dumb; put all data shape logic in adapters.
-- Use MUI MCP server for component API references.
-- Maintain existing dashboard templates; only adjust the renderer and adapters.
+## 15) Issue Bank (Conceptual drafts)
+- **Pitch Analyzer (Bog add-on)**: User writes freeform pitch → AI drafts infographic Bog page (case studies, pricing, CTA).  
+- **Org AI Memory**: Each org gets a knowledge layer; periodic indexing/summarization for efficient recall.  
+- **Affiliate Program (Foundation)**: Every user auto-affiliate; referral links baked into exports. Structure exists, payouts off by default.  
+- **Client/Org Dashboards MVP**: Rollup view of clients, calls, and insights; exercise tokens/adapters/paper end-to-end.
 
 ---
 
-
-```
