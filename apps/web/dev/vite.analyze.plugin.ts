@@ -191,8 +191,22 @@ export default function analyzePlugin(): Plugin {
             // In a real implementation, we'd check against a database or cache
 
             // Provider selection based on configuration - use factory
-            const useLive = process.env.USE_LIVE_AI === "true";
+            const useLive = ['USE_LIVE_AI']
+              .some(k => String(process.env[k]).toLowerCase() === 'true');
             const allowFallback = process.env.ALLOW_FALLBACK !== "false"; // default true
+            
+            // Debug logging for server environment (as suggested in issue)
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('[SERVER ENV]', {
+                cwd: process.cwd(),
+                USE_LIVE_AI: process.env.USE_LIVE_AI,
+                OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+                hasKey: !!process.env.OPENAI_API_KEY,
+                OPENAI_MODEL: process.env.OPENAI_MODEL,
+                OPENAI_TIMEOUT_MS: process.env.OPENAI_TIMEOUT_MS
+              });
+            }
+            
             const provider = createProvider();
             
             let resultSource: "live" | "mock" | "fallback_mock" = useLive ? "live" : "mock";
