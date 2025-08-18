@@ -9,6 +9,7 @@ import {
   Typography, 
   useTheme,
   useMediaQuery,
+  Button,
 } from '@mui/material';
 import { 
   Menu as MenuIcon, 
@@ -18,6 +19,7 @@ import {
   Business,
   Call,
   Settings,
+  Add,
 } from '@mui/icons-material';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
@@ -141,6 +143,31 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
             </TreeItem>
           )}
         </SimpleTreeView>
+        
+        {/* New Call Button */}
+        <Box sx={{ mt: 2 }}>
+          <Button
+            component="a"
+            href="/calls/new"
+            onClick={(e: React.MouseEvent) => {
+              e.preventDefault();
+              navigate('/calls/new');
+              if (isMobile) {
+                setMobileOpen(false);
+              }
+            }}
+            variant="contained"
+            startIcon={<Add />}
+            fullWidth
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 'medium'
+            }}
+          >
+            New Call
+          </Button>
+        </Box>
       </Box>
     </Box>
   );
