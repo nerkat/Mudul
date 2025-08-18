@@ -32,7 +32,6 @@ export function liveAiPlugin(): Plugin {
         try {
           if (process.env.NODE_ENV !== 'production') {
             console.log('[LIVE AI PLUGIN] request start', {
-              VITE_USE_LIVE_AI: process.env.VITE_USE_LIVE_AI,
               USE_LIVE_AI: process.env.USE_LIVE_AI,
               AI_PROVIDER: process.env.AI_PROVIDER,
               OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'present' : 'missing',
@@ -75,7 +74,6 @@ export function liveAiPlugin(): Plugin {
           if (process.env.NODE_ENV !== 'production') {
             console.log('[SERVER ENV]', {
               cwd: process.cwd(),
-              VITE_USE_LIVE_AI: process.env.VITE_USE_LIVE_AI,
               AI_API_KEY: process.env.AI_API_KEY,
               OPENAI_API_KEY: process.env.OPENAI_API_KEY,
               hasKey: !!(process.env.AI_API_KEY || process.env.OPENAI_API_KEY),

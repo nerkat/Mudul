@@ -6,7 +6,7 @@ import { liveAiPlugin } from './src/plugins/liveAi'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), ''); // load all env vars (no prefix filter)
-  const useLive = [env.VITE_USE_LIVE_AI, env.USE_LIVE_AI]
+  const useLive = [env.USE_LIVE_AI]
     .map(v => String(v).toLowerCase())
     .includes('true');
 

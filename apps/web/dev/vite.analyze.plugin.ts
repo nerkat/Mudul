@@ -191,7 +191,7 @@ export default function analyzePlugin(): Plugin {
             // In a real implementation, we'd check against a database or cache
 
             // Provider selection based on configuration - use factory
-            const useLive = ['USE_LIVE_AI', 'VITE_USE_LIVE_AI']
+            const useLive = ['USE_LIVE_AI']
               .some(k => String(process.env[k]).toLowerCase() === 'true');
             const allowFallback = process.env.ALLOW_FALLBACK !== "false"; // default true
             
@@ -199,7 +199,6 @@ export default function analyzePlugin(): Plugin {
             if (process.env.NODE_ENV !== 'production') {
               console.log('[SERVER ENV]', {
                 cwd: process.cwd(),
-                VITE_USE_LIVE_AI: process.env.VITE_USE_LIVE_AI,
                 USE_LIVE_AI: process.env.USE_LIVE_AI,
                 OPENAI_API_KEY: process.env.OPENAI_API_KEY,
                 hasKey: !!process.env.OPENAI_API_KEY,

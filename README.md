@@ -18,7 +18,7 @@ The app supports live AI analysis through OpenAI and Anthropic providers with pr
 
 ```bash
 # Enable live AI (default: false for security)
-export VITE_USE_LIVE_AI=true
+export USE_LIVE_AI=true
 
 # Server-side AI configuration (never bundled to client)
 export AI_PROVIDER=openai              # or "anthropic"
@@ -48,7 +48,7 @@ The live AI is implemented as a Vite plugin (`src/plugins/liveAi.ts`) that handl
 - Comprehensive error handling (timeout, validation, provider errors)
 - Observability logging
 
-When `VITE_USE_LIVE_AI=false`, requests fall back to the mock AI plugin.
+When `USE_LIVE_AI=false`, requests fall back to the mock AI plugin.
 1. **0001** — Project structure (this PR)
 2. 0002 — Core types + in-memory repos
 3. 0003 — Minimal web app shell + router + placeholder dashboard
