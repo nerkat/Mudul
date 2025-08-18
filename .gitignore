@@ -7,3 +7,5 @@ pnpm-lock.yaml
 *.tsbuildinfo
 .env.local
 .env
+.env
+.env.local
