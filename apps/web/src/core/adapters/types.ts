@@ -71,3 +71,15 @@ export type AdapterMap = Record<TypedAdapter['slug'], TypedAdapter>;
 // Helper types to extract params and data by slug
 export type ParamsBySlug<T extends TypedAdapter['slug']> = Extract<TypedAdapter, { slug: T }> extends WidgetAdapter<infer P, any> ? P : never;
 export type DataBySlug<T extends TypedAdapter['slug']> = Extract<TypedAdapter, { slug: T }> extends WidgetAdapter<any, infer R> ? R : never;
+
+// Type-safe adapter requirement helper - ensures slugs exist at compile time
+export function requireAdapter<T extends TypedAdapter['slug']>(
+  slug: T, 
+  adapters: AdapterMap
+): Extract<TypedAdapter, { slug: T }> {
+  const adapter = adapters[slug];
+  if (!adapter) {
+    throw new Error(`Required adapter '${slug}' not found in adapter registry`);
+  }
+  return adapter as Extract<TypedAdapter, { slug: T }>;
+}

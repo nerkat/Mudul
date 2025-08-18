@@ -1,6 +1,7 @@
 // src/core/adapters/adapters.test.ts
 import { describe, it, expect } from 'vitest';
 import { Adapters } from './index';
+import { requireAdapter } from './types';
 import type { SalesCallMinimal } from '../types';
 
 // Mock sales call data for testing
@@ -178,6 +179,37 @@ describe('Adapters', () => {
       // Test that adapters don't crash with unexpected params
       const result = Adapters.summary.project(mockCall, { unknownParam: 'test' } as any);
       expect(result).toEqual({ text: "Test call summary" });
+    });
+  });
+
+  describe('requireAdapter helper', () => {
+    it('should return the correct adapter for valid slugs', () => {
+      // Test type-safe adapter requirement
+      const summaryAdapter = requireAdapter('summary', Adapters);
+      expect(summaryAdapter.slug).toBe('summary');
+      expect(typeof summaryAdapter.project).toBe('function');
+      
+      const sentimentAdapter = requireAdapter('sentiment', Adapters);
+      expect(sentimentAdapter.slug).toBe('sentiment');
+    });
+
+    it('should throw for missing adapters', () => {
+      const incompleteAdapters = { summary: Adapters.summary } as any;
+      
+      expect(() => requireAdapter('summary', incompleteAdapters)).not.toThrow();
+      expect(() => requireAdapter('sentiment', incompleteAdapters)).toThrow('Required adapter \'sentiment\' not found');
+    });
+
+    it('should provide compile-time type safety for slugs', () => {
+      // This test demonstrates compile-time safety
+      // TypeScript would prevent: requireAdapter('invalid-slug', Adapters)
+      // But we can test the runtime behavior with a valid slug
+      const adapter = requireAdapter('booking', Adapters);
+      
+      // The return type is correctly inferred as BookingAdapter
+      const result = adapter.project(mockCall);
+      expect(result).toHaveProperty('value');
+      expect(typeof result.value).toBe('number');
     });
   });
 });

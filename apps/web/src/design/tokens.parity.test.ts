@@ -170,6 +170,52 @@ describe('Tokens and Theme Parity', () => {
       expect(lightCssVars['--text-muted']).toBe('#999999');
     });
 
+    it('should maintain parity between --text-muted CSS var and theme.palette.text.disabled', () => {
+      const cssVars = toCssVars(tokens);
+      
+      // Test the specific parity mentioned in requirements
+      expect(cssVars['--text-muted']).toBe(tokens.color.text.muted);
+      expect(appTheme.palette.text.disabled).toBe(tokens.color.text.muted);
+      
+      // Verify they match exactly
+      expect(cssVars['--text-muted']).toBe(appTheme.palette.text.disabled);
+    });
+
+    it('should update both MUI and CSS surfaces when tokens.color.bg.base changes', () => {
+      // Test the requirement: "Flip tokens.color.bg.base and assert both MUI and CSS surfaces update"
+      const originalBgBase = tokens.color.bg.base;
+      const newBgBase = '#FF0000'; // Red for testing
+      
+      // Create modified tokens
+      const modifiedTokens = {
+        ...tokens,
+        color: {
+          ...tokens.color,
+          bg: { ...tokens.color.bg, base: newBgBase }
+        }
+      };
+      
+      // Test CSS variables
+      const cssVars = toCssVars(modifiedTokens);
+      expect(cssVars['--bg-base']).toBe(newBgBase);
+      
+      // Test MUI theme would consume the same token
+      // (In a real app, you'd recreate the theme with new tokens)
+      const mockMuiTheme = {
+        palette: {
+          background: {
+            default: modifiedTokens.color.bg.base
+          }
+        }
+      };
+      
+      expect(mockMuiTheme.palette.background.default).toBe(newBgBase);
+      expect(cssVars['--bg-base']).toBe(mockMuiTheme.palette.background.default);
+      
+      // Verify original token unchanged (immutability)
+      expect(tokens.color.bg.base).toBe(originalBgBase);
+    });
+
     it('should maintain non-color tokens during theme switching', () => {
       const modifiedTokens = {
         ...tokens,

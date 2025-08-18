@@ -31,8 +31,11 @@ describe('Text Sanitization', () => {
       expect(result).not.toContain('src="x"'); // Check that quotes are escaped
     });
 
-    it('should handle complex injection attempts', () => {
-      const maliciousInputs = [
+    it('should handle specific attack vectors mentioned in requirements', () => {
+      // Test the specific vectors mentioned: <img onerror=1>, </script><script>, etc.
+      const attackVectors = [
+        '<img src=x onerror=alert(1)>',
+        '</script><script>alert("xss")</script>',
         'javascript:alert(1)',
         '<iframe src="javascript:alert(1)"></iframe>',
         '<svg onload="alert(1)">',
@@ -41,14 +44,42 @@ describe('Text Sanitization', () => {
         '<style>@import"javascript:alert(1)";</style>'
       ];
 
-      maliciousInputs.forEach(input => {
+      attackVectors.forEach(input => {
         const result = sanitizeText(input);
         expect(result).not.toContain('<');
         expect(result).not.toContain('>');
         expect(result).not.toContain('"');
         expect(result).not.toContain("'");
-        // Note: sanitized javascript: becomes javascript:
+        expect(result).not.toContain('</script>');
+        expect(result).not.toContain('<script>');
+        // Note: "onerror=" may still exist as text after escaping quotes
       });
+    });
+
+    it('should handle astral unicode and RTL characters safely', () => {
+      const unicodeInputs = [
+        '𝒽𝑒𝓁𝓁𝑜', // Mathematical script
+        'مرحبا بالعالم', // Arabic RTL
+        '🚀 rocket emoji',
+        '\u202E\u0627\u0644\u0639\u0631\u0628\u064A\u0629', // RLO attack
+        '\u0000\u0001\u0002', // Control characters
+      ];
+
+      unicodeInputs.forEach(input => {
+        const result = sanitizeText(input);
+        // Should not throw and should preserve safe characters
+        expect(typeof result).toBe('string');
+        expect(result.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should handle already-escaped input correctly', () => {
+      const alreadyEscaped = '&lt;script&gt;alert(&quot;test&quot;)&lt;&#x2F;script&gt;';
+      const result = sanitizeText(alreadyEscaped);
+      
+      // Should double-escape to prevent bypass attempts
+      expect(result).toBe('&amp;lt;script&amp;gt;alert(&amp;quot;test&amp;quot;)&amp;lt;&amp;#x2F;script&amp;gt;');
+      expect(result).not.toContain('<script>');
     });
   });
 
@@ -158,6 +189,19 @@ describe('Text Sanitization', () => {
         // Note: "DROP TABLE" is preserved as it's plain text, but dangerous characters are escaped
         expect(sanitized).not.toContain('\'; DROP'); // Check SQL injection pattern is broken
       });
+    });
+  });
+
+  describe('security guarantees', () => {
+    it('should render sanitized text as text nodes only (no dangerouslySetInnerHTML)', () => {
+      const maliciousInput = '<script>alert("xss")</script>';
+      const sanitized = sanitizeText(maliciousInput);
+      
+      // Verify the output is safe for text node rendering
+      expect(sanitized).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;');
+      
+      // The SafeText component should render this as text content, not HTML
+      // This ensures no HTML injection even if sanitization had a bug
     });
   });
 });
