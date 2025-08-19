@@ -127,6 +127,7 @@ describe('Widget Protocol', () => {
 
 describe('Widget Registry', () => {
   const mockCall = {
+    id: 'test-call-1',
     summary: 'Test summary',
     sentiment: { overall: 'positive', score: 0.8 },
     bookingLikelihood: 0.75

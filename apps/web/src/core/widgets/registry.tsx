@@ -11,13 +11,20 @@ import {
   KeyMomentsParams,
   EntitiesParams,
   ComplianceParams,
-  PieChartParams
+  PieChartParams,
+  ClientStatsParams,
+  ActivitySummaryParams,
+  HealthSignalsParams,
+  RecentCallsParams,
+  FollowUpsParams,
+  ClientKPIsParams
 } from "./params";
 
 // Import adapters and paper renderer
 import { Adapters } from '../adapters';
 import { PaperRenderer } from './paper/PaperRenderer';
 import { useViewMode } from '../../ctx/ViewModeContext';
+import * as repo from '../repo'; // Import repo functions
 
 // Component implementations (use existing Paper/Rich widgets internally)
 import { Rich as WRich } from "../../components/widgets";
@@ -28,7 +35,7 @@ const Skin = WRich;
 // Registry interface - each entry validates params and renders
 interface WidgetRegistryEntry<P = any> {
   validate: (params: unknown) => { success: true; data: P } | { success: false; error: string };
-  render: (data: SalesCallMinimal, params: P) => React.ReactNode;
+  render: (data: SalesCallMinimal, params: P, projectedData?: any) => React.ReactNode;
 }
 
 // Map slug to { validate(params), render(data, params) }
@@ -165,6 +172,86 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
         </MuiPaper>
       );
     }
+  },
+
+  // Org dashboard widgets
+  clientStats: {
+    validate: (params: unknown) => {
+      const result = ClientStatsParams.safeParse(params);
+      if (result.success) {
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: `Invalid clientStats params: ${result.error.message}` };
+    },
+    render: (_call, _params, projectedData) => (
+      <Skin.ClientStats key="clientStats" data={projectedData || { totalClients: 0, activeClients: 0, clients: [] }} />
+    )
+  },
+
+  activitySummary: {
+    validate: (params: unknown) => {
+      const result = ActivitySummaryParams.safeParse(params);
+      if (result.success) {
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: `Invalid activitySummary params: ${result.error.message}` };
+    },
+    render: (_call, _params, projectedData) => (
+      <Skin.ActivitySummary key="activitySummary" data={projectedData || { totalCalls: 0, recentCalls: 0, avgSentiment: 0, trends: '' }} />
+    )
+  },
+
+  healthSignals: {
+    validate: (params: unknown) => {
+      const result = HealthSignalsParams.safeParse(params);
+      if (result.success) {
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: `Invalid healthSignals params: ${result.error.message}` };
+    },
+    render: (_call, _params, projectedData) => (
+      <Skin.HealthSignals key="healthSignals" data={projectedData || { avgBookingLikelihood: 0, openObjections: 0, pendingActions: 0, status: 'Unknown' }} />
+    )
+  },
+
+  // Client dashboard widgets
+  recentCalls: {
+    validate: (params: unknown) => {
+      const result = RecentCallsParams.safeParse(params);
+      if (result.success) {
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: `Invalid recentCalls params: ${result.error.message}` };
+    },
+    render: (_call, _params, projectedData) => (
+      <Skin.RecentCalls key="recentCalls" data={projectedData || { calls: [] }} />
+    )
+  },
+
+  followUps: {
+    validate: (params: unknown) => {
+      const result = FollowUpsParams.safeParse(params);
+      if (result.success) {
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: `Invalid followUps params: ${result.error.message}` };
+    },
+    render: (_call, _params, projectedData) => (
+      <Skin.FollowUps key="followUps" data={projectedData || { items: [] }} />
+    )
+  },
+
+  clientKPIs: {
+    validate: (params: unknown) => {
+      const result = ClientKPIsParams.safeParse(params);
+      if (result.success) {
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: `Invalid clientKPIs params: ${result.error.message}` };
+    },
+    render: (_call, _params, projectedData) => (
+      <Skin.ClientKPIs key="clientKPIs" data={projectedData || { avgSentiment: 0, totalCalls: 0, conversionRate: 0, lastActivity: 'Unknown' }} />
+    )
   }
 };
 
@@ -172,9 +259,10 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
 interface WidgetRendererProps {
   config: WidgetConfig;
   call: SalesCallMinimal;
+  nodeId?: string; // Add nodeId for repo context
 }
 
-export function WidgetRenderer({ config, call }: WidgetRendererProps) {
+export function WidgetRenderer({ config, call, nodeId }: WidgetRendererProps) {
   const { mode } = useViewMode();
   const theme = useTheme();
   const entry = WidgetRegistry[config.slug];
@@ -269,7 +357,18 @@ export function WidgetRenderer({ config, call }: WidgetRendererProps) {
     );
   }
   
-  const data = adapter.project(call, validation.data, { mode });
+  const data = adapter.project(call, validation.data, { 
+    mode,
+    currentNodeId: nodeId, // Pass current nodeId
+    // Pass repo functions for org-level adapters
+    getRoot: repo.getRoot,
+    getNode: repo.getNode,
+    getChildren: repo.getChildren,
+    getAllClients: repo.getAllClients,
+    getAllCalls: repo.getAllCalls,
+    getCallByNode: repo.getCallByNode,
+    listCallsByClient: repo.listCallsByClient
+  });
 
   // Branch between paper and rich mode
   if (mode === "paper") {
@@ -277,7 +376,7 @@ export function WidgetRenderer({ config, call }: WidgetRendererProps) {
   }
 
   try {
-    return <>{entry.render(call, validation.data)}</>;
+    return <>{entry.render(call, validation.data, data)}</>;
   } catch (error) {
     const errorMessage = `Render error (${config.slug}): ${error instanceof Error ? error.message : 'Unknown error'}`;
     return (

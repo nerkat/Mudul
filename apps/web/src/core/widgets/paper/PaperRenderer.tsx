@@ -301,4 +301,114 @@ const paperMap: Record<string, (p:{data:any})=>React.ReactElement> = {
       {data?.type && <div><strong>Type:</strong> {sanitizeText(data.type)}</div>}
     </Box>
   ),
+
+  // Org dashboard renderers
+  clientStats: ({ data }) => (
+    <Box
+      sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+      role="text"
+      aria-label="Client statistics"
+    >
+      <div><strong>Total Clients:</strong> {data?.totalClients ?? 0}</div>
+      <div><strong>Active Clients:</strong> {data?.activeClients ?? 0}</div>
+      <div><strong>Recent Activity:</strong></div>
+      {(data?.clients ?? []).slice(0, 3).map((client: any, i: number) => (
+        <div key={i} style={{ marginLeft: '16px' }}>
+          • {sanitizeText(client.name)}: {client.callCount} calls (last: {client.lastActivity})
+        </div>
+      ))}
+    </Box>
+  ),
+
+  activitySummary: ({ data }) => (
+    <Box
+      sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+      role="text"
+      aria-label="Activity summary"
+    >
+      <div><strong>Total Calls:</strong> {data?.totalCalls ?? 0}</div>
+      <div><strong>Recent Calls:</strong> {data?.recentCalls ?? 0}</div>
+      <div><strong>Avg Sentiment:</strong> {data?.avgSentiment ?? 0}</div>
+      <div><strong>Trends:</strong> {sanitizeText(data?.trends || "No data")}</div>
+    </Box>
+  ),
+
+  healthSignals: ({ data }) => (
+    <Box
+      sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+      role="text"
+      aria-label="Health signals"
+    >
+      <div><strong>Status:</strong> {sanitizeText(data?.status || "Unknown")}</div>
+      <div><strong>Avg Booking:</strong> {Math.round((data?.avgBookingLikelihood ?? 0) * 100)}%</div>
+      <div><strong>Open Objections:</strong> {data?.openObjections ?? 0}</div>
+      <div><strong>Pending Actions:</strong> {data?.pendingActions ?? 0}</div>
+    </Box>
+  ),
+
+  // Client dashboard renderers
+  recentCalls: ({ data }) => (
+    <Box
+      component="div"
+      role="list"
+      aria-label="Recent calls"
+    >
+      <Typography variant="caption" component="div" sx={{ mb: 1, opacity: 0.7 }}>
+        Recent Calls ({(data?.calls ?? []).length}):
+      </Typography>
+      {(data?.calls ?? []).length === 0 ? (
+        <Box sx={{ fontFamily: 'monospace', fontSize: '0.875rem', fontStyle: 'italic' }}>
+          No calls recorded
+        </Box>
+      ) : (
+        <Box component="ul" sx={{ pl: 2, m: 0, fontFamily: 'monospace', fontSize: '0.875rem' }}>
+          {(data?.calls ?? []).map((call: any, i: number) => (
+            <li key={i} role="listitem">
+              {sanitizeText(call.name)} ({call.date}) - {call.sentiment} - {Math.round(call.bookingLikelihood * 100)}%
+            </li>
+          ))}
+        </Box>
+      )}
+    </Box>
+  ),
+
+  followUps: ({ data }) => (
+    <Box
+      component="div"
+      role="list"
+      aria-label="Follow-up items"
+    >
+      <Typography variant="caption" component="div" sx={{ mb: 1, opacity: 0.7 }}>
+        Follow-ups ({(data?.items ?? []).length}):
+      </Typography>
+      {(data?.items ?? []).length === 0 ? (
+        <Box sx={{ fontFamily: 'monospace', fontSize: '0.875rem', fontStyle: 'italic' }}>
+          No follow-ups
+        </Box>
+      ) : (
+        <Box component="ul" sx={{ pl: 2, m: 0, fontFamily: 'monospace', fontSize: '0.875rem' }}>
+          {(data?.items ?? []).map((item: any, i: number) => (
+            <li key={i} role="listitem">
+              <strong>{sanitizeText(item.owner)}</strong>: {sanitizeText(item.text)}
+              {item.due && <span> (due {item.due})</span>}
+              <span style={{ opacity: 0.7 }}> [{sanitizeText(item.source)}]</span>
+            </li>
+          ))}
+        </Box>
+      )}
+    </Box>
+  ),
+
+  clientKPIs: ({ data }) => (
+    <Box
+      sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+      role="text"
+      aria-label="Client KPIs"
+    >
+      <div><strong>Total Calls:</strong> {data?.totalCalls ?? 0}</div>
+      <div><strong>Avg Sentiment:</strong> {data?.avgSentiment ?? 0}</div>
+      <div><strong>Conversion Rate:</strong> {Math.round((data?.conversionRate ?? 0) * 100)}%</div>
+      <div><strong>Last Activity:</strong> {sanitizeText(data?.lastActivity || "Unknown")}</div>
+    </Box>
+  ),
 };
