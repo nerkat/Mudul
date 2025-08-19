@@ -1,12 +1,55 @@
 // Simple SQLite-based data service to replace Prisma temporarily
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = process.env.DATABASE_URL?.replace('file:', '') || path.join(__dirname, '../../packages/storage/dev.db');
+// Reliable path resolution for different environments
+function findDatabasePath() {
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL.replace('file:', '');
+  }
+  
+  // Try different possible locations
+  const possiblePaths = [
+    path.join(process.cwd(), 'packages/storage/dev.db'),
+    path.join(__dirname, '../../../packages/storage/dev.db'),
+    path.join(__dirname, '../../packages/storage/dev.db'),
+    path.join(process.cwd(), 'dev.db'),
+  ];
+  
+  for (const dbPath of possiblePaths) {
+    if (fs.existsSync(dbPath)) {
+      return dbPath;
+    }
+  }
+  
+  // Default to first path if none found (will be created if needed)
+  return possiblePaths[0];
+}
+
+const dbPath = findDatabasePath();
+
+// Singleton pattern to prevent connection leaks in development
+let dbInstance = null;
+
+function getDatabase() {
+  if (!dbInstance) {
+    dbInstance = new sqlite3.Database(dbPath);
+  }
+  return dbInstance;
+}
+
+// Use global variable to persist across hot reloads in development
+if (typeof globalThis !== 'undefined') {
+  if (!globalThis.__sqliteDb) {
+    globalThis.__sqliteDb = getDatabase();
+  }
+  dbInstance = globalThis.__sqliteDb;
+}
 
 class SimpleSQLiteService {
   constructor() {
-    this.db = new sqlite3.Database(dbPath);
+    this.db = getDatabase();
   }
 
   async query(sql, params = []) {

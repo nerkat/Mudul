@@ -60,9 +60,17 @@ router.get('/:id/calls', requireAuth, validateResponse(ClientCallsSchema), async
   try {
     const { orgId } = (req as any).user;
     const { id: clientId } = req.params;
-    const limit = parseInt(req.query.limit as string) || 10;
     
-    const calls = await PrismaDataService.getClientCalls(clientId, orgId, limit);
+    // Validate and enforce limit bounds
+    const limitParam = parseInt(req.query.limit as string) || 10;
+    if (limitParam < 1 || limitParam > 50) {
+      return res.status(400).json({
+        error: 'INVALID_LIMIT',
+        message: 'Limit must be between 1 and 50',
+      });
+    }
+    
+    const calls = await PrismaDataService.getClientCalls(clientId, orgId, limitParam);
     res.json(calls);
   } catch (error: any) {
     console.error('Client calls error:', error);
