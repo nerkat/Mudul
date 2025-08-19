@@ -272,18 +272,19 @@ export const Rich = {
               <ListItem key={i} disablePadding>
                 <ListItemText
                   primary={
-                    <Box component="span">
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing(1) }}>
                       <Chip 
                         label={o.type} 
-                        size="small" 
-                        sx={{ mr: theme.spacing(1) }}
+                        size="small"
                       />
-                      "{o.quote}"
+                      <Typography component="span" variant="body2">
+                        "{o.quote}"
+                      </Typography>
                       {o.ts && (
                         <Typography 
                           component="span" 
                           variant="caption" 
-                          sx={{ ml: theme.spacing(1), color: theme.palette.text.secondary }}
+                          sx={{ color: theme.palette.text.secondary }}
                         >
                           @ {o.ts}
                         </Typography>
@@ -314,18 +315,19 @@ export const Rich = {
               <ListItem key={i} disablePadding>
                 <ListItemText
                   primary={
-                    <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing(1) }}>
                       <Chip 
                         label={a.owner} 
-                        size="small" 
-                        sx={{ mr: theme.spacing(1) }}
+                        size="small"
                       />
-                      {a.text}
+                      <Typography component="span" variant="body2">
+                        {a.text}
+                      </Typography>
                       {a.due && (
                         <Typography 
                           component="span" 
                           variant="caption" 
-                          sx={{ ml: theme.spacing(1), color: theme.palette.warning.main }}
+                          sx={{ color: theme.palette.warning.main }}
                         >
                           (due {a.due})
                         </Typography>
@@ -598,18 +600,19 @@ export const Rich = {
               <ListItem key={i} disablePadding>
                 <ListItemText
                   primary={
-                    <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing(1) }}>
                       <Chip 
                         label={item.owner} 
-                        size="small" 
-                        sx={{ mr: theme.spacing(1) }}
+                        size="small"
                       />
-                      {item.text}
+                      <Typography component="span" variant="body2">
+                        {item.text}
+                      </Typography>
                       {item.due && (
                         <Typography 
                           component="span" 
                           variant="caption" 
-                          sx={{ ml: theme.spacing(1), color: theme.palette.warning.main }}
+                          sx={{ color: theme.palette.warning.main }}
                         >
                           (due {item.due})
                         </Typography>
