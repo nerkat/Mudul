@@ -1,6 +1,7 @@
 import type { SalesCallMinimal } from "../core/types";
 import { PaperCard } from "../widgets/shared/PaperCard";
 import { Box, Typography, Paper as MuiPaper, Chip, List, ListItem, ListItemText, useTheme } from '@mui/material';
+import { getSentimentColor } from "../shared/sentimentUtils";
 
 // Explicit minimal widget props - only the fields each widget actually uses
 export type SummaryWidgetProps = {
@@ -566,7 +567,7 @@ export const Rich = {
                       <Chip 
                         label={call.sentiment} 
                         size="small" 
-                        color={call.sentiment === 'positive' ? 'success' : call.sentiment === 'negative' ? 'error' : 'default'}
+                        color={getSentimentColor(call.sentiment as any)}
                       />
                       <Typography variant="caption">
                         {Math.round(call.bookingLikelihood * 100)}% booking
