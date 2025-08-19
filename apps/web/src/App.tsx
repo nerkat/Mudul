@@ -1,26 +1,36 @@
-import { useState } from "react";
-import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline } from "@mui/material";
-import { lightTheme, darkTheme } from "./theme";
 import { AppShell } from "./shell/AppShell";
 import { RepoProvider } from "./hooks/useRepo";
-import { ViewModeProvider } from "./ctx/ViewModeContext";
+import { ViewModeProvider, useViewMode } from "./ctx/ViewModeContext";
+import { MuiThemeProvider } from "./design/MuiThemeProvider";
+import { useEffect } from "react";
+import "./design/print.css";
+import "./core/widgets/paper/print.css";
+
+function AppContent() {
+  const { mode } = useViewMode();
+  
+  // Add data attribute for paper mode to enable print styles
+  useEffect(() => {
+    if (mode === "paper") {
+      document.documentElement.setAttribute("data-paper-mode", "true");
+    } else {
+      document.documentElement.removeAttribute("data-paper-mode");
+    }
+  }, [mode]);
+
+  return <AppShell />;
+}
 
 export function App() {
-  const [isDark, setIsDark] = useState(false);
-
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-  };
-
   return (
-    <ThemeProvider theme={isDark ? darkTheme : lightTheme}>
+    <MuiThemeProvider>
       <CssBaseline />
       <RepoProvider>
         <ViewModeProvider>
-          <AppShell isDark={isDark} onThemeToggle={toggleTheme} />
+          <AppContent />
         </ViewModeProvider>
       </RepoProvider>
-    </ThemeProvider>
+    </MuiThemeProvider>
   );
 }
