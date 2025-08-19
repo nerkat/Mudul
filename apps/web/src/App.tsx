@@ -1,8 +1,7 @@
-import { CssBaseline } from "@mui/material";
 import { AppShell } from "./shell/AppShell";
 import { RepoProvider } from "./hooks/useRepo";
 import { ViewModeProvider, useViewMode } from "./ctx/ViewModeContext";
-import { MuiThemeProvider } from "./design/MuiThemeProvider";
+import { OrgProvider } from "./auth/OrgContext";
 import { useEffect } from "react";
 import "./design/print.css";
 import "./core/widgets/paper/print.css";
@@ -24,13 +23,12 @@ function AppContent() {
 
 export function App() {
   return (
-    <MuiThemeProvider>
-      <CssBaseline />
+    <OrgProvider>
       <RepoProvider>
         <ViewModeProvider>
           <AppContent />
         </ViewModeProvider>
       </RepoProvider>
-    </MuiThemeProvider>
+    </OrgProvider>
   );
 }
