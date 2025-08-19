@@ -1,5 +1,6 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import * as repo from "../core/repo";
+import { useOrg } from "../auth/OrgContext";
 
 interface RepoContextValue {
   getRoot: typeof repo.getRoot;
@@ -15,16 +16,47 @@ interface RepoContextValue {
 const RepoContext = createContext<RepoContextValue | null>(null);
 
 export function RepoProvider({ children }: { children: React.ReactNode }) {
-  const value: RepoContextValue = {
-    getRoot: repo.getRoot,
-    getNode: repo.getNode,
-    getChildren: repo.getChildren,
-    getCallByNode: repo.getCallByNode,
-    listCallsByClient: repo.listCallsByClient,
-    getDashboardId: repo.getDashboardId,
-    getAllClients: repo.getAllClients,
-    getAllCalls: repo.getAllCalls,
-  };
+  const { currentOrg } = useOrg();
+  
+  // Create org-scoped repo functions
+  const value: RepoContextValue = useMemo(() => {
+    const orgId = currentOrg?.id;
+    
+    return {
+      getRoot: () => {
+        const root = repo.getRoot();
+        return root && root.orgId === orgId ? root : null;
+      },
+      getNode: (id: string) => {
+        const node = repo.getNode(id);
+        return node && node.orgId === orgId ? node : null;
+      },
+      getChildren: (parentId: string) => {
+        return repo.getChildren(parentId).filter(node => node.orgId === orgId);
+      },
+      getCallByNode: (nodeId: string) => {
+        const node = repo.getNode(nodeId);
+        if (!node || node.orgId !== orgId) return null;
+        return repo.getCallByNode(nodeId);
+      },
+      listCallsByClient: (clientId: string) => {
+        const client = repo.getNode(clientId);
+        if (!client || client.orgId !== orgId) return [];
+        return repo.listCallsByClient(clientId).filter(node => node.orgId === orgId);
+      },
+      getDashboardId: (nodeId: string) => {
+        const node = repo.getNode(nodeId);
+        if (!node || node.orgId !== orgId) return null;
+        return repo.getDashboardId(nodeId);
+      },
+      getAllClients: () => {
+        return repo.getAllClients().filter(node => node.orgId === orgId);
+      },
+      getAllCalls: () => {
+        return repo.getAllCalls().filter(node => node.orgId === orgId);
+      }
+    };
+  }, [currentOrg?.id]);
 
   return <RepoContext.Provider value={value}>{children}</RepoContext.Provider>;
 }
