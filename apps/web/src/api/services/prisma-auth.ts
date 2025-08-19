@@ -23,9 +23,7 @@ export class PrismaAuthService {
    * Logout and revoke refresh token
    */
   static async logout(refreshToken: string) {
-    // For now, we'll implement a simple token invalidation
-    // The actual logout method would need to be added to the AuthService
-    console.log('Logout called for token:', refreshToken);
+    return await authService.logout(refreshToken);
   }
 
   /**

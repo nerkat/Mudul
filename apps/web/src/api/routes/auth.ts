@@ -1,6 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
 import { PrismaAuthService } from '../services/prisma-auth';
+import { validateResponse, LoginResponseSchema, RefreshResponseSchema, LogoutResponseSchema } from '../middleware/validation';
 
 const router = express.Router();
 
@@ -38,7 +39,7 @@ function checkRateLimit(ip: string): boolean {
 }
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', validateResponse(LoginResponseSchema), async (req, res) => {
   try {
     // Rate limiting
     const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
@@ -90,7 +91,7 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /api/auth/refresh
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', validateResponse(RefreshResponseSchema), async (req, res) => {
   try {
     // Validate request
     const validation = RefreshRequestSchema.safeParse(req.body);
@@ -133,7 +134,7 @@ router.post('/refresh', async (req, res) => {
 });
 
 // POST /api/auth/logout
-router.post('/logout', async (req, res) => {
+router.post('/logout', validateResponse(LogoutResponseSchema), async (req, res) => {
   try {
     const { refreshToken } = req.body;
     
