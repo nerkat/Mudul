@@ -11,6 +11,7 @@ export const nodes: Record<string, NodeBase> = {
     kind: "group",
     name: "Acme Sales Org",
     slug: "",
+    dashboardId: "org-dashboard",
     createdAt: now,
     updatedAt: now
   },
