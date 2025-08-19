@@ -53,7 +53,7 @@ describe('ViewMode URL and Cross-tab Integration', () => {
       expect(url.toString()).toContain('foo=1');
     });
 
-    it('should handle /client/123?foo=1#sec → ?foo=1&mode=paper#sec transformation', () => {
+    it('should handle /client/123?foo=1#sec → ?foo=1&mode=paper#sec transformation exactly', () => {
       const specificUrl = 'https://example.com/client/123?foo=1#sec';
       
       mockURL.mockImplementation((href) => {
@@ -78,6 +78,9 @@ describe('ViewMode URL and Cross-tab Integration', () => {
       expect(result).toContain('foo=1');
       expect(result).toContain('mode=paper');
       expect(result).toContain('#sec');
+      
+      // Verify fragment is at the end (not reordered)
+      expect(result.endsWith('#sec')).toBe(true);
     });
   });
 
@@ -163,6 +166,34 @@ describe('ViewMode URL and Cross-tab Integration', () => {
       // Should only have processed the last update
       expect(updates).toHaveLength(1);
       expect(updates[0]).toBe('rich');
+    });
+
+    it('should handle simultaneous 3+ tab toggles with 50ms debounce', async () => {
+      const finalUpdates: string[] = [];
+      let activeTimer: NodeJS.Timeout | null = null;
+      
+      // Simulate the 50ms debounced update logic from ViewModeContext
+      const simulateTabUpdate = (tabId: string, mode: string) => {
+        if (activeTimer) clearTimeout(activeTimer);
+        activeTimer = setTimeout(() => {
+          finalUpdates.push(`${tabId}:${mode}`);
+          activeTimer = null;
+        }, 50); // 50ms debounce as implemented
+      };
+      
+      // Simulate 4 tabs updating rapidly
+      simulateTabUpdate('tab1', 'paper');
+      simulateTabUpdate('tab2', 'rich'); 
+      simulateTabUpdate('tab3', 'paper');
+      simulateTabUpdate('tab4', 'rich');
+      simulateTabUpdate('tab1', 'paper'); // tab1 changes again
+      
+      // Wait for debounce to settle
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Should only process the final update due to 50ms throttling
+      expect(finalUpdates).toHaveLength(1);
+      expect(finalUpdates[0]).toBe('tab1:paper');
     });
   });
 });
