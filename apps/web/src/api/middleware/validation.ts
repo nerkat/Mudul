@@ -1,6 +1,37 @@
 // Response validation middleware using Zod
 import { z } from 'zod';
 
+// User info schema for auth responses
+export const UserInfoSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  name: z.string(),
+}).strict();
+
+export const OrgInfoSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  role: z.string(),
+}).strict();
+
+// Auth response schemas
+export const LoginResponseSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string().optional(),
+  user: UserInfoSchema,
+  orgs: z.array(OrgInfoSchema),
+  activeOrgId: z.string(),
+}).strict();
+
+export const RefreshResponseSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
+}).strict();
+
+export const LogoutResponseSchema = z.object({
+  message: z.string(),
+}).strict();
+
 // API response schemas matching the storage package types
 export const OrgSummarySchema = z.object({
   totalCalls: z.number(),
@@ -95,4 +126,18 @@ export function validateResponse<T>(schema: z.ZodSchema<T>) {
     
     next();
   };
+}
+
+/**
+ * Standard error response helper
+ */
+export function createErrorResponse(code: string, message: string, statusCode: number = 500, details?: any) {
+  const error = {
+    error: code,
+    message,
+    ...(details && { details }),
+    ...(process.env.NODE_ENV !== 'production' && { timestamp: new Date().toISOString() })
+  };
+  
+  return { statusCode, error };
 }

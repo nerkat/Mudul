@@ -200,6 +200,13 @@ class SimpleAuthService {
     };
   }
 
+  async logout(refreshToken) {
+    // Delete the refresh token from database
+    if (refreshToken) {
+      await this.run('DELETE FROM refresh_tokens WHERE token = ?', [refreshToken]);
+    }
+  }
+
   async disconnect() {
     return new Promise((resolve) => {
       this.db.close(resolve);
