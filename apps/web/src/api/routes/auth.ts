@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { MockAuthService } from '../services/auth';
+import { PrismaAuthService } from '../services/prisma-auth';
 
 const router = express.Router();
 
@@ -62,7 +62,7 @@ router.post('/login', async (req, res) => {
     const { email, password, rememberMe } = validation.data;
 
     // Authenticate
-    const result = await MockAuthService.login(email, password, rememberMe);
+    const result = await PrismaAuthService.login(email, password, rememberMe);
     
     res.json(result);
   } catch (error: any) {
@@ -105,7 +105,7 @@ router.post('/refresh', async (req, res) => {
     const { refreshToken } = validation.data;
 
     // Refresh token
-    const result = await MockAuthService.refreshToken(refreshToken);
+    const result = await PrismaAuthService.refreshToken(refreshToken);
     
     res.json(result);
   } catch (error: any) {
@@ -133,12 +133,12 @@ router.post('/refresh', async (req, res) => {
 });
 
 // POST /api/auth/logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   try {
     const { refreshToken } = req.body;
     
     if (refreshToken) {
-      MockAuthService.logout(refreshToken);
+      await PrismaAuthService.logout(refreshToken);
     }
     
     res.json({ message: 'Logged out successfully' });

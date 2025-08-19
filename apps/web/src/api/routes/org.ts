@@ -1,6 +1,6 @@
 import express from 'express';
-import { MockAuthService } from '../services/auth';
-import { MockDataService } from '../services/data';
+import { PrismaAuthService } from '../services/prisma-auth';
+import { PrismaDataService } from '../services/prisma-data';
 
 const router = express.Router();
 
@@ -15,7 +15,7 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
   }
 
   const token = authHeader.substring(7);
-  const userInfo = MockAuthService.getUserFromToken(token);
+  const userInfo = PrismaAuthService.getUserFromToken(token);
   
   if (!userInfo) {
     return res.status(401).json({
@@ -30,10 +30,10 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
 }
 
 // GET /api/org/summary
-router.get('/summary', requireAuth, (req, res) => {
+router.get('/summary', requireAuth, async (req, res) => {
   try {
     const { orgId } = (req as any).user;
-    const summary = MockDataService.getOrgSummary(orgId);
+    const summary = await PrismaDataService.getOrgSummary(orgId);
     res.json(summary);
   } catch (error: any) {
     console.error('Org summary error:', error);
@@ -45,10 +45,10 @@ router.get('/summary', requireAuth, (req, res) => {
 });
 
 // GET /api/org/clients-overview
-router.get('/clients-overview', requireAuth, (req, res) => {
+router.get('/clients-overview', requireAuth, async (req, res) => {
   try {
     const { orgId } = (req as any).user;
-    const overview = MockDataService.getClientsOverview(orgId);
+    const overview = await PrismaDataService.getClientsOverview(orgId);
     res.json(overview);
   } catch (error: any) {
     console.error('Clients overview error:', error);
