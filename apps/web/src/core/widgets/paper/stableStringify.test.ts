@@ -159,6 +159,27 @@ describe('stableStringify', () => {
       const result = stableStringify(arr);
       expect(result).toBe('[1, 2, "[Circular]"]');
     });
+
+    it('should produce deterministic snapshot for self-referential object', () => {
+      // Create a self-referential object as requested for snapshot verification
+      const selfRef: any = { 
+        id: 'test-123',
+        name: 'Self Reference Test',
+        meta: { count: 42, active: true }
+      };
+      selfRef.self = selfRef; // Self-reference
+      selfRef.meta.parent = selfRef; // Another reference to the same object
+      
+      const result = stableStringify(selfRef);
+      
+      // Should produce consistent output with sorted keys and circular markers
+      const expected = '{"id": "test-123", "meta": {"active": true, "count": 42, "parent": "[Circular]"}, "name": "Self Reference Test", "self": "[Circular]"}';
+      expect(result).toBe(expected);
+      
+      // Verify it's deterministic across multiple calls
+      const result2 = stableStringify(selfRef);
+      expect(result2).toBe(result);
+    });
   });
 
   describe('deterministic output', () => {
