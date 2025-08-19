@@ -180,7 +180,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
       },
-      orgs: user.memberships.map(m => ({
+      orgs: user.memberships.map((m: any) => ({
         id: m.org.id,
         name: m.org.name,
         role: m.role.toLowerCase() as 'owner' | 'viewer',
@@ -192,7 +192,7 @@ export class AuthService {
   /**
    * Refresh access token using refresh token
    */
-  async refreshToken(request: RefreshRequest): Promise<{ accessToken: string }> {
+  async refreshToken(request: RefreshRequest): Promise<{ accessToken: string; refreshToken: string }> {
     const { refreshToken } = request;
 
     // Verify token format
