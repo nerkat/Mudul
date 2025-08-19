@@ -93,6 +93,15 @@ router.post('/login', validateResponse(LoginResponseSchema), async (req, res) =>
 // POST /api/auth/refresh
 router.post('/refresh', validateResponse(RefreshResponseSchema), async (req, res) => {
   try {
+    // Rate limiting for refresh endpoint (more lenient than login)
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+    if (!checkRateLimit(clientIp)) {
+      return res.status(429).json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many refresh attempts. Please try again later.',
+      });
+    }
+
     // Validate request
     const validation = RefreshRequestSchema.safeParse(req.body);
     if (!validation.success) {
