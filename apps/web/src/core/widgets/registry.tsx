@@ -1,4 +1,5 @@
 import React from "react";
+import { Box, Typography, Paper as MuiPaper, Alert, useTheme } from '@mui/material';
 import type { SalesCallMinimal } from "../types";
 import type { WidgetSlug, WidgetConfig } from "./protocol";
 import {
@@ -144,19 +145,26 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
       }
       return { success: false, error: `Invalid pieChart params: ${result.error.message}` };
     },
-    render: (_call, params) => (
-      // Simple pie chart stub for now - could be enhanced with actual charting library
-      <div 
-        key="pieChart" 
-        className="rounded-xl border p-4"
-        style={{ height: params.height }}
-      >
-        <div className="font-medium">Pie Chart</div>
-        <div className="mt-2 text-sm text-slate-500">
-          Chart visualization (stub) - height: {params.height}px
-        </div>
-      </div>
-    )
+    render: (_call, params) => {
+      const theme = useTheme();
+      return (
+        <MuiPaper 
+          key="pieChart"
+          sx={{ 
+            p: theme.spacing(2), 
+            borderRadius: theme.shape.borderRadius,
+            height: `${params.height}px`
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
+            Pie Chart
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Chart visualization (stub) - height: {params.height}px
+          </Typography>
+        </MuiPaper>
+      );
+    }
   }
 };
 
@@ -168,6 +176,7 @@ interface WidgetRendererProps {
 
 export function WidgetRenderer({ config, call }: WidgetRendererProps) {
   const { mode } = useViewMode();
+  const theme = useTheme();
   const entry = WidgetRegistry[config.slug];
   
   if (!entry) {
@@ -182,9 +191,17 @@ export function WidgetRenderer({ config, call }: WidgetRendererProps) {
       );
     }
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
-        <strong>⚠️ {errorMessage}</strong>
-      </div>
+      <Alert 
+        severity="error" 
+        sx={{ 
+          borderRadius: theme.shape.borderRadius,
+          '& .MuiAlert-message': { 
+            fontWeight: 'medium' 
+          }
+        }}
+      >
+        ⚠️ {errorMessage}
+      </Alert>
     );
   }
 
@@ -202,9 +219,17 @@ export function WidgetRenderer({ config, call }: WidgetRendererProps) {
       );
     }
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
-        <strong>⚠️ {errorMessage}</strong>
-      </div>
+      <Alert 
+        severity="error" 
+        sx={{ 
+          borderRadius: theme.shape.borderRadius,
+          '& .MuiAlert-message': { 
+            fontWeight: 'medium' 
+          }
+        }}
+      >
+        ⚠️ {errorMessage}
+      </Alert>
     );
   }
 
@@ -223,10 +248,24 @@ export function WidgetRenderer({ config, call }: WidgetRendererProps) {
       );
     }
     return (
-      <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-700">
-        <strong>⚠️ {errorMessage}</strong>
-        <div className="mt-1 text-sm">Using fallback data projection</div>
-      </div>
+      <Alert 
+        severity="warning" 
+        sx={{ 
+          borderRadius: theme.shape.borderRadius,
+          '& .MuiAlert-message': { 
+            fontWeight: 'medium' 
+          }
+        }}
+      >
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+            ⚠️ {errorMessage}
+          </Typography>
+          <Typography variant="caption" sx={{ mt: theme.spacing(0.5), display: 'block' }}>
+            Using fallback data projection
+          </Typography>
+        </Box>
+      </Alert>
     );
   }
   
@@ -242,9 +281,17 @@ export function WidgetRenderer({ config, call }: WidgetRendererProps) {
   } catch (error) {
     const errorMessage = `Render error (${config.slug}): ${error instanceof Error ? error.message : 'Unknown error'}`;
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
-        <strong>⚠️ {errorMessage}</strong>
-      </div>
+      <Alert 
+        severity="error" 
+        sx={{ 
+          borderRadius: theme.shape.borderRadius,
+          '& .MuiAlert-message': { 
+            fontWeight: 'medium' 
+          }
+        }}
+      >
+        ⚠️ {errorMessage}
+      </Alert>
     );
   }
 }
