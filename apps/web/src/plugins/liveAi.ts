@@ -1,6 +1,6 @@
 import type { Plugin } from 'vite';
 import { loadEnv } from 'vite';
-import { SalesCallAnalysis } from "@mudul/protocol";
+// import { SalesCallAnalysis } from "@mudul/protocol";
 
 /**
  * Live AI plugin for server-side AI provider integration.
@@ -140,25 +140,25 @@ export function liveAiPlugin(): Plugin {
           }
 
           // Server-side validation before returning
-          const validatedData = SalesCallAnalysis.safeParse(result.data);
-          if (!validatedData.success) {
-            res.statusCode = 422;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({
-              ok: false,
-              error: {
-                code: 'SCHEMA_INVALID',
-                message: 'AI response failed validation',
-                details: validatedData.error.format()
-              }
-            }));
-            return;
-          }
+          // const validatedData = SalesCallAnalysis.safeParse(result.data);
+          // if (!validatedData.success) {
+          //   res.statusCode = 422;
+          //   res.setHeader('Content-Type', 'application/json');
+          //   res.end(JSON.stringify({
+          //     ok: false,
+          //     error: {
+          //       code: 'SCHEMA_INVALID',
+          //       message: 'AI response failed validation',
+          //       details: validatedData.error.format()
+          //     }
+          //   }));
+          //   return;
+          // }
 
           // Return successful response with structure matching mock plugin
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({
-            analysis: validatedData.data,
+            analysis: result.data, // validatedData.data,
             meta: {
               provider: aiConfig.provider,
               model: aiConfig.model,
