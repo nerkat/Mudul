@@ -96,7 +96,8 @@ export function AppShell() {
 
   const handleItemClick = (_event: React.SyntheticEvent, itemId: string) => {
     if (itemId === 'dashboard') {
-      navigate('/');
+      // Navigate to org dashboard
+      navigate('/node/root');
     } else if (itemId === 'settings') {
       navigate('/settings');
     } else {
@@ -118,14 +119,14 @@ export function AppShell() {
       <Box sx={{ p: theme.spacing(2) }}>
         <SimpleTreeView 
           onItemClick={handleItemClick}
-          defaultExpandedItems={[...(root ? [root.id] : []), ...clients.map(c => c.id)]}
+          defaultExpandedItems={clients.map(c => c.id)}
         >
           <TreeItem 
             itemId="dashboard" 
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
                 <Dashboard fontSize="small" />
-                Overview
+                Org Dashboard
               </Box>
             } 
           />
@@ -139,55 +140,62 @@ export function AppShell() {
             } 
           />
           
-          {root && (
-            <TreeItem 
-              itemId={root.id} 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
-                  <Business fontSize="small" />
-                  {root.name}
-                </Box>
-              }
-            >
-              {clients.map((client) => {
-                const calls = repo.getChildren(client.id);
-                return (
+          {/* Divider and Projects Section */}
+          <Box sx={{ 
+            mx: theme.spacing(1), 
+            my: theme.spacing(2), 
+            borderTop: 1, 
+            borderColor: 'divider' 
+          }} />
+          
+          <Box sx={{ 
+            px: theme.spacing(1), 
+            pb: theme.spacing(1),
+            color: 'text.secondary'
+          }}>
+            <Typography variant="overline" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
+              Projects
+            </Typography>
+          </Box>
+          
+          {/* Direct client list without org nesting */}
+          {clients.map((client) => {
+            const calls = repo.getChildren(client.id);
+            return (
+              <TreeItem
+                key={client.id}
+                itemId={client.id}
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
+                    <Business fontSize="small" />
+                    {client.name}
+                  </Box>
+                }
+              >
+                {calls.map((call) => (
                   <TreeItem
-                    key={client.id}
-                    itemId={client.id}
+                    key={call.id}
+                    itemId={call.id}
                     label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
-                        <Business fontSize="small" />
-                        {client.name}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        gap: theme.spacing(1),
+                        py: theme.spacing(0.5)
+                      }}>
+                        <Call fontSize="small" />
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                            {call.name}
+                          </Typography>
+                        </Box>
                       </Box>
                     }
-                  >
-                    {calls.map((call) => (
-                      <TreeItem
-                        key={call.id}
-                        itemId={call.id}
-                        label={
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center',
-                            gap: theme.spacing(1),
-                            py: theme.spacing(0.5)
-                          }}>
-                            <Call fontSize="small" />
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                {call.name}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        }
-                      />
-                    ))}
-                  </TreeItem>
-                );
-              })}
-            </TreeItem>
-          )}
+                  />
+                ))}
+              </TreeItem>
+            );
+          })}
         </SimpleTreeView>
         
         {/* New Call Button */}
