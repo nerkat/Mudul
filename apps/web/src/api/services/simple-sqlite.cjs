@@ -2,7 +2,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = '/home/runner/work/Mudul/Mudul/packages/storage/dev.db';
+const dbPath = process.env.DATABASE_URL?.replace('file:', '') || path.join(__dirname, '../../packages/storage/dev.db');
 
 class SimpleSQLiteService {
   constructor() {
@@ -31,6 +31,12 @@ class SimpleSQLiteService {
    * Get organization summary KPIs
    */
   async getOrgSummary(orgId) {
+    // Verify org exists
+    const orgs = await this.query('SELECT id FROM orgs WHERE id = ?', [orgId]);
+    if (!orgs || orgs.length === 0) {
+      throw new Error('ORG_NOT_FOUND');
+    }
+
     const totalCalls = await this.query(
       'SELECT COUNT(*) as count FROM calls WHERE org_id = ?',
       [orgId]
@@ -68,6 +74,12 @@ class SimpleSQLiteService {
    * Get clients overview for organization
    */
   async getClientsOverview(orgId) {
+    // Verify org exists
+    const orgs = await this.query('SELECT id FROM orgs WHERE id = ?', [orgId]);
+    if (!orgs || orgs.length === 0) {
+      throw new Error('ORG_NOT_FOUND');
+    }
+
     const clients = await this.query(
       'SELECT id, name FROM clients WHERE org_id = ?',
       [orgId]
