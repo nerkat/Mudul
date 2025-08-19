@@ -1,7 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { CssBaseline } from "@mui/material";
+import { MuiThemeProvider } from "./design/MuiThemeProvider";
+import { AuthProvider } from "./auth/AuthContext";
+import { AuthGuard } from "./auth/AuthGuard";
 import { App } from "./App";
+import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { CallsPage } from "./pages/CallsPage";
 import { CallDashboardPage } from "./pages/CallDashboardPage";
@@ -10,8 +15,16 @@ import { NewCallPage } from "./pages/NewCallPage";
 
 const router = createBrowserRouter([
   {
+    path: "/login",
+    element: <LoginPage />
+  },
+  {
     path: "/",
-    element: <App />,
+    element: (
+      <AuthGuard>
+        <App />
+      </AuthGuard>
+    ),
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "node/:nodeId", element: <DashboardPage /> },
@@ -25,6 +38,11 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <MuiThemeProvider>
+      <CssBaseline />
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </MuiThemeProvider>
   </React.StrictMode>
 );
