@@ -23,6 +23,7 @@ import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useRepo } from '../hooks/useRepo';
+import { ThemeSwitch } from '../components/ThemeSwitch';
 
 const drawerWidth = 280;
 
@@ -188,6 +189,7 @@ export function AppShell() {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             Mudul
           </Typography>
+          <ThemeSwitch />
         </Toolbar>
       </AppBar>
       

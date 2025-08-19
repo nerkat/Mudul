@@ -5,6 +5,7 @@ import { tokens, injectCssVars } from "./design/tokens";
 import { AppShell } from "./shell/AppShell";
 import { RepoProvider } from "./hooks/useRepo";
 import { ViewModeProvider, useViewMode } from "./ctx/ViewModeContext";
+import { ThemeProvider as AppThemeProvider } from "./theme/theme";
 import { useEffect } from "react";
 import "./design/print.css";
 import "./core/widgets/paper/print.css";
@@ -24,20 +25,24 @@ function AppContent() {
   return <AppShell />;
 }
 
-export function App() {
-  // Inject CSS variables on mount
-  useEffect(() => {
-    injectCssVars(tokens);
-  }, []);
+// Inject CSS variables synchronously before first render
+if (typeof window !== 'undefined') {
+  injectCssVars(tokens);
+}
 
+export function App() {
+  // CSS variables are now injected synchronously before render (see above)
+  
   return (
-    <ThemeProvider theme={appTheme}>
-      <CssBaseline />
-      <RepoProvider>
-        <ViewModeProvider>
-          <AppContent />
-        </ViewModeProvider>
-      </RepoProvider>
-    </ThemeProvider>
+    <AppThemeProvider>
+      <ThemeProvider theme={appTheme}>
+        <CssBaseline />
+        <RepoProvider>
+          <ViewModeProvider>
+            <AppContent />
+          </ViewModeProvider>
+        </RepoProvider>
+      </ThemeProvider>
+    </AppThemeProvider>
   );
 }
