@@ -70,7 +70,7 @@ export class OrgRepository {
     });
 
     const items: ClientRow[] = await Promise.all(
-      clients.map(async (client) => {
+      clients.map(async (client: any) => {
         // Get average sentiment for this client
         const sentimentAvg = await this.prisma.call.aggregate({
           where: { 
@@ -128,11 +128,11 @@ export class ClientRepository {
     // Calculate metrics
     const totalCalls = client.calls.length;
     const avgSentiment = totalCalls > 0 
-      ? client.calls.reduce((sum, call) => sum + (call.score || 0), 0) / totalCalls 
+      ? client.calls.reduce((sum: number, call: any) => sum + (call.score || 0), 0) / totalCalls 
       : 0;
     
     const avgLikelihood = totalCalls > 0
-      ? client.calls.reduce((sum, call) => sum + (call.bookingLikelihood || 0), 0) / totalCalls
+      ? client.calls.reduce((sum: number, call: any) => sum + (call.bookingLikelihood || 0), 0) / totalCalls
       : 0;
 
     // TODO: Implement top objections analysis
@@ -168,7 +168,7 @@ export class ClientRepository {
       take: limit,
     });
 
-    const items: CallRow[] = calls.map(call => ({
+    const items: CallRow[] = calls.map((call: any) => ({
       id: call.id,
       name: call.name || 'Untitled Call',
       date: call.ts.toISOString(),
@@ -210,7 +210,7 @@ export class ClientRepository {
       orderBy: { createdAt: 'desc' },
     });
 
-    const items: ActionItemRow[] = actionItems.map(item => ({
+    const items: ActionItemRow[] = actionItems.map((item: any) => ({
       id: item.id,
       text: item.text,
       due: item.due?.toISOString() || null,
