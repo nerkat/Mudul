@@ -64,8 +64,8 @@ class SimpleSQLiteService {
 
     return {
       totalCalls: total,
-      avgSentimentScore: avgScore,
-      bookingRate: total > 0 ? highLikelihood / total : 0,
+      avgSentimentScore: Math.round((avgScore || 0) * 100) / 100, // Round to 2 decimals
+      bookingRate: Math.round((total > 0 ? highLikelihood / total : 0) * 100) / 100, // Round to 2 decimals
       openActionItems: openItems,
     };
   }
@@ -92,6 +92,13 @@ class SimpleSQLiteService {
           [client.id]
         );
 
+        // Get calls in last 30 days for sorting
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const calls30d = await this.query(
+          'SELECT COUNT(*) as calls30d FROM calls WHERE client_id = ? AND ts >= ?',
+          [client.id, thirtyDaysAgo]
+        );
+
         const callStats = await this.query(
           `SELECT 
             COUNT(*) as total_calls,
@@ -108,13 +115,20 @@ class SimpleSQLiteService {
           name: client.name,
           lastCallDate: lastCall[0]?.ts || null,
           totalCalls: stats.total_calls || 0,
-          avgSentiment: stats.avg_sentiment || 0,
-          bookingLikelihood: stats.avg_likelihood || 0,
+          avgSentiment: Math.round((stats.avg_sentiment || 0) * 100) / 100, // Round to 2 decimals
+          bookingLikelihood: Math.round((stats.avg_likelihood || 0) * 100) / 100, // Round to 2 decimals
+          calls30d: calls30d[0]?.calls30d || 0, // For sorting
         };
       })
     );
 
-    return { items };
+    // Sort by calls in last 30 days descending (most active clients first)
+    items.sort((a, b) => b.calls30d - a.calls30d);
+
+    // Remove the sorting field from response
+    const cleanItems = items.map(({ calls30d, ...item }) => item);
+
+    return { items: cleanItems };
   }
 
   /**
@@ -145,8 +159,8 @@ class SimpleSQLiteService {
       id: client[0].id,
       name: client[0].name,
       totalCalls: stats.total_calls || 0,
-      avgSentiment: stats.avg_sentiment || 0,
-      bookingLikelihood: stats.avg_likelihood || 0,
+      avgSentiment: Math.round((stats.avg_sentiment || 0) * 100) / 100, // Round to 2 decimals
+      bookingLikelihood: Math.round((stats.avg_likelihood || 0) * 100) / 100, // Round to 2 decimals
       topObjections: [], // TODO: Implement objections analysis
     };
   }
@@ -166,7 +180,7 @@ class SimpleSQLiteService {
     }
 
     const calls = await this.query(
-      'SELECT * FROM calls WHERE client_id = ? ORDER BY ts DESC LIMIT ?',
+      'SELECT * FROM calls WHERE client_id = ? ORDER BY ts DESC, id DESC LIMIT ?',
       [clientId, limit]
     );
 
@@ -175,8 +189,8 @@ class SimpleSQLiteService {
       name: call.name || 'Untitled Call',
       date: call.ts,
       sentiment: call.sentiment.toLowerCase(),
-      score: call.score || 0,
-      bookingLikelihood: call.booking_likelihood || 0,
+      score: Math.round((call.score || 0) * 100) / 100, // Round to 2 decimals
+      bookingLikelihood: Math.round((call.booking_likelihood || 0) * 100) / 100, // Round to 2 decimals
     }));
 
     return { items };
