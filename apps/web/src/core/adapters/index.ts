@@ -18,72 +18,197 @@ import type {
   ClientKPIsAdapter
 } from './types';
 
+import {
+  SummaryDataSchema,
+  SentimentDataSchema,
+  BookingDataSchema,
+  ObjectionsDataSchema,
+  ActionItemsDataSchema,
+  KeyMomentsDataSchema,
+  EntitiesDataSchema,
+  ComplianceDataSchema,
+  PieChartDataSchema,
+  ClientStatsDataSchema,
+  ActivitySummaryDataSchema,
+  HealthSignalsDataSchema,
+  RecentCallsDataSchema,
+  FollowUpsDataSchema,
+  ClientKPIsDataSchema
+} from './schemas';
+
+// Simple memoization cache for adapter results
+const adapterCache = new Map<string, any>();
+
+// Helper to create cache key from context and params
+function createCacheKey(slug: string, callId?: string, ctx?: any, params?: any): string {
+  const contextKey = ctx ? `${ctx.orgId || ''}-${ctx.currentNodeId || ''}` : '';
+  const paramsKey = params ? JSON.stringify(params) : '';
+  return `${slug}-${callId || 'no-call'}-${contextKey}-${paramsKey}`;
+}
+
+// Helper to validate and cache adapter output
+function validateAndCache<T>(
+  cacheKey: string,
+  data: T,
+  schema: any,
+  ttl: number = 60000 // 1 minute default TTL
+): T {
+  try {
+    const validated = schema.parse(data);
+    adapterCache.set(cacheKey, { data: validated, expires: Date.now() + ttl });
+    return validated;
+  } catch (error) {
+    console.warn(`Adapter validation failed for ${cacheKey}:`, error);
+    return data; // Return unvalidated data as fallback
+  }
+}
+
+// Helper to get cached result if still valid
+function getCachedResult(cacheKey: string): any | null {
+  const cached = adapterCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    return cached.data;
+  }
+  if (cached) {
+    adapterCache.delete(cacheKey); // Clean up expired entry
+  }
+  return null;
+}
+
 export const Adapters: AdapterMap = {
   summary: {
     slug: 'summary',
-    project: (call) => ({ text: call.summary ?? "" })
+    project: (call, params, ctx) => {
+      const cacheKey = createCacheKey('summary', ctx?.currentNodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      const result = { text: call.summary ?? "" };
+      return validateAndCache(cacheKey, result, SummaryDataSchema);
+    }
   } as SummaryAdapter,
 
   sentiment: {
     slug: 'sentiment',
-    project: (call) => ({
-      label: call.sentiment?.overall ?? "neutral",
-      score: call.sentiment?.score ?? 0
-    })
+    project: (call, params, ctx) => {
+      const cacheKey = createCacheKey('sentiment', ctx?.currentNodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      const result = {
+        label: call.sentiment?.overall ?? "neutral",
+        score: call.sentiment?.score ?? 0
+      };
+      return validateAndCache(cacheKey, result, SentimentDataSchema);
+    }
   } as SentimentAdapter,
 
   booking: {
     slug: 'booking',
-    project: (call) => ({ value: call.bookingLikelihood ?? 0 })
+    project: (call, params, ctx) => {
+      const cacheKey = createCacheKey('booking', ctx?.currentNodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      const result = { value: call.bookingLikelihood ?? 0 };
+      return validateAndCache(cacheKey, result, BookingDataSchema);
+    }
   } as BookingAdapter,
 
   objections: {
     slug: 'objections',
-    project: (call, params) => ({
-      items: (call.objections ?? []).slice(0, params?.maxItems ?? 5)
-    })
+    project: (call, params, ctx) => {
+      const cacheKey = createCacheKey('objections', ctx?.currentNodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      const result = {
+        items: (call.objections ?? []).slice(0, params?.maxItems ?? 5)
+      };
+      return validateAndCache(cacheKey, result, ObjectionsDataSchema);
+    }
   } as ObjectionsAdapter,
 
   actionItems: {
     slug: 'actionItems',
-    project: (call, params) => ({
-      items: (call.actionItems ?? []).slice(0, params?.maxItems ?? 5)
-    })
+    project: (call, params, ctx) => {
+      const cacheKey = createCacheKey('actionItems', ctx?.currentNodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      const result = {
+        items: (call.actionItems ?? []).slice(0, params?.maxItems ?? 5)
+      };
+      return validateAndCache(cacheKey, result, ActionItemsDataSchema);
+    }
   } as ActionItemsAdapter,
 
   keyMoments: {
     slug: 'keyMoments',
-    project: (call, params) => ({
-      items: (call.keyMoments ?? []).slice(0, params?.maxItems ?? 5)
-    })
+    project: (call, params, ctx) => {
+      const cacheKey = createCacheKey('keyMoments', ctx?.currentNodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      const result = {
+        items: (call.keyMoments ?? []).slice(0, params?.maxItems ?? 5)
+      };
+      return validateAndCache(cacheKey, result, KeyMomentsDataSchema);
+    }
   } as KeyMomentsAdapter,
 
   entities: {
     slug: 'entities',
-    project: (call) => ({
-      entities: call.entities ?? { prospect: [], people: [], products: [] }
-    })
+    project: (call, params, ctx) => {
+      const cacheKey = createCacheKey('entities', ctx?.currentNodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      const result = {
+        entities: call.entities ?? { prospect: [], people: [], products: [] }
+      };
+      return validateAndCache(cacheKey, result, EntitiesDataSchema);
+    }
   } as EntitiesAdapter,
 
   compliance: {
     slug: 'compliance',
-    project: (call) => ({
-      complianceFlags: call.complianceFlags ?? []
-    })
+    project: (call, params, ctx) => {
+      const cacheKey = createCacheKey('compliance', ctx?.currentNodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      const result = {
+        complianceFlags: call.complianceFlags ?? []
+      };
+      return validateAndCache(cacheKey, result, ComplianceDataSchema);
+    }
   } as ComplianceAdapter,
 
   pieChart: {
     slug: 'pieChart',
-    project: (_call, params) => ({
-      data: [], // explicit empty array instead of undefined
-      height: params?.height ?? 240
-    })
+    project: (_call, params, ctx) => {
+      const cacheKey = createCacheKey('pieChart', ctx?.currentNodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      const result = {
+        data: [], // explicit empty array instead of undefined
+        height: params?.height ?? 240
+      };
+      return validateAndCache(cacheKey, result, PieChartDataSchema);
+    }
   } as PieChartAdapter,
 
-  // Org dashboard adapters
+  // Org dashboard adapters - these need heavy caching since they aggregate across all data
   clientStats: {
     slug: 'clientStats',
-    project: (_call, _params, ctx) => {
+    project: (_call, params, ctx) => {
+      // Use org-wide cache key for this data
+      const cacheKey = createCacheKey('clientStats', 'org-wide', ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
       const clients = ctx?.getAllClients?.() ?? [];
       const allCalls = ctx?.getAllCalls?.() ?? [];
       
@@ -98,7 +223,7 @@ export const Adapters: AdapterMap = {
         };
       });
 
-      return {
+      const result = {
         totalClients: clients.length,
         activeClients: clients.filter(client => {
           const clientCalls = allCalls.filter(call => call.parentId === client.id);
@@ -106,12 +231,19 @@ export const Adapters: AdapterMap = {
         }).length,
         clients: clientData
       };
+      
+      // Cache org-level data for longer since it's expensive to compute
+      return validateAndCache(cacheKey, result, ClientStatsDataSchema, 300000); // 5 minutes
     }
   } as ClientStatsAdapter,
 
   activitySummary: {
     slug: 'activitySummary',
-    project: (_call, _params, ctx) => {
+    project: (_call, params, ctx) => {
+      const cacheKey = createCacheKey('activitySummary', 'org-wide', ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
       const allCalls = ctx?.getAllCalls?.() ?? [];
       const callData: { sentiment: number; count: number }[] = [];
       
@@ -132,18 +264,24 @@ export const Adapters: AdapterMap = {
         new Date(call.updatedAt) > recentDate
       ).length;
 
-      return {
+      const result = {
         totalCalls: allCalls.length,
         recentCalls,
         avgSentiment: Math.round(avgSentiment * 100) / 100,
         trends: recentCalls > 0 ? `${recentCalls} calls in last 7 days` : 'No recent activity'
       };
+      
+      return validateAndCache(cacheKey, result, ActivitySummaryDataSchema, 300000); // 5 minutes
     }
   } as ActivitySummaryAdapter,
 
   healthSignals: {
     slug: 'healthSignals',
-    project: (_call, _params, ctx) => {
+    project: (_call, params, ctx) => {
+      const cacheKey = createCacheKey('healthSignals', 'org-wide', ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
       const allCalls = ctx?.getAllCalls?.() ?? [];
       let totalBooking = 0;
       let totalObjections = 0;
@@ -163,12 +301,14 @@ export const Adapters: AdapterMap = {
       const avgBooking = callCount > 0 ? totalBooking / callCount : 0;
       const status = avgBooking > 0.7 ? 'Excellent' : avgBooking > 0.5 ? 'Good' : avgBooking > 0.3 ? 'Fair' : 'Needs Attention';
 
-      return {
+      const result = {
         avgBookingLikelihood: Math.round(avgBooking * 100) / 100,
         openObjections: totalObjections,
         pendingActions: totalActions,
         status
       };
+      
+      return validateAndCache(cacheKey, result, HealthSignalsDataSchema, 300000); // 5 minutes
     }
   } as HealthSignalsAdapter,
 
@@ -176,16 +316,22 @@ export const Adapters: AdapterMap = {
   recentCalls: {
     slug: 'recentCalls',
     project: (_call, params, ctx) => {
-      // For client dashboards, use the current node to find its calls
       const nodeId = ctx?.currentNodeId;
-      if (!nodeId) return { calls: [] };
+      const cacheKey = createCacheKey('recentCalls', nodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      if (!nodeId) {
+        const result = { calls: [] };
+        return validateAndCache(cacheKey, result, RecentCallsDataSchema);
+      }
       
       const clientCalls = ctx?.listCallsByClient?.(nodeId) ?? [];
       const recentCalls = clientCalls
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         .slice(0, params?.maxItems ?? 5);
 
-      return {
+      const result = {
         calls: recentCalls.map(callNode => {
           const callDetail = ctx?.getCallByNode?.(callNode.id);
           return {
@@ -197,15 +343,23 @@ export const Adapters: AdapterMap = {
           };
         })
       };
+      
+      return validateAndCache(cacheKey, result, RecentCallsDataSchema);
     }
   } as RecentCallsAdapter,
 
   followUps: {
     slug: 'followUps',
     project: (_call, params, ctx) => {
-      // For client dashboards, use the current node to find its calls
       const nodeId = ctx?.currentNodeId;
-      if (!nodeId) return { items: [] };
+      const cacheKey = createCacheKey('followUps', nodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      if (!nodeId) {
+        const result = { items: [] };
+        return validateAndCache(cacheKey, result, FollowUpsDataSchema);
+      }
       
       const clientCalls = ctx?.listCallsByClient?.(nodeId) ?? [];
       const allActions: Array<{ text: string; due: string | null; owner: string; source: string }> = [];
@@ -232,18 +386,26 @@ export const Adapters: AdapterMap = {
         return new Date(a.due).getTime() - new Date(b.due).getTime();
       });
 
-      return {
+      const result = {
         items: sortedActions.slice(0, params?.maxItems ?? 10)
       };
+      
+      return validateAndCache(cacheKey, result, FollowUpsDataSchema);
     }
   } as FollowUpsAdapter,
 
   clientKPIs: {
     slug: 'clientKPIs',
-    project: (_call, _params, ctx) => {
-      // For client dashboards, use the current node to find its calls
+    project: (_call, params, ctx) => {
       const nodeId = ctx?.currentNodeId;
-      if (!nodeId) return { avgSentiment: 0, totalCalls: 0, conversionRate: 0, lastActivity: 'Unknown' };
+      const cacheKey = createCacheKey('clientKPIs', nodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+      
+      if (!nodeId) {
+        const result = { avgSentiment: 0, totalCalls: 0, conversionRate: 0, lastActivity: 'Unknown' };
+        return validateAndCache(cacheKey, result, ClientKPIsDataSchema);
+      }
       
       const clientCalls = ctx?.listCallsByClient?.(nodeId) ?? [];
       let totalSentiment = 0;
@@ -266,12 +428,14 @@ export const Adapters: AdapterMap = {
         }
       });
 
-      return {
+      const result = {
         avgSentiment: sentimentCount > 0 ? Math.round((totalSentiment / sentimentCount) * 100) / 100 : 0,
         totalCalls: clientCalls.length,
         conversionRate: clientCalls.length > 0 ? Math.round((positiveOutcomes / clientCalls.length) * 100) / 100 : 0,
         lastActivity: lastActivityDate ? new Date(lastActivityDate).toLocaleDateString() : 'No activity'
       };
+      
+      return validateAndCache(cacheKey, result, ClientKPIsDataSchema);
     }
   } as ClientKPIsAdapter
 };
