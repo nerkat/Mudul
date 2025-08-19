@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   AppBar, 
   Box, 
@@ -44,6 +44,7 @@ export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const [orgMenuAnchor, setOrgMenuAnchor] = useState<null | HTMLElement>(null);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
@@ -53,7 +54,14 @@ export function AppShell() {
 
   // Get the tree data from repo
   const root = repo.getRoot();
-  const clients = root ? repo.getChildren(root.id) : [];
+  const clients = useMemo(() => root ? repo.getChildren(root.id) : [], [root?.id, repo]);
+
+  // Initialize expanded items when clients change
+  React.useEffect(() => {
+    if (clients.length > 0) {
+      setExpandedItems(clients.map(c => c.id));
+    }
+  }, [clients.length]); // Use clients.length to avoid dependency on the array itself
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -119,7 +127,8 @@ export function AppShell() {
       <Box sx={{ p: theme.spacing(2) }}>
         <SimpleTreeView 
           onItemClick={handleItemClick}
-          defaultExpandedItems={clients.map(c => c.id)}
+          expandedItems={expandedItems}
+          onExpandedItemsChange={(_event, itemIds) => setExpandedItems(itemIds)}
         >
           <TreeItem 
             itemId="dashboard" 
