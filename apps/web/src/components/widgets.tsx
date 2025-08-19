@@ -1,6 +1,7 @@
 import type { SalesCallMinimal } from "../core/types";
 import { PaperCard } from "../widgets/shared/PaperCard";
 import { Box, Typography, Paper as MuiPaper, Chip, List, ListItem, ListItemText, useTheme } from '@mui/material';
+import { getSentimentColor } from "../shared/sentimentUtils";
 
 // Explicit minimal widget props - only the fields each widget actually uses
 export type SummaryWidgetProps = {
@@ -33,6 +34,31 @@ export type EntitiesWidgetProps = {
 
 export type ComplianceWidgetProps = {
   data: Partial<Pick<SalesCallMinimal, "complianceFlags">>;
+};
+
+// New widget prop types for org and client dashboards
+export type ClientStatsWidgetProps = {
+  data: { totalClients: number; activeClients: number; clients: Array<{ name: string; callCount: number; lastActivity: string }> };
+};
+
+export type ActivitySummaryWidgetProps = {
+  data: { totalCalls: number; recentCalls: number; avgSentiment: number; trends: string };
+};
+
+export type HealthSignalsWidgetProps = {
+  data: { avgBookingLikelihood: number; openObjections: number; pendingActions: number; status: string };
+};
+
+export type RecentCallsWidgetProps = {
+  data: { calls: Array<{ id: string; name: string; date: string; sentiment: string; bookingLikelihood: number }> };
+};
+
+export type FollowUpsWidgetProps = {
+  data: { items: Array<{ text: string; due: string | null; owner: string; source: string }> };
+};
+
+export type ClientKPIsWidgetProps = {
+  data: { avgSentiment: number; totalCalls: number; conversionRate: number; lastActivity: string };
 };
 
 // Legacy type for backward compatibility
@@ -105,6 +131,66 @@ export const Paper = {
   Compliance: ({ data }: ComplianceWidgetProps) => (
     <PaperCard title="Compliance Flags">
       {data.complianceFlags?.length ? data.complianceFlags.join(", ") : "None"}
+    </PaperCard>
+  ),
+
+  // Org dashboard widgets
+  ClientStats: ({ data }: ClientStatsWidgetProps) => (
+    <PaperCard title="Client Overview">
+      <div>Total Clients: {data.totalClients}</div>
+      <div>Active Clients: {data.activeClients}</div>
+      <div>Recent Activity:</div>
+      {data.clients.slice(0, 3).map((client, i) => (
+        <div key={i}>• {client.name}: {client.callCount} calls (last: {client.lastActivity})</div>
+      ))}
+    </PaperCard>
+  ),
+
+  ActivitySummary: ({ data }: ActivitySummaryWidgetProps) => (
+    <PaperCard title="Activity Summary">
+      <div>Total Calls: {data.totalCalls}</div>
+      <div>Recent Calls: {data.recentCalls}</div>
+      <div>Avg Sentiment: {data.avgSentiment}</div>
+      <div>Trends: {data.trends}</div>
+    </PaperCard>
+  ),
+
+  HealthSignals: ({ data }: HealthSignalsWidgetProps) => (
+    <PaperCard title="Health Signals">
+      <div>Status: {data.status}</div>
+      <div>Avg Booking: {data.avgBookingLikelihood}</div>
+      <div>Open Objections: {data.openObjections}</div>
+      <div>Pending Actions: {data.pendingActions}</div>
+    </PaperCard>
+  ),
+
+  // Client dashboard widgets
+  RecentCalls: ({ data }: RecentCallsWidgetProps) => (
+    <PaperCard title="Recent Calls">
+      {data.calls.length ? data.calls.map((call, i) => (
+        <div key={i}>
+          {call.name} ({call.date}) - {call.sentiment} - {Math.round(call.bookingLikelihood * 100)}%
+        </div>
+      )) : "No calls"}
+    </PaperCard>
+  ),
+
+  FollowUps: ({ data }: FollowUpsWidgetProps) => (
+    <PaperCard title="Follow-ups">
+      {data.items.length ? data.items.map((item, i) => (
+        <div key={i}>
+          {item.owner}: {item.text} {item.due ? `(due ${item.due})` : ""} [{item.source}]
+        </div>
+      )) : "No follow-ups"}
+    </PaperCard>
+  ),
+
+  ClientKPIs: ({ data }: ClientKPIsWidgetProps) => (
+    <PaperCard title="Client KPIs">
+      <div>Total Calls: {data.totalCalls}</div>
+      <div>Avg Sentiment: {data.avgSentiment}</div>
+      <div>Conversion Rate: {data.conversionRate}</div>
+      <div>Last Activity: {data.lastActivity}</div>
     </PaperCard>
   ),
 };
@@ -352,6 +438,222 @@ export const Rich = {
         ) : (
           <Typography variant="body2" color="text.secondary">None</Typography>
         )}
+      </MuiPaper>
+    );
+  },
+
+  // Org dashboard widgets
+  ClientStats: ({ data }: ClientStatsWidgetProps) => {
+    const theme = useTheme();
+    return (
+      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+        <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
+          Client Overview
+        </Typography>
+        <Box sx={{ display: 'flex', gap: theme.spacing(3), mb: theme.spacing(2) }}>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
+              {data.totalClients}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">Total Clients</Typography>
+          </Box>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.success.main }}>
+              {data.activeClients}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">Active</Typography>
+          </Box>
+        </Box>
+        <Typography variant="subtitle2" sx={{ mb: theme.spacing(1) }}>Recent Activity:</Typography>
+        <List dense disablePadding>
+          {data.clients.slice(0, 3).map((client, i) => (
+            <ListItem key={i} disablePadding>
+              <ListItemText
+                primary={client.name}
+                secondary={`${client.callCount} calls • Last: ${client.lastActivity}`}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </MuiPaper>
+    );
+  },
+
+  ActivitySummary: ({ data }: ActivitySummaryWidgetProps) => {
+    const theme = useTheme();
+    return (
+      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+        <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
+          Activity Summary
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: theme.spacing(2) }}>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{data.totalCalls}</Typography>
+            <Typography variant="caption" color="text.secondary">Total Calls</Typography>
+          </Box>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{data.recentCalls}</Typography>
+            <Typography variant="caption" color="text.secondary">Recent Calls</Typography>
+          </Box>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{data.avgSentiment}</Typography>
+            <Typography variant="caption" color="text.secondary">Avg Sentiment</Typography>
+          </Box>
+          <Box>
+            <Typography variant="body2" sx={{ gridColumn: 'span 2', mt: theme.spacing(1) }}>
+              {data.trends}
+            </Typography>
+          </Box>
+        </Box>
+      </MuiPaper>
+    );
+  },
+
+  HealthSignals: ({ data }: HealthSignalsWidgetProps) => {
+    const theme = useTheme();
+    const statusColor = data.status === 'Excellent' ? 'success' : 
+                       data.status === 'Good' ? 'primary' : 
+                       data.status === 'Fair' ? 'warning' : 'error';
+    
+    return (
+      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+        <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
+          Health Signals
+        </Typography>
+        <Box sx={{ mb: theme.spacing(2) }}>
+          <Chip 
+            label={data.status} 
+            color={statusColor as any}
+            sx={{ fontWeight: 'medium' }}
+          />
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: theme.spacing(1) }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Typography variant="body2">Avg Booking:</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+              {Math.round(data.avgBookingLikelihood * 100)}%
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Typography variant="body2">Open Objections:</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{data.openObjections}</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Typography variant="body2">Pending Actions:</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{data.pendingActions}</Typography>
+          </Box>
+        </Box>
+      </MuiPaper>
+    );
+  },
+
+  // Client dashboard widgets
+  RecentCalls: ({ data }: RecentCallsWidgetProps) => {
+    const theme = useTheme();
+    return (
+      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+        <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
+          Recent Calls
+        </Typography>
+        {data.calls.length ? (
+          <List dense disablePadding>
+            {data.calls.map((call, i) => (
+              <ListItem key={i} disablePadding>
+                <ListItemText
+                  primary={call.name}
+                  secondary={
+                    <Box sx={{ display: 'flex', gap: theme.spacing(1), alignItems: 'center' }}>
+                      <Typography variant="caption">{call.date}</Typography>
+                      <Chip 
+                        label={call.sentiment} 
+                        size="small" 
+                        color={getSentimentColor(call.sentiment as any)}
+                      />
+                      <Typography variant="caption">
+                        {Math.round(call.bookingLikelihood * 100)}% booking
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </ListItem>
+            ))}
+          </List>
+        ) : (
+          <Typography variant="body2" color="text.secondary">No calls</Typography>
+        )}
+      </MuiPaper>
+    );
+  },
+
+  FollowUps: ({ data }: FollowUpsWidgetProps) => {
+    const theme = useTheme();
+    return (
+      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+        <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
+          Follow-ups
+        </Typography>
+        {data.items.length ? (
+          <List dense disablePadding>
+            {data.items.map((item, i) => (
+              <ListItem key={i} disablePadding>
+                <ListItemText
+                  primary={
+                    <Box>
+                      <Chip 
+                        label={item.owner} 
+                        size="small" 
+                        sx={{ mr: theme.spacing(1) }}
+                      />
+                      {item.text}
+                      {item.due && (
+                        <Typography 
+                          component="span" 
+                          variant="caption" 
+                          sx={{ ml: theme.spacing(1), color: theme.palette.warning.main }}
+                        >
+                          (due {item.due})
+                        </Typography>
+                      )}
+                    </Box>
+                  }
+                  secondary={`From: ${item.source}`}
+                />
+              </ListItem>
+            ))}
+          </List>
+        ) : (
+          <Typography variant="body2" color="text.secondary">No follow-ups</Typography>
+        )}
+      </MuiPaper>
+    );
+  },
+
+  ClientKPIs: ({ data }: ClientKPIsWidgetProps) => {
+    const theme = useTheme();
+    return (
+      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+        <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
+          Client KPIs
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: theme.spacing(2) }}>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{data.totalCalls}</Typography>
+            <Typography variant="caption" color="text.secondary">Total Calls</Typography>
+          </Box>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{data.avgSentiment}</Typography>
+            <Typography variant="caption" color="text.secondary">Avg Sentiment</Typography>
+          </Box>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{Math.round(data.conversionRate * 100)}%</Typography>
+            <Typography variant="caption" color="text.secondary">Conversion Rate</Typography>
+          </Box>
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              Last Activity: {data.lastActivity}
+            </Typography>
+          </Box>
+        </Box>
       </MuiPaper>
     );
   },

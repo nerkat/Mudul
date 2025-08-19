@@ -12,7 +12,15 @@ export const WidgetSlug = z.enum([
   "keyMoments",
   "entities",
   "compliance",
-  "pieChart" // example chart
+  "pieChart", // example chart
+  // Org dashboard widgets
+  "clientStats",
+  "activitySummary", 
+  "healthSignals",
+  // Client dashboard widgets
+  "recentCalls",
+  "followUps",
+  "clientKPIs"
 ]);
 
 export type WidgetSlug = z.infer<typeof WidgetSlug>;

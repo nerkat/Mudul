@@ -22,10 +22,21 @@ export const DashboardTemplates: Record<string, DashboardTemplate> = {
     version: ProtocolVersion,
     layout: { columns: 12 },
     widgets: [
-      { slug: "summary", params: { maxLength: 400 } },
+      { slug: "recentCalls", params: { maxItems: 5 } },
+      { slug: "clientKPIs", params: {} },
+      { slug: "followUps", params: { maxItems: 10 } },
       { slug: "sentiment", params: { showScore: true } },
-      { slug: "booking", params: { showAsPercentage: true } },
-      { slug: "pieChart", params: { height: 240, valueKey: "value", nameKey: "name" } }
+      { slug: "booking", params: { showAsPercentage: true } }
+    ]
+  },
+
+  "org-dashboard": {
+    version: ProtocolVersion,
+    layout: { columns: 12 },
+    widgets: [
+      { slug: "clientStats", params: {} },
+      { slug: "activitySummary", params: {} },
+      { slug: "healthSignals", params: {} }
     ]
   }
 };

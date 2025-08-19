@@ -1,13 +1,22 @@
 // src/core/adapters/types.ts
-import type { SalesCallMinimal } from '../types';
+import type { SalesCallMinimal, NodeBase } from '../types';
 
 export type ViewMode = "rich" | "paper";
 
 export type AdapterCtx = {
   mode: ViewMode;
+  currentNodeId?: string; // Current node ID for context
   orgId?: string;
   locale?: string;
   tz?: string;
+  // Add repo functions for org-level adapters
+  getRoot?: () => NodeBase | null;
+  getNode?: (id: string) => NodeBase | null;
+  getChildren?: (parentId: string) => NodeBase[];
+  getAllClients?: () => NodeBase[];
+  getAllCalls?: () => NodeBase[];
+  getCallByNode?: (nodeId: string) => SalesCallMinimal | null;
+  listCallsByClient?: (clientId: string) => NodeBase[];
 };
 
 // Base adapter interface
@@ -53,6 +62,31 @@ export interface PieChartAdapter extends WidgetAdapter<{ height?: number }, { da
   slug: 'pieChart';
 }
 
+// New adapters for org and client dashboards
+export interface ClientStatsAdapter extends WidgetAdapter<{}, { totalClients: number; activeClients: number; clients: Array<{ name: string; callCount: number; lastActivity: string }> }> {
+  slug: 'clientStats';
+}
+
+export interface ActivitySummaryAdapter extends WidgetAdapter<{}, { totalCalls: number; recentCalls: number; avgSentiment: number; trends: string }> {
+  slug: 'activitySummary';
+}
+
+export interface HealthSignalsAdapter extends WidgetAdapter<{}, { avgBookingLikelihood: number; openObjections: number; pendingActions: number; status: string }> {
+  slug: 'healthSignals';
+}
+
+export interface RecentCallsAdapter extends WidgetAdapter<{ maxItems?: number }, { calls: Array<{ id: string; name: string; date: string; sentiment: string; bookingLikelihood: number }> }> {
+  slug: 'recentCalls';
+}
+
+export interface FollowUpsAdapter extends WidgetAdapter<{ maxItems?: number }, { items: Array<{ text: string; due: string | null; owner: string; source: string }> }> {
+  slug: 'followUps';
+}
+
+export interface ClientKPIsAdapter extends WidgetAdapter<{}, { avgSentiment: number; totalCalls: number; conversionRate: number; lastActivity: string }> {
+  slug: 'clientKPIs';
+}
+
 // Discriminated union of all adapters
 export type TypedAdapter = 
   | SummaryAdapter
@@ -63,7 +97,13 @@ export type TypedAdapter =
   | KeyMomentsAdapter
   | EntitiesAdapter
   | ComplianceAdapter
-  | PieChartAdapter;
+  | PieChartAdapter
+  | ClientStatsAdapter
+  | ActivitySummaryAdapter
+  | HealthSignalsAdapter
+  | RecentCallsAdapter
+  | FollowUpsAdapter
+  | ClientKPIsAdapter;
 
 // Map type for the registry
 export type AdapterMap = Record<TypedAdapter['slug'], TypedAdapter>;
