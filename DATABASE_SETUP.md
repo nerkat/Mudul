@@ -2,6 +2,33 @@
 
 This guide explains how to set up and use the database for the Mudul application.
 
+## Quick Start
+
+Get up and running in 5 minutes:
+
+```bash
+# 1. Clone and navigate to the project
+cd Mudul
+
+# 2. Copy environment files
+cp packages/storage/.env.example packages/storage/.env
+cp apps/web/.env.example apps/web/.env
+
+# 3. Set up the database
+npm run db:setup
+
+# 4. Start the development server
+cd apps/web && npm run dev
+```
+
+**Login Credentials:**
+- Email: `demo@mudul.com`
+- Password: `password`
+
+That's it! You should now have a fully functional Mudul instance with demo data.
+
+---
+
 ## Overview
 
 The application has been migrated from in-memory mock data to a real database using:
@@ -63,10 +90,11 @@ The seeded database includes:
 
 ### Users
 - **demo@mudul.com** / password: `password` (Owner of Acme Sales Org)
-- **viewer@mudul.com** / password: `password` (Viewer of Acme Sales Org)
+- **viewer@mudul.com** / password: `password` (Viewer of Viewer Test Org)
 
-### Organization
-- **Acme Sales Org** (ID: `acme`) with 3 clients and 5 calls
+### Organizations
+- **Acme Sales Org** (ID: `acme-sales-org`) with 3 clients and 5 calls
+- **Viewer Test Org** (ID: `viewer-org`) with 1 client and 1 call (for cross-org testing)
 
 ### Clients
 - **Acme Corp**: 2 calls, high booking likelihood
