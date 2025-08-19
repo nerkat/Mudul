@@ -124,6 +124,7 @@ export const nodes: Record<string, NodeBase> = {
 // Sales call data keyed by nodeId
 export const calls: Record<string, SalesCallMinimal> = {
   "call-acme-1": {
+    id: "call-acme-1",
     summary: "Great discovery call with Acme Corp. They're interested in our enterprise solution to solve their scaling challenges.",
     sentiment: { overall: "positive", score: 0.8 },
     bookingLikelihood: 0.75,
@@ -147,6 +148,7 @@ export const calls: Record<string, SalesCallMinimal> = {
   },
   
   "call-acme-2": {
+    id: "call-acme-2",
     summary: "Follow-up call went well. Acme Corp is ready to move forward with pilot program.",
     sentiment: { overall: "positive", score: 0.9 },
     bookingLikelihood: 0.9,
@@ -168,6 +170,7 @@ export const calls: Record<string, SalesCallMinimal> = {
   },
   
   "call-beta-1": {
+    id: "call-beta-1",
     summary: "Initial contact with Beta Systems. They have budget constraints but are interested in our basic offering.",
     sentiment: { overall: "neutral", score: 0.6 },
     bookingLikelihood: 0.4,
@@ -192,6 +195,7 @@ export const calls: Record<string, SalesCallMinimal> = {
   },
   
   "call-beta-2": {
+    id: "call-beta-2",
     summary: "Demo went very well! Beta Systems loved the user interface and core features.",
     sentiment: { overall: "positive", score: 0.85 },
     bookingLikelihood: 0.7,
@@ -215,6 +219,7 @@ export const calls: Record<string, SalesCallMinimal> = {
   },
   
   "call-gamma-1": {
+    id: "call-gamma-1",
     summary: "Qualification call with Gamma Industries. Large enterprise with complex needs.",
     sentiment: { overall: "neutral", score: 0.55 },
     bookingLikelihood: 0.5,
