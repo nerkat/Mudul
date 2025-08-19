@@ -20,6 +20,8 @@ export interface NodeBase {
 
 // Sales call minimal data structure for widgets
 export interface SalesCallMinimal {
+  /** Stable unique identifier for this call */
+  id: string;
   /** Original transcript text used for analysis (optional to keep payloads lighter) */
   transcript?: string;
   summary?: string;

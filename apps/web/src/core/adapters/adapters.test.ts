@@ -6,6 +6,7 @@ import type { SalesCallMinimal } from '../types';
 
 // Mock sales call data for testing
 const mockCall: SalesCallMinimal = {
+  id: "test-call-1",
   summary: "Test call summary",
   sentiment: { overall: "positive", score: 0.8 },
   bookingLikelihood: 75,

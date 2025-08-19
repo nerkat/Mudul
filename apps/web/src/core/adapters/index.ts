@@ -335,7 +335,7 @@ export const Adapters: AdapterMap = {
         calls: recentCalls.map(callNode => {
           const callDetail = ctx?.getCallByNode?.(callNode.id);
           return {
-            id: callNode.id,
+            id: callDetail?.id ?? callNode.id,
             name: callNode.name,
             date: new Date(callNode.updatedAt).toLocaleDateString(),
             sentiment: callDetail?.sentiment?.overall ?? 'neutral',
