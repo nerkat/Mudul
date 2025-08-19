@@ -30,7 +30,7 @@ export function apiPlugin(): Plugin {
       });
 
       // Test route
-      app.get('/test', (req, res) => {
+      app.get('/test', (_req, res) => {
         res.json({ message: 'API is working!' });
       });
 
