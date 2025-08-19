@@ -103,8 +103,10 @@ describe('ViewMode URL and Cross-tab Integration', () => {
       const originalDocument = global.document;
       
       // @ts-ignore - Simulate SSR environment
-      delete global.window;
-      delete global.document;
+      // @ts-ignore - Temporary delete for test
+      delete (global as any).window;
+      // @ts-ignore - Temporary delete for test
+      delete (global as any).document;
       
       // Server-side would get default 'rich' mode
       const serverMode = getInitialViewMode();
@@ -117,7 +119,6 @@ describe('ViewMode URL and Cross-tab Integration', () => {
       global.document = {} as any;
       
       // Client-side should handle the URL param gracefully
-      const clientMode = getInitialViewMode();
       // Should handle the difference without throwing
       expect(() => getInitialViewMode()).not.toThrow();
       
