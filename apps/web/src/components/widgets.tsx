@@ -267,33 +267,27 @@ export const Rich = {
           Objections
         </Typography>
         {data.objections?.length ? (
-          <List dense disablePadding>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: theme.spacing(1) }}>
             {data.objections.map((o: { type: string; quote: string; ts?: string }, i: number) => (
-              <ListItem key={i} disablePadding>
-                <ListItemText
-                  primary={
-                    <Box component="span">
-                      <Chip 
-                        label={o.type} 
-                        size="small" 
-                        sx={{ mr: theme.spacing(1) }}
-                      />
-                      "{o.quote}"
-                      {o.ts && (
-                        <Typography 
-                          component="span" 
-                          variant="caption" 
-                          sx={{ ml: theme.spacing(1), color: theme.palette.text.secondary }}
-                        >
-                          @ {o.ts}
-                        </Typography>
-                      )}
-                    </Box>
-                  }
+              <Box key={i} sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing(1) }}>
+                <Chip 
+                  label={o.type} 
+                  size="small"
                 />
-              </ListItem>
+                <Typography variant="body2">
+                  "{o.quote}"
+                </Typography>
+                {o.ts && (
+                  <Typography 
+                    variant="caption" 
+                    sx={{ color: theme.palette.text.secondary }}
+                  >
+                    @ {o.ts}
+                  </Typography>
+                )}
+              </Box>
             ))}
-          </List>
+          </Box>
         ) : (
           <Typography variant="body2" color="text.secondary">None</Typography>
         )}
@@ -309,33 +303,27 @@ export const Rich = {
           Action Items
         </Typography>
         {data.actionItems?.length ? (
-          <List dense disablePadding>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: theme.spacing(1) }}>
             {data.actionItems.map((a: { owner: string; text: string; due?: string | null }, i: number) => (
-              <ListItem key={i} disablePadding>
-                <ListItemText
-                  primary={
-                    <Box>
-                      <Chip 
-                        label={a.owner} 
-                        size="small" 
-                        sx={{ mr: theme.spacing(1) }}
-                      />
-                      {a.text}
-                      {a.due && (
-                        <Typography 
-                          component="span" 
-                          variant="caption" 
-                          sx={{ ml: theme.spacing(1), color: theme.palette.warning.main }}
-                        >
-                          (due {a.due})
-                        </Typography>
-                      )}
-                    </Box>
-                  }
+              <Box key={i} sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing(1) }}>
+                <Chip 
+                  label={a.owner} 
+                  size="small"
                 />
-              </ListItem>
+                <Typography variant="body2">
+                  {a.text}
+                </Typography>
+                {a.due && (
+                  <Typography 
+                    variant="caption" 
+                    sx={{ color: theme.palette.warning.main }}
+                  >
+                    (due {a.due})
+                  </Typography>
+                )}
+              </Box>
             ))}
-          </List>
+          </Box>
         ) : (
           <Typography variant="body2" color="text.secondary">None</Typography>
         )}
@@ -593,34 +581,32 @@ export const Rich = {
           Follow-ups
         </Typography>
         {data.items.length ? (
-          <List dense disablePadding>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: theme.spacing(1) }}>
             {data.items.map((item, i) => (
-              <ListItem key={i} disablePadding>
-                <ListItemText
-                  primary={
-                    <Box>
-                      <Chip 
-                        label={item.owner} 
-                        size="small" 
-                        sx={{ mr: theme.spacing(1) }}
-                      />
-                      {item.text}
-                      {item.due && (
-                        <Typography 
-                          component="span" 
-                          variant="caption" 
-                          sx={{ ml: theme.spacing(1), color: theme.palette.warning.main }}
-                        >
-                          (due {item.due})
-                        </Typography>
-                      )}
-                    </Box>
-                  }
-                  secondary={`From: ${item.source}`}
-                />
-              </ListItem>
+              <Box key={i}>
+                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing(1), mb: theme.spacing(0.5) }}>
+                  <Chip 
+                    label={item.owner} 
+                    size="small"
+                  />
+                  <Typography variant="body2">
+                    {item.text}
+                  </Typography>
+                  {item.due && (
+                    <Typography 
+                      variant="caption" 
+                      sx={{ color: theme.palette.warning.main }}
+                    >
+                      (due {item.due})
+                    </Typography>
+                  )}
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  From: {item.source}
+                </Typography>
+              </Box>
             ))}
-          </List>
+          </Box>
         ) : (
           <Typography variant="body2" color="text.secondary">No follow-ups</Typography>
         )}
