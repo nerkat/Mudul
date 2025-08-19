@@ -148,20 +148,20 @@ export function DashboardPage() {
     templateError = e instanceof Error ? e.message : 'Invalid template format';
   }
 
-  // Helper: map widget slug → call data for paper mode
-  const paperDataForSlug = (slug: string) => {
-    switch (slug) {
-      case 'summary': return call?.summary ?? null;
-      case 'sentiment': return call?.sentiment ?? null;
-      case 'booking': return call?.bookingLikelihood ?? null;
-      case 'objections': return call?.objections ?? null;
-      case 'actionItems': return call?.actionItems ?? null;
-      case 'keyMoments': return call?.keyMoments ?? null;
-      default:
-        // fallback: try property by slug if exists
-        return (call as any)?.[slug] ?? null;
-    }
-  };
+  // Helper: map widget slug → call data for paper mode (TODO: currently unused)
+  // const paperDataForSlug = (slug: string) => {
+  //   switch (slug) {
+  //     case 'summary': return call?.summary ?? null;
+  //     case 'sentiment': return call?.sentiment ?? null;
+  //     case 'booking': return call?.bookingLikelihood ?? null;
+  //     case 'objections': return call?.objections ?? null;
+  //     case 'actionItems': return call?.actionItems ?? null;
+  //     case 'keyMoments': return call?.keyMoments ?? null;
+  //     default:
+  //       // fallback: try property by slug if exists
+  //       return (call as any)?.[slug] ?? null;
+  //   }
+  // };
 
   const ModeChip = (
     <Chip
