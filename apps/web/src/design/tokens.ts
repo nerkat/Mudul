@@ -1,24 +1,7 @@
 // src/design/tokens.ts
 
 // Base tokens with unitless values
-export const tokens = {
-  color: {
-    bg:    { base: "#0B0F14", surface: "#11161C", elevated: "#161C24" },
-    text:  { primary: "#E6EEF8", secondary: "#A9B6C6", muted: "#7E8BA0" },
-    brand: { 
-      base: "#4C8CF6", 
-      hover: "#3976EA", 
-      active: "#295FCC",
-      // Legacy support
-      600: "#4C8CF6", 
-      700: "#3976EA", 
-      800: "#295FCC" 
-    },
-    success: "#15B77E",
-    warning: "#F5A524",
-    error:   "#F04438",
-    chip:    { border: "#213044", bg: "#132033" }
-  },
+const baseTokens = {
   radius: { sm: 6, md: 10, lg: 14, xl: 20 },
   space:  { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
   shadow: { 
@@ -30,6 +13,56 @@ export const tokens = {
     size: { sm: 12, md: 14, lg: 16, xl: 18, h1: 28, h2: 22 } 
   }
 } as const;
+
+// Dark theme colors
+const darkColors = {
+  bg:    { base: "#0B0F14", surface: "#11161C", elevated: "#161C24" },
+  text:  { primary: "#E6EEF8", secondary: "#A9B6C6", muted: "#7E8BA0" },
+  brand: { 
+    base: "#4C8CF6", 
+    hover: "#3976EA", 
+    active: "#295FCC",
+    // Legacy support
+    600: "#4C8CF6", 
+    700: "#3976EA", 
+    800: "#295FCC" 
+  },
+  success: "#15B77E",
+  warning: "#F5A524",
+  error:   "#F04438",
+  chip:    { border: "#213044", bg: "#132033" }
+};
+
+// Light theme colors
+const lightColors = {
+  bg:    { base: "#FFFFFF", surface: "#F8FAFC", elevated: "#FFFFFF" },
+  text:  { primary: "#1A202C", secondary: "#4A5568", muted: "#718096" },
+  brand: { 
+    base: "#3182CE", 
+    hover: "#2C5282", 
+    active: "#2A4365",
+    // Legacy support
+    600: "#3182CE", 
+    700: "#2C5282", 
+    800: "#2A4365" 
+  },
+  success: "#38A169",
+  warning: "#D69E2E",
+  error:   "#E53E3E",
+  chip:    { border: "#E2E8F0", bg: "#F7FAFC" }
+};
+
+// Current tokens (dark by default)
+export const tokens = {
+  color: darkColors,
+  ...baseTokens
+} as const;
+
+// Function to get tokens for specific theme
+export const getTokensForTheme = (mode: 'light' | 'dark') => ({
+  color: mode === 'light' ? lightColors : darkColors,
+  ...baseTokens
+});
 
 // Helper functions for unit conversion
 export const px = (n: number) => `${n}px`;

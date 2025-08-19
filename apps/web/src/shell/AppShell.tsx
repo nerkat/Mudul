@@ -62,7 +62,7 @@ export function AppShell() {
           Mudul
         </Typography>
       </Toolbar>
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: theme.spacing(2) }}>
         <SimpleTreeView 
           onItemClick={handleItemClick}
           defaultExpandedItems={[...(root ? [root.id] : []), ...clients.map(c => c.id)]}
@@ -70,7 +70,7 @@ export function AppShell() {
           <TreeItem 
             itemId="dashboard" 
             label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
                 <Dashboard fontSize="small" />
                 Overview
               </Box>
@@ -79,7 +79,7 @@ export function AppShell() {
           <TreeItem 
             itemId="settings" 
             label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
                 <Settings fontSize="small" />
                 Settings
               </Box>
@@ -90,7 +90,7 @@ export function AppShell() {
             <TreeItem 
               itemId={root.id} 
               label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
                   <Business fontSize="small" />
                   {root.name}
                 </Box>
@@ -103,7 +103,7 @@ export function AppShell() {
                     key={client.id}
                     itemId={client.id}
                     label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
                         <Business fontSize="small" />
                         {client.name}
                       </Box>
@@ -117,8 +117,8 @@ export function AppShell() {
                           <Box sx={{ 
                             display: 'flex', 
                             alignItems: 'center',
-                            gap: 1,
-                            py: 0.5
+                            gap: theme.spacing(1),
+                            py: theme.spacing(0.5)
                           }}>
                             <Call fontSize="small" />
                             <Box>
@@ -138,7 +138,7 @@ export function AppShell() {
         </SimpleTreeView>
         
         {/* New Call Button */}
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: theme.spacing(2) }}>
           <Button
             component="a"
             href="/calls/new"
@@ -153,7 +153,7 @@ export function AppShell() {
             startIcon={<Add />}
             fullWidth
             sx={{ 
-              borderRadius: 2,
+              borderRadius: theme.shape.borderRadius,
               textTransform: 'none',
               fontWeight: 'medium'
             }}
@@ -181,7 +181,7 @@ export function AppShell() {
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            sx={{ mr: theme.spacing(2), display: { md: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
@@ -228,7 +228,7 @@ export function AppShell() {
         component="main"
         sx={{ 
           flexGrow: 1, 
-          p: 3, 
+          p: theme.spacing(3), 
           width: { md: `calc(100% - ${drawerWidth}px)` } 
         }}
       >
