@@ -25,7 +25,9 @@ import { useViewMode } from '../ctx/ViewModeContext';  // Use context instead of
 export function DashboardPage() {
   const { nodeId } = useParams<{ nodeId: string }>();
   const node = useNode(nodeId || "");
-  const { data: call, error, loading /*, refetch */ } = useSalesCall(nodeId || "");
+  const { data: call, error, loading /*, refetch */ } = useSalesCall(
+    node?.kind === "call_session" ? nodeId || "" : undefined
+  );
   const { analyze, loading: analyzing, error: analyzeError, lastResult, cancel } = useAnalyzeCall();
 
   const { mode, toggleMode, setMode } = useViewMode(); // Use context methods
@@ -273,37 +275,17 @@ export function DashboardPage() {
       )}
 
       {/* Widgets */}
-      {!loading && !error && !templateError && call && parsed && (
+      {!loading && !error && !templateError && parsed && (
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 2, mt: 2 }}>
           {parsed.widgets.map((widgetConfig, index) => (
             <Box key={`${widgetConfig.slug}-${index}`}>
-              {mode === 'paper' ? (
-                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 2 }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    {widgetConfig.slug}
-                  </Typography>
-                  <Box
-                    component="pre"
-                    sx={{
-                      m: 0,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      fontFamily: 'monospace',
-                      fontSize: '0.85rem',
-                    }}
-                  >
-                    {JSON.stringify(paperDataForSlug(widgetConfig.slug), null, 2)}
-                  </Box>
-                </Box>
-              ) : (
-                <WidgetRenderer config={widgetConfig} call={call} nodeId={nodeId} />
-              )}
+              <WidgetRenderer config={widgetConfig} call={call || {} as any} nodeId={nodeId} />
             </Box>
           ))}
         </Box>
       )}
 
-      {!loading && !error && !templateError && (!call || !parsed) && (
+      {!loading && !error && !templateError && !parsed && (
         <Alert severity="info" sx={{ mt: 2 }}>
           No dashboard configuration found for this node.
         </Alert>

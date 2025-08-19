@@ -35,7 +35,7 @@ const Skin = WRich;
 // Registry interface - each entry validates params and renders
 interface WidgetRegistryEntry<P = any> {
   validate: (params: unknown) => { success: true; data: P } | { success: false; error: string };
-  render: (data: SalesCallMinimal, params: P) => React.ReactNode;
+  render: (data: SalesCallMinimal, params: P, projectedData?: any) => React.ReactNode;
 }
 
 // Map slug to { validate(params), render(data, params) }
@@ -183,8 +183,8 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
       }
       return { success: false, error: `Invalid clientStats params: ${result.error.message}` };
     },
-    render: (_call, _params) => (
-      <Skin.ClientStats key="clientStats" data={{ totalClients: 0, activeClients: 0, clients: [] }} />
+    render: (_call, _params, projectedData) => (
+      <Skin.ClientStats key="clientStats" data={projectedData || { totalClients: 0, activeClients: 0, clients: [] }} />
     )
   },
 
@@ -196,8 +196,8 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
       }
       return { success: false, error: `Invalid activitySummary params: ${result.error.message}` };
     },
-    render: (_call, _params) => (
-      <Skin.ActivitySummary key="activitySummary" data={{ totalCalls: 0, recentCalls: 0, avgSentiment: 0, trends: '' }} />
+    render: (_call, _params, projectedData) => (
+      <Skin.ActivitySummary key="activitySummary" data={projectedData || { totalCalls: 0, recentCalls: 0, avgSentiment: 0, trends: '' }} />
     )
   },
 
@@ -209,8 +209,8 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
       }
       return { success: false, error: `Invalid healthSignals params: ${result.error.message}` };
     },
-    render: (_call, _params) => (
-      <Skin.HealthSignals key="healthSignals" data={{ avgBookingLikelihood: 0, openObjections: 0, pendingActions: 0, status: 'Unknown' }} />
+    render: (_call, _params, projectedData) => (
+      <Skin.HealthSignals key="healthSignals" data={projectedData || { avgBookingLikelihood: 0, openObjections: 0, pendingActions: 0, status: 'Unknown' }} />
     )
   },
 
@@ -223,8 +223,8 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
       }
       return { success: false, error: `Invalid recentCalls params: ${result.error.message}` };
     },
-    render: (_call, _params) => (
-      <Skin.RecentCalls key="recentCalls" data={{ calls: [] }} />
+    render: (_call, _params, projectedData) => (
+      <Skin.RecentCalls key="recentCalls" data={projectedData || { calls: [] }} />
     )
   },
 
@@ -236,8 +236,8 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
       }
       return { success: false, error: `Invalid followUps params: ${result.error.message}` };
     },
-    render: (_call, _params) => (
-      <Skin.FollowUps key="followUps" data={{ items: [] }} />
+    render: (_call, _params, projectedData) => (
+      <Skin.FollowUps key="followUps" data={projectedData || { items: [] }} />
     )
   },
 
@@ -249,8 +249,8 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
       }
       return { success: false, error: `Invalid clientKPIs params: ${result.error.message}` };
     },
-    render: (_call, _params) => (
-      <Skin.ClientKPIs key="clientKPIs" data={{ avgSentiment: 0, totalCalls: 0, conversionRate: 0, lastActivity: 'Unknown' }} />
+    render: (_call, _params, projectedData) => (
+      <Skin.ClientKPIs key="clientKPIs" data={projectedData || { avgSentiment: 0, totalCalls: 0, conversionRate: 0, lastActivity: 'Unknown' }} />
     )
   }
 };
@@ -376,7 +376,7 @@ export function WidgetRenderer({ config, call, nodeId }: WidgetRendererProps) {
   }
 
   try {
-    return <>{entry.render(call, validation.data)}</>;
+    return <>{entry.render(call, validation.data, data)}</>;
   } catch (error) {
     const errorMessage = `Render error (${config.slug}): ${error instanceof Error ? error.message : 'Unknown error'}`;
     return (
