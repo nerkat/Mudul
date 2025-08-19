@@ -20,7 +20,7 @@ import { WidgetRenderer } from '../core/widgets/registry';
 import { DashboardTemplate } from '../core/widgets/protocol';
 import { DashboardTemplates } from '../core/registry-json';
 import type { AnalysisError } from '../services/errors';
-import { useViewMode } from '../viewMode';  // <-- add hook
+import { useViewMode } from '../ctx/ViewModeContext';  // Use context instead of standalone hook
 
 export function DashboardPage() {
   const { nodeId } = useParams<{ nodeId: string }>();
@@ -28,23 +28,14 @@ export function DashboardPage() {
   const { data: call, error, loading /*, refetch */ } = useSalesCall(nodeId || "");
   const { analyze, loading: analyzing, error: analyzeError, lastResult, cancel } = useAnalyzeCall();
 
-  const { mode, toggleViewMode, setViewMode } = useViewMode(); // <-- subscribe to mode
+  const { mode, toggleMode, setMode } = useViewMode(); // Use context methods
 
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
-  // Keyboard: press "p" to toggle paper/rich mode (no modifiers)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        toggleViewMode();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [toggleViewMode]);
+  // Keyboard: press "p" to toggle paper/rich mode (handled by ViewModeContext)
+  // Remove duplicate keyboard handler since ViewModeContext already handles it
 
   // Handle analysis results (no full page reload)
   useEffect(() => {
@@ -177,7 +168,7 @@ export function DashboardPage() {
       color={mode === 'paper' ? 'default' : 'primary'}
       label={mode === 'paper' ? 'Mode: Paper' : 'Mode: Rich'}
       sx={{ mr: 1 }}
-      onClick={() => setViewMode(mode === 'paper' ? 'rich' : 'paper')}
+      onClick={() => setMode(mode === 'paper' ? 'rich' : 'paper')}
     />
   );
 
@@ -216,7 +207,7 @@ export function DashboardPage() {
         {/* Actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Tooltip title={mode === 'paper' ? 'Switch to rich view (P)' : 'Switch to paper mode (P)'}>
-            <IconButton onClick={toggleViewMode} color="default">
+            <IconButton onClick={toggleMode} color="default">
               {mode === 'paper' ? <InsertChartOutlined /> : <Description />}
             </IconButton>
           </Tooltip>

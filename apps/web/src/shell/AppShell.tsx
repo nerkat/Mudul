@@ -13,8 +13,6 @@ import {
 } from '@mui/material';
 import { 
   Menu as MenuIcon, 
-  Brightness4, 
-  Brightness7,
   Dashboard,
   Business,
   Call,
@@ -25,15 +23,11 @@ import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useRepo } from '../hooks/useRepo';
+import { ThemeSwitch } from '../components/ThemeSwitch';
 
 const drawerWidth = 280;
 
-interface AppShellProps {
-  isDark: boolean;
-  onThemeToggle: () => void;
-}
-
-export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
+export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -69,7 +63,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
           Mudul
         </Typography>
       </Toolbar>
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: theme.spacing(2) }}>
         <SimpleTreeView 
           onItemClick={handleItemClick}
           defaultExpandedItems={[...(root ? [root.id] : []), ...clients.map(c => c.id)]}
@@ -77,7 +71,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
           <TreeItem 
             itemId="dashboard" 
             label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
                 <Dashboard fontSize="small" />
                 Overview
               </Box>
@@ -86,7 +80,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
           <TreeItem 
             itemId="settings" 
             label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
                 <Settings fontSize="small" />
                 Settings
               </Box>
@@ -97,7 +91,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
             <TreeItem 
               itemId={root.id} 
               label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
                   <Business fontSize="small" />
                   {root.name}
                 </Box>
@@ -110,7 +104,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
                     key={client.id}
                     itemId={client.id}
                     label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
                         <Business fontSize="small" />
                         {client.name}
                       </Box>
@@ -124,8 +118,8 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
                           <Box sx={{ 
                             display: 'flex', 
                             alignItems: 'center',
-                            gap: 1,
-                            py: 0.5
+                            gap: theme.spacing(1),
+                            py: theme.spacing(0.5)
                           }}>
                             <Call fontSize="small" />
                             <Box>
@@ -145,7 +139,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
         </SimpleTreeView>
         
         {/* New Call Button */}
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: theme.spacing(2) }}>
           <Button
             component="a"
             href="/calls/new"
@@ -160,7 +154,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
             startIcon={<Add />}
             fullWidth
             sx={{ 
-              borderRadius: 2,
+              borderRadius: theme.shape.borderRadius,
               textTransform: 'none',
               fontWeight: 'medium'
             }}
@@ -188,16 +182,14 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            sx={{ mr: theme.spacing(2), display: { md: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             Mudul
           </Typography>
-          <IconButton color="inherit" onClick={onThemeToggle}>
-            {isDark ? <Brightness7 /> : <Brightness4 />}
-          </IconButton>
+          <ThemeSwitch />
         </Toolbar>
       </AppBar>
       
@@ -238,7 +230,7 @@ export function AppShell({ isDark, onThemeToggle }: AppShellProps) {
         component="main"
         sx={{ 
           flexGrow: 1, 
-          p: 3, 
+          p: theme.spacing(3), 
           width: { md: `calc(100% - ${drawerWidth}px)` } 
         }}
       >

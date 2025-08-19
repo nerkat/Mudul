@@ -1,4 +1,5 @@
 import React from "react";
+import { Box, Typography, Paper as MuiPaper, Alert, useTheme } from '@mui/material';
 import type { SalesCallMinimal } from "../types";
 import type { WidgetSlug, WidgetConfig } from "./protocol";
 import {
@@ -12,6 +13,11 @@ import {
   ComplianceParams,
   PieChartParams
 } from "./params";
+
+// Import adapters and paper renderer
+import { Adapters } from '../adapters';
+import { PaperRenderer } from './paper/PaperRenderer';
+import { useViewMode } from '../../ctx/ViewModeContext';
 
 // Component implementations (use existing Paper/Rich widgets internally)
 import { Rich as WRich } from "../../components/widgets";
@@ -139,19 +145,26 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
       }
       return { success: false, error: `Invalid pieChart params: ${result.error.message}` };
     },
-    render: (_call, params) => (
-      // Simple pie chart stub for now - could be enhanced with actual charting library
-      <div 
-        key="pieChart" 
-        className="rounded-xl border p-4"
-        style={{ height: params.height }}
-      >
-        <div className="font-medium">Pie Chart</div>
-        <div className="mt-2 text-sm text-slate-500">
-          Chart visualization (stub) - height: {params.height}px
-        </div>
-      </div>
-    )
+    render: (_call, params) => {
+      const theme = useTheme();
+      return (
+        <MuiPaper 
+          key="pieChart"
+          sx={{ 
+            p: theme.spacing(2), 
+            borderRadius: theme.shape.borderRadius,
+            height: `${params.height}px`
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
+            Pie Chart
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Chart visualization (stub) - height: {params.height}px
+          </Typography>
+        </MuiPaper>
+      );
+    }
   }
 };
 
@@ -162,33 +175,123 @@ interface WidgetRendererProps {
 }
 
 export function WidgetRenderer({ config, call }: WidgetRendererProps) {
+  const { mode } = useViewMode();
+  const theme = useTheme();
   const entry = WidgetRegistry[config.slug];
   
   if (!entry) {
+    const errorMessage = `Unknown widget: ${config.slug}`;
+    if (mode === "paper") {
+      return (
+        <PaperRenderer 
+          slug="error" 
+          title="Error" 
+          data={{ error: errorMessage, type: "missing-widget" }} 
+        />
+      );
+    }
     return (
-      <div className="rounded-xl border border-red-200 p-4 text-red-600">
-        Unknown widget: {config.slug}
-      </div>
+      <Alert 
+        severity="error" 
+        sx={{ 
+          borderRadius: theme.shape.borderRadius,
+          '& .MuiAlert-message': { 
+            fontWeight: 'medium' 
+          }
+        }}
+      >
+        ⚠️ {errorMessage}
+      </Alert>
     );
   }
 
   const validation = entry.validate(config.params || {});
   
   if (!validation.success) {
+    const errorMessage = `Widget error (${config.slug}): ${validation.error}`;
+    if (mode === "paper") {
+      return (
+        <PaperRenderer 
+          slug="error" 
+          title="Validation Error" 
+          data={{ error: validation.error, widget: config.slug, type: "validation-error" }} 
+        />
+      );
+    }
     return (
-      <div className="rounded-xl border border-red-200 p-4 text-red-600">
-        Widget error ({config.slug}): {validation.error}
-      </div>
+      <Alert 
+        severity="error" 
+        sx={{ 
+          borderRadius: theme.shape.borderRadius,
+          '& .MuiAlert-message': { 
+            fontWeight: 'medium' 
+          }
+        }}
+      >
+        ⚠️ {errorMessage}
+      </Alert>
     );
+  }
+
+  // Use adapters to project data
+  const adapter = Adapters[config.slug];
+  
+  if (!adapter) {
+    const errorMessage = `No adapter for ${config.slug}`;
+    if (mode === "paper") {
+      return (
+        <PaperRenderer 
+          slug="error" 
+          title="Missing Adapter" 
+          data={{ error: errorMessage, widget: config.slug, type: "missing-adapter" }} 
+        />
+      );
+    }
+    return (
+      <Alert 
+        severity="warning" 
+        sx={{ 
+          borderRadius: theme.shape.borderRadius,
+          '& .MuiAlert-message': { 
+            fontWeight: 'medium' 
+          }
+        }}
+      >
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+            ⚠️ {errorMessage}
+          </Typography>
+          <Typography variant="caption" sx={{ mt: theme.spacing(0.5), display: 'block' }}>
+            Using fallback data projection
+          </Typography>
+        </Box>
+      </Alert>
+    );
+  }
+  
+  const data = adapter.project(call, validation.data, { mode });
+
+  // Branch between paper and rich mode
+  if (mode === "paper") {
+    return <PaperRenderer slug={config.slug} title={config.slug} data={data} params={validation.data} />;
   }
 
   try {
     return <>{entry.render(call, validation.data)}</>;
   } catch (error) {
+    const errorMessage = `Render error (${config.slug}): ${error instanceof Error ? error.message : 'Unknown error'}`;
     return (
-      <div className="rounded-xl border border-red-200 p-4 text-red-600">
-        Render error ({config.slug}): {error instanceof Error ? error.message : 'Unknown error'}
-      </div>
+      <Alert 
+        severity="error" 
+        sx={{ 
+          borderRadius: theme.shape.borderRadius,
+          '& .MuiAlert-message': { 
+            fontWeight: 'medium' 
+          }
+        }}
+      >
+        ⚠️ {errorMessage}
+      </Alert>
     );
   }
 }

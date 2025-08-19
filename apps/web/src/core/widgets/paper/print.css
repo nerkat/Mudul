@@ -1,0 +1,88 @@
+/* Print styles for paper mode */
+@media print {
+  /* Remove shadows and use high contrast colors */
+  [data-paper-mode] .MuiPaper-root {
+    box-shadow: none !important;
+    border: 1px solid #000 !important;
+    background: white !important;
+  }
+
+  /* Ensure text is black for print */
+  [data-paper-mode] {
+    color: #000 !important;
+    background: white !important;
+  }
+
+  /* Prevent page breaks inside list items and widgets */
+  [data-paper-mode] .MuiPaper-root,
+  [data-paper-mode] li,
+  [data-paper-mode] .paper-widget {
+    page-break-inside: avoid;
+  }
+
+  /* Add spacing between widgets for clarity */
+  [data-paper-mode] .MuiPaper-root {
+    margin-bottom: 16px !important;
+  }
+
+  /* Ensure headings are visible */
+  [data-paper-mode] h1,
+  [data-paper-mode] h2,
+  [data-paper-mode] h3,
+  [data-paper-mode] h4,
+  [data-paper-mode] h5,
+  [data-paper-mode] h6 {
+    color: #000 !important;
+    font-weight: bold !important;
+  }
+
+  /* Format lists for print */
+  [data-paper-mode] ul,
+  [data-paper-mode] ol {
+    margin: 8px 0 !important;
+  }
+
+  [data-paper-mode] li {
+    margin-bottom: 4px !important;
+  }
+
+  /* Hide navigation and interactive elements */
+  [data-paper-mode] button,
+  [data-paper-mode] .MuiToggleButton-root,
+  [data-paper-mode] .MuiIconButton-root {
+    display: none !important;
+  }
+
+  /* Ensure monospace text is readable */
+  [data-paper-mode] pre,
+  [data-paper-mode] code,
+  [data-paper-mode] .monospace {
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 10pt !important;
+    line-height: 1.4 !important;
+  }
+}
+
+/* General paper mode styles (screen and print) */
+[data-paper-mode] {
+  /* Typography optimized for reading */
+  font-family: 'Times New Roman', Times, serif;
+  line-height: 1.6;
+}
+
+[data-paper-mode] .paper-widget {
+  break-inside: avoid;
+}
+
+[data-paper-mode] .paper-error {
+  border: 2px solid #d32f2f;
+  background: #ffebee;
+  padding: 16px;
+  margin: 8px 0;
+  border-radius: 4px;
+}
+
+[data-paper-mode] .paper-error::before {
+  content: "⚠️ ";
+  font-weight: bold;
+}

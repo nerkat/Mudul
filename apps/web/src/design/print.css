@@ -1,0 +1,75 @@
+/* Print styles for paper mode */
+@media print {
+  /* Remove shadows and reduce contrast for print */
+  .MuiPaper-root {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+  
+  /* Ensure text is black for readability */
+  body, * {
+    color: #000 !important;
+    background: #fff !important;
+  }
+  
+  /* Hide interactive elements */
+  button, 
+  [role="button"],
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Avoid page breaks inside widgets */
+  .MuiPaper-root {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Ensure proper spacing between widgets */
+  .MuiPaper-root + .MuiPaper-root {
+    margin-top: 1rem;
+  }
+  
+  /* Make headers and labels more prominent */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: bold !important;
+  }
+  
+  /* Ensure monospace text remains legible */
+  pre, code, .MuiTypography-root[style*="monospace"] {
+    font-size: 10pt !important;
+    line-height: 1.2 !important;
+  }
+  
+  /* Remove unnecessary margins for compact printing */
+  body {
+    margin: 0 !important;
+    padding: 1cm !important;
+  }
+}
+
+/* Hide elements that shouldn't appear in print */
+.print-hide {
+  display: none !important;
+}
+
+@media print {
+  .print-hide {
+    display: none !important;
+  }
+  
+  .print-show {
+    display: block !important;
+  }
+}
+
+/* General print-only styles */
+@media print {
+  .print-only {
+    display: block !important;
+  }
+}
+
+.print-only {
+  display: none;
+}
