@@ -1,7 +1,4 @@
 import type { 
-  User, 
-  Organization, 
-  Membership, 
   AuthSession, 
   LoginCredentials, 
   AuthError, 
@@ -9,39 +6,58 @@ import type {
 } from './types';
 import { getAuthItem, setAuthItem, removeAuthItem, clearAuthData } from '../utils/storage';
 
-// Mock data for development - in production this would come from a real backend
-const MOCK_USERS: Record<string, User & { password: string }> = {
-  'demo@mudul.com': {
-    id: 'user-1',
-    email: 'demo@mudul.com',
-    name: 'Demo User',
-    password: 'password',
-    createdAt: '2024-01-01T00:00:00Z',
-    lastLoginAt: '2024-01-15T10:00:00Z'
-  }
-};
+// HTTP client for API calls
+class ApiClient {
+  private baseUrl = ''; // Same origin
 
-const MOCK_ORGS: Record<string, Organization> = {
-  'acme': {
-    id: 'acme',
-    name: 'Acme Sales',
-    planTier: 'pro',
-    createdAt: '2024-01-01T00:00:00Z'
-  }
-};
+  async post(endpoint: string, data: any): Promise<any> {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
 
-const MOCK_MEMBERSHIPS: Membership[] = [
-  {
-    userId: 'user-1',
-    orgId: 'acme',
-    role: 'owner',
-    createdAt: '2024-01-01T00:00:00Z'
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'HTTP_ERROR');
+    }
+
+    return result;
   }
-];
+
+  async get(endpoint: string, token?: string): Promise<any> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'HTTP_ERROR');
+    }
+
+    return result;
+  }
+}
 
 class AuthService {
   private static instance: AuthService;
   private currentSession: AuthSession | null = null;
+  private apiClient = new ApiClient();
 
   static getInstance(): AuthService {
     if (!AuthService.instance) {
@@ -70,27 +86,9 @@ class AuthService {
   }
 
   /**
-   * Generate mock JWT tokens (in production, these would come from the server)
+   * Simulate API delay (remove in production)
    */
-  private generateTokens(user: User, rememberMe: boolean = false): { accessToken: string; refreshToken?: string; expiresAt: string } {
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + (15 * 60 * 1000)); // 15 minutes
-
-    // Simple mock token (in production, use proper JWT)
-    const accessToken = `access_${user.id}_${now.getTime()}`;
-    const refreshToken = rememberMe ? `refresh_${user.id}_${now.getTime()}` : undefined;
-
-    return {
-      accessToken,
-      refreshToken,
-      expiresAt: expiresAt.toISOString()
-    };
-  }
-
-  /**
-   * Simulate API delay
-   */
-  private async simulateDelay(ms: number = 500): Promise<void> {
+  private async simulateDelay(ms: number = 300): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, ms));
   }
 
@@ -100,124 +98,140 @@ class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     await this.simulateDelay();
 
-    const { email, password, rememberMe = false } = credentials;
+    try {
+      const result = await this.apiClient.post('/api/auth/login', credentials);
 
-    // Check if user exists
-    const mockUser = MOCK_USERS[email.toLowerCase()];
-    if (!mockUser || mockUser.password !== password) {
-      throw this.createError('invalid_credentials', 'Invalid email or password');
-    }
+      // Transform API response to match expected AuthSession format
+      const session: AuthSession = {
+        user: result.user,
+        organization: {
+          id: result.activeOrgId,
+          name: result.orgs.find((org: any) => org.id === result.activeOrgId)?.name || 'Unknown',
+          planTier: 'pro', // Default for now
+          createdAt: '2024-01-01T00:00:00Z' // Default for now
+        },
+        membership: {
+          userId: result.user.id,
+          orgId: result.activeOrgId,
+          role: result.orgs.find((org: any) => org.id === result.activeOrgId)?.role || 'viewer',
+          createdAt: '2024-01-01T00:00:00Z' // Default for now
+        },
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresAt: this.calculateExpiryTime(15) // 15 minutes from now
+      };
 
-    // Get user's organization and membership
-    const membership = MOCK_MEMBERSHIPS.find(m => m.userId === mockUser.id);
-    if (!membership) {
-      throw this.createError('no_membership', 'User has no organization membership');
-    }
+      // Store session
+      this.currentSession = session;
+      this.storeSession(session);
 
-    const organization = MOCK_ORGS[membership.orgId];
-    if (!organization) {
-      throw this.createError('org_not_found', 'Organization not found');
-    }
+      return {
+        session,
+        isFirstLogin: false // For demo purposes
+      };
+    } catch (error: any) {
+      console.error('Login failed:', error);
 
-    // Generate tokens
-    const tokens = this.generateTokens(mockUser, rememberMe);
-
-    // Update last login
-    const user: User = {
-      id: mockUser.id,
-      email: mockUser.email,
-      name: mockUser.name,
-      avatarUrl: mockUser.avatarUrl,
-      createdAt: mockUser.createdAt,
-      lastLoginAt: new Date().toISOString()
-    };
-
-    // Create session
-    const session: AuthSession = {
-      user,
-      organization,
-      membership,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      expiresAt: tokens.expiresAt
-    };
-
-    // Store session
-    this.currentSession = session;
-    this.storeSession(session);
-
-    return {
-      session,
-      isFirstLogin: false // For demo purposes, assume not first login
-    };
-  }
-
-  /**
-   * Sign out current user
-   */
-  async logout(): Promise<void> {
-    await this.simulateDelay(200);
-
-    this.currentSession = null;
-    clearAuthData();
-  }
-
-  /**
-   * Get current session
-   */
-  getCurrentSession(): AuthSession | null {
-    if (this.currentSession) {
-      return this.currentSession;
-    }
-
-    // Try to restore from storage
-    const sessionData = getAuthItem('session');
-    if (sessionData) {
-      try {
-        const session = JSON.parse(sessionData) as AuthSession;
-        
-        // Check if session is expired
-        if (new Date(session.expiresAt) > new Date()) {
-          this.currentSession = session;
-          return session;
-        } else {
-          // Session expired, clear it
-          this.clearStoredSession();
-        }
-      } catch (error) {
-        // Invalid session data, clear it
-        this.clearStoredSession();
+      if (error.message === 'INVALID_CREDENTIALS') {
+        throw this.createError('invalid_credentials', 'Invalid email or password');
       }
-    }
 
-    return null;
+      if (error.message === 'NO_ORG_ACCESS') {
+        throw this.createError('no_membership', 'User has no organization membership');
+      }
+
+      if (error.message === 'RATE_LIMIT_EXCEEDED') {
+        throw this.createError('rate_limit', 'Too many login attempts. Please try again later.');
+      }
+
+      throw this.createError('server_error', 'Login failed due to server error');
+    }
   }
 
   /**
    * Refresh access token using refresh token
    */
   async refreshToken(): Promise<AuthSession> {
-    await this.simulateDelay(300);
+    await this.simulateDelay(200);
 
     const session = this.getCurrentSession();
     if (!session?.refreshToken) {
       throw this.createError('no_refresh_token', 'No valid refresh token available');
     }
 
-    // Generate new tokens
-    const tokens = this.generateTokens(session.user, true);
+    try {
+      const result = await this.apiClient.post('/api/auth/refresh', {
+        refreshToken: session.refreshToken
+      });
 
-    // Update session
-    const newSession: AuthSession = {
-      ...session,
-      accessToken: tokens.accessToken,
-      expiresAt: tokens.expiresAt
-    };
+      // Update session with new tokens
+      const newSession: AuthSession = {
+        ...session,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken || session.refreshToken,
+        expiresAt: this.calculateExpiryTime(15) // 15 minutes from now
+      };
 
-    this.currentSession = newSession;
-    this.storeSession(newSession);
+      this.currentSession = newSession;
+      this.storeSession(newSession);
 
-    return newSession;
+      return newSession;
+    } catch (error: any) {
+      console.error('Token refresh failed:', error);
+
+      if (error.message === 'INVALID_REFRESH_TOKEN') {
+        // Clear invalid session
+        this.logout();
+        throw this.createError('invalid_refresh_token', 'Session expired. Please log in again.');
+      }
+
+      throw this.createError('server_error', 'Token refresh failed');
+    }
+  }
+
+  /**
+   * Logout user and revoke tokens
+   */
+  async logout(): Promise<void> {
+    const session = this.getCurrentSession();
+
+    try {
+      if (session?.refreshToken) {
+        await this.apiClient.post('/api/auth/logout', {
+          refreshToken: session.refreshToken
+        });
+      }
+    } catch (error) {
+      console.warn('Logout API call failed:', error);
+      // Continue with local logout even if server call fails
+    }
+
+    // Clear local session
+    this.currentSession = null;
+    this.clearStoredSession();
+    clearAuthData();
+  }
+
+  /**
+   * Get current session from memory or storage
+   */
+  getCurrentSession(): AuthSession | null {
+    if (this.currentSession) {
+      return this.currentSession;
+    }
+
+    const stored = getAuthItem('session');
+    if (stored) {
+      try {
+        this.currentSession = JSON.parse(stored);
+        return this.currentSession;
+      } catch {
+        // Invalid stored session, clear it
+        this.clearStoredSession();
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -233,6 +247,13 @@ class AuthService {
 
     // Refresh if expires in less than 5 minutes
     return timeUntilExpiry < (5 * 60 * 1000);
+  }
+
+  /**
+   * Calculate expiry time
+   */
+  private calculateExpiryTime(minutes: number): string {
+    return new Date(Date.now() + minutes * 60 * 1000).toISOString();
   }
 
   /**
