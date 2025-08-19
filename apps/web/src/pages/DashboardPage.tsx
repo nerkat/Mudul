@@ -296,7 +296,7 @@ export function DashboardPage() {
                   </Box>
                 </Box>
               ) : (
-                <WidgetRenderer config={widgetConfig} call={call} />
+                <WidgetRenderer config={widgetConfig} call={call} nodeId={nodeId} />
               )}
             </Box>
           ))}
