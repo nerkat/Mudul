@@ -1,6 +1,7 @@
 import express from 'express';
 import { PrismaAuthService } from '../services/prisma-auth';
 import { PrismaDataService } from '../services/prisma-data';
+import { validateResponse, ClientSummarySchema, ClientCallsSchema, ActionItemsSchema } from '../middleware/validation';
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
 }
 
 // GET /api/clients/:id/summary
-router.get('/:id/summary', requireAuth, async (req, res) => {
+router.get('/:id/summary', requireAuth, validateResponse(ClientSummarySchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user;
     const { id: clientId } = req.params;
@@ -55,7 +56,7 @@ router.get('/:id/summary', requireAuth, async (req, res) => {
 });
 
 // GET /api/clients/:id/calls
-router.get('/:id/calls', requireAuth, async (req, res) => {
+router.get('/:id/calls', requireAuth, validateResponse(ClientCallsSchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user;
     const { id: clientId } = req.params;
@@ -81,7 +82,7 @@ router.get('/:id/calls', requireAuth, async (req, res) => {
 });
 
 // GET /api/clients/:id/action-items
-router.get('/:id/action-items', requireAuth, async (req, res) => {
+router.get('/:id/action-items', requireAuth, validateResponse(ActionItemsSchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user;
     const { id: clientId } = req.params;
