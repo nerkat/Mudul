@@ -221,14 +221,14 @@ export const idempotencyMiddleware = (req: Request, res: Response, next: NextFun
   // Create body hash for uniqueness
   const bodyStr = JSON.stringify(req.body || {});
   // Simple hash function for testing (in production use proper crypto)
-  let bodyHash = '';
+  let bodyHash = 0;
   for (let i = 0; i < bodyStr.length; i++) {
     const char = bodyStr.charCodeAt(i);
     bodyHash = ((bodyHash << 5) - bodyHash) + char;
     bodyHash = bodyHash & bodyHash; // Convert to 32bit integer
   }
   bodyHash = Math.abs(bodyHash).toString(36);
-  const route = `${req.method} ${req.route?.path || req.path}`;
+  const route = `${req.method} ${req.path}`;
   
   // Create compound key: idempotency-key + orgId + route + bodyHash
   const compoundKey = `${idempotencyKey}-${user.orgId}-${route}-${bodyHash}`;
@@ -241,7 +241,6 @@ export const idempotencyMiddleware = (req: Request, res: Response, next: NextFun
   // Check if we've seen this exact request before
   const existingEntry = idempotencyStore.get(compoundKey);
   if (existingEntry) {
-    console.log(`Idempotency hit for key: ${idempotencyKey}`);
     // Return the cached response with 200 status (idempotent replay)
     return res.status(200).json(existingEntry.response);
   }
@@ -266,7 +265,6 @@ export const idempotencyMiddleware = (req: Request, res: Response, next: NextFun
         timestamp: Date.now()
       };
       idempotencyStore.set((req as any).idempotencyCompoundKey, entry);
-      console.log(`Idempotency stored for key: ${idempotencyKey}`);
     }
     
     return originalJson.call(this, data);
