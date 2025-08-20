@@ -6,6 +6,10 @@ import type {
 } from './types';
 import { getAuthItem, setAuthItem, removeAuthItem, clearAuthData } from '../utils/storage';
 
+// Development mode flag
+const isDevelopment = import.meta.env.DEV;
+const MOCK_AUTH = isDevelopment && !import.meta.env.VITE_USE_REAL_AUTH;
+
 // HTTP client for API calls
 class ApiClient {
   private baseUrl = ''; // Same origin
@@ -93,10 +97,53 @@ class AuthService {
   }
 
   /**
+   * Create a mock session for development
+   */
+  private createMockSession(): AuthSession {
+    return {
+      user: {
+        id: 'mock-user-1',
+        email: 'demo@mudul.com',
+        name: 'Demo User',
+        createdAt: '2024-01-01T00:00:00Z'
+      },
+      organization: {
+        id: 'acme',
+        name: 'Acme Sales Org',
+        planTier: 'pro',
+        createdAt: '2024-01-01T00:00:00Z'
+      },
+      membership: {
+        userId: 'mock-user-1',
+        orgId: 'acme',
+        role: 'owner',
+        joinedAt: '2024-01-01T00:00:00Z'
+      },
+      accessToken: 'mock-access-token',
+      refreshToken: 'mock-refresh-token',
+      expiresAt: this.calculateExpiryTime(60 * 24) // 24 hours from now
+    };
+  }
+
+  /**
    * Authenticate user with email/password
    */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     await this.simulateDelay();
+
+    // In development mode with mock auth, always succeed
+    if (MOCK_AUTH) {
+      console.log('🔧 Using mock authentication for development');
+      const session = this.createMockSession();
+      this.currentSession = session;
+      this.storeSession(session);
+      
+      return {
+        session,
+        organizations: [session.organization],
+        activeOrgId: session.organization.id
+      };
+    }
 
     try {
       const result = await this.apiClient.post('/api/auth/login', credentials);
@@ -159,6 +206,17 @@ class AuthService {
       throw this.createError('no_refresh_token', 'No valid refresh token available');
     }
 
+    // In development mode with mock auth, just return updated session
+    if (MOCK_AUTH) {
+      const newSession: AuthSession = {
+        ...session,
+        expiresAt: this.calculateExpiryTime(60 * 24) // 24 hours from now
+      };
+      this.currentSession = newSession;
+      this.storeSession(newSession);
+      return newSession;
+    }
+
     try {
       const result = await this.apiClient.post('/api/auth/refresh', {
         refreshToken: session.refreshToken
@@ -195,15 +253,18 @@ class AuthService {
   async logout(): Promise<void> {
     const session = this.getCurrentSession();
 
-    try {
-      if (session?.refreshToken) {
-        await this.apiClient.post('/api/auth/logout', {
-          refreshToken: session.refreshToken
-        });
+    // In development mode, skip API call
+    if (!MOCK_AUTH) {
+      try {
+        if (session?.refreshToken) {
+          await this.apiClient.post('/api/auth/logout', {
+            refreshToken: session.refreshToken
+          });
+        }
+      } catch (error) {
+        console.warn('Logout API call failed:', error);
+        // Continue with local logout even if server call fails
       }
-    } catch (error) {
-      console.warn('Logout API call failed:', error);
-      // Continue with local logout even if server call fails
     }
 
     // Clear local session

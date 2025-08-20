@@ -1,11 +1,15 @@
 // Database health check service
-const { SimpleSQLiteService } = require('./simple-sqlite.cjs');
+let SimpleSQLiteService: any;
 
 export class DatabaseHealthService {
   private static service: any = null;
 
   private static getService() {
     if (!this.service) {
+      if (!SimpleSQLiteService) {
+        const { SimpleSQLiteService: ServiceClass } = require('./simple-sqlite.cjs');
+        SimpleSQLiteService = ServiceClass;
+      }
       this.service = new SimpleSQLiteService();
     }
     return this.service;
