@@ -1,10 +1,6 @@
 name: ci
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  push:
-    branches: [main]
+on: [push, pull_request]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,16 +12,13 @@ permissions:
 
 jobs:
   build_test:
-    # For self-hosted later, switch to:
-    # runs-on: [self-hosted, linux, g700]
     runs-on: ubuntu-latest
     env:
       CI: "true"
       PNPM_HOME: ~/.pnpm
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+        with: { fetch-depth: 1 }
 
       - uses: actions/setup-node@v4
         with:
@@ -42,13 +35,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.pnpm-store
-          key: ${{ runner.os }}-${{ github.ref }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-${{ github.ref }}-${{ hashFiles('**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-${{ github.ref }}-
             ${{ runner.os }}-
 
       - name: Install
-        run: pnpm i --prefer-offline
+        run: pnpm install --prefer-offline --no-frozen-lockfile
 
       - name: Build
         run: pnpm build
