@@ -3,7 +3,42 @@
  * Prevents duplicate analysis entries and enables version tracking.
  */
 
-import type { SalesCallAnalysis } from "@mudul/protocol";
+// import type { SalesCallAnalysis } from "@mudul/protocol/src/analysis.schema.js";
+
+// Temporary inline type to avoid module resolution issues
+type SalesCallAnalysis = {
+  summary?: string;
+  sentiment?: {
+    overall: 'positive' | 'neutral' | 'negative';
+    score: number;
+  };
+  bookingLikelihood?: number;
+  objections?: Array<{
+    type: string;
+    text: string;
+    timestamp?: string;
+  }>;
+  actionItems?: Array<{
+    text: string;
+    owner: string;
+    due?: string;
+  }>;
+  keyMoments?: Array<{
+    timestamp: string;
+    text: string;
+    type: string;
+  }>;
+  entities?: {
+    prospect?: Array<{ name: string; confidence: number }>;
+    people?: Array<{ name: string; confidence: number }>;
+    products?: Array<{ name: string; confidence: number }>;
+  };
+  complianceFlags?: Array<{
+    type: string;
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+  }>;
+};
 
 /**
  * Current schema version for analysis records

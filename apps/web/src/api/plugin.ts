@@ -42,7 +42,7 @@ export function apiPlugin(): Plugin {
       app.use('/clients', clientRoutes);
 
       // Error handling
-      app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
         console.error('API Error:', err);
         
         // Generate trace ID for debugging
