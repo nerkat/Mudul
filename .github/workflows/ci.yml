@@ -1,19 +1,36 @@
+name: ci
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   build_test:
+    # For self-hosted later, switch to:
+    # runs-on: [self-hosted, linux, g700]
     runs-on: ubuntu-latest
     env:
       CI: "true"
       PNPM_HOME: ~/.pnpm
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 1 }
+        with:
+          fetch-depth: 1
 
-      # 1) Install Node (no cache here)
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # 2) Enable pnpm (Corepack) BEFORE any caching
       - name: Enable pnpm + set store
         run: |
           corepack enable
@@ -21,7 +38,6 @@ jobs:
           pnpm config set store-dir ~/.pnpm-store
           pnpm config set prefer-offline true
 
-      # 3) Cache the pnpm store
       - name: Cache pnpm store
         uses: actions/cache@v4
         with:
@@ -31,7 +47,6 @@ jobs:
             ${{ runner.os }}-${{ github.ref }}-
             ${{ runner.os }}-
 
-      # 4) Install / Build / Test
       - name: Install
         run: pnpm i --frozen-lockfile --prefer-offline
 
