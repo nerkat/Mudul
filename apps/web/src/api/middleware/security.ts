@@ -288,8 +288,8 @@ export const loggingMiddleware = (req: Request, res: Response, next: NextFunctio
   const startTime = Date.now();
   
   // Override res.end to capture response time and status
-  const originalEnd: typeof res.end = res.end.bind(res);
-  res.end = function end(...args: Parameters<typeof res.end>) {
+  const originalEnd = res.end.bind(res);
+  res.end = function (...args: any[]) {
     const endTime = Date.now();
     const latency = endTime - startTime;
     
@@ -312,8 +312,8 @@ export const loggingMiddleware = (req: Request, res: Response, next: NextFunctio
       console.log('API Request:', logData);
     }
     
-    return originalEnd.apply(this, args);
-  };
+    return originalEnd(...args);
+  } as typeof res.end;
   
   next();
 };
