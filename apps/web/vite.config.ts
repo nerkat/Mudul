@@ -18,13 +18,20 @@ export default defineConfig(({ mode }) => {
       apiPlugin(), // Add API backend
       useLive ? liveAiPlugin() : mockAiPlugin()
     ],
-    ssr: { noExternal: [] },
+    ssr: { 
+      noExternal: [],
+      external: ['sqlite3']
+    },
+    optimizeDeps: {
+      exclude: ['sqlite3']
+    },
     build: {
       rollupOptions: {
         external: [
           'node:fs',
           'node:path',
-          'node:url'
+          'node:url',
+          'sqlite3'
         ]
       }
     }
