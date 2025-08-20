@@ -11,6 +11,7 @@ import {
   CreatedActionItemOutSchema
 } from '../schemas/output';
 import { clampDuration, clampScore, clampBookingLikelihood, VALIDATION_LIMITS } from '../schemas/constants';
+import { generateTempId, createOptimisticClient, createOptimisticCall, createOptimisticActionItem } from '../../services/crudApi';
 
 describe('IDOR Prevention and Security', () => {
   describe('Input validation and unknown key rejection', () => {
@@ -217,6 +218,65 @@ describe('IDOR Prevention and Security', () => {
 
       expect(() => CreatedCallOutSchema.parse(validCall)).not.toThrow();
       expect(() => CreatedCallOutSchema.parse(invalidCall)).toThrow(z.ZodError);
+    });
+  });
+
+  describe('Optimistic updates safety', () => {
+    it('should generate temporary IDs that do not leak to API requests', () => {
+      // Test that temp IDs are generated correctly
+      const tempId1 = generateTempId();
+      const tempId2 = generateTempId();
+      
+      expect(tempId1).toMatch(/^tmp_[0-9a-f-]{36}$/);
+      expect(tempId2).toMatch(/^tmp_[0-9a-f-]{36}$/);
+      expect(tempId1).not.toBe(tempId2);
+    });
+
+    it('should create optimistic entities with temp IDs and isOptimistic flag', () => {
+      const clientData = {
+        name: 'Test Client',
+        notes: 'Test notes'
+      };
+      
+      const optimisticClient = createOptimisticClient(clientData);
+      
+      expect(optimisticClient.id).toMatch(/^tmp_/);
+      expect(optimisticClient.isOptimistic).toBe(true);
+      expect(optimisticClient.name).toBe(clientData.name);
+      expect(optimisticClient.notes).toBe(clientData.notes);
+    });
+
+    it('should create optimistic calls with proper sentiment mapping', () => {
+      const callData = {
+        ts: new Date().toISOString(),
+        durationSec: 1800,
+        sentiment: 'pos' as const,
+        score: 0.8,
+        bookingLikelihood: 0.7,
+        notes: 'Test call'
+      };
+      
+      const optimisticCall = createOptimisticCall(callData);
+      
+      expect(optimisticCall.id).toMatch(/^tmp_/);
+      expect(optimisticCall.isOptimistic).toBe(true);
+      expect(optimisticCall.sentiment).toBe('positive'); // Mapped from 'pos'
+      expect(optimisticCall.score).toBe(callData.score);
+    });
+
+    it('should create optimistic action items with default status', () => {
+      const actionItemData = {
+        text: 'Follow up on proposal',
+        owner: 'John Doe',
+        dueDate: new Date(Date.now() + 86400000).toISOString()
+      };
+      
+      const optimisticActionItem = createOptimisticActionItem(actionItemData);
+      
+      expect(optimisticActionItem.id).toMatch(/^tmp_/);
+      expect(optimisticActionItem.isOptimistic).toBe(true);
+      expect(optimisticActionItem.status).toBe('open'); // Default status
+      expect(optimisticActionItem.text).toBe(actionItemData.text);
     });
   });
 

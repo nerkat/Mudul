@@ -72,6 +72,67 @@ class SimpleSQLiteService {
   }
 
   /**
+   * Execute multiple queries in a transaction
+   */
+  async transaction(queries) {
+    return new Promise((resolve, reject) => {
+      this.db.serialize(() => {
+        this.db.run('BEGIN TRANSACTION', (err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          const results = [];
+          let queryIndex = 0;
+
+          const executeNext = () => {
+            if (queryIndex >= queries.length) {
+              // All queries executed successfully, commit
+              this.db.run('COMMIT', (err) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve(results);
+                }
+              });
+              return;
+            }
+
+            const { sql, params = [], type = 'run' } = queries[queryIndex];
+            
+            if (type === 'query') {
+              this.db.all(sql, params, (err, rows) => {
+                if (err) {
+                  this.db.run('ROLLBACK');
+                  reject(err);
+                } else {
+                  results.push(rows);
+                  queryIndex++;
+                  executeNext();
+                }
+              });
+            } else {
+              this.db.run(sql, params, function(err) {
+                if (err) {
+                  this.db.run('ROLLBACK');
+                  reject(err);
+                } else {
+                  results.push({ changes: this.changes, lastID: this.lastID });
+                  queryIndex++;
+                  executeNext();
+                }
+              });
+            }
+          };
+
+          executeNext();
+        });
+      });
+    });
+  }
+
+  /**
    * Get organization summary KPIs
    */
   async getOrgSummary(orgId) {
@@ -410,6 +471,86 @@ class SimpleSQLiteService {
       status: 'open',
       createdAt: now,
       updatedAt: now,
+    };
+  }
+
+  /**
+   * Atomic operation: Create call and action item together
+   * Example of transaction usage for future multi-entity operations
+   */
+  async createCallWithActionItem(clientId, orgId, callData, actionItemData) {
+    // Verify client exists and belongs to org
+    const client = await this.query(
+      'SELECT id FROM clients WHERE id = ? AND org_id = ?',
+      [clientId, orgId]
+    );
+    if (!client || client.length === 0) {
+      throw new Error('CLIENT_NOT_FOUND');
+    }
+
+    const callId = uuidv4();
+    const actionItemId = uuidv4();
+    const now = new Date().toISOString();
+
+    const queries = [
+      {
+        sql: 'INSERT INTO calls (id, org_id, client_id, name, summary, ts, duration_sec, sentiment, score, booking_likelihood, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        params: [
+          callId, 
+          orgId, 
+          clientId, 
+          `Call ${new Date(callData.ts).toLocaleDateString()}`,
+          callData.notes || null,
+          callData.ts,
+          callData.durationSec,
+          callData.sentiment.toUpperCase(),
+          callData.score,
+          callData.bookingLikelihood,
+          now
+        ],
+        type: 'run'
+      },
+      {
+        sql: 'INSERT INTO action_items (id, org_id, client_id, owner_id, text, due, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        params: [
+          actionItemId,
+          orgId,
+          clientId,
+          null,
+          actionItemData.text,
+          actionItemData.dueDate || null,
+          'OPEN',
+          now
+        ],
+        type: 'run'
+      }
+    ];
+
+    await this.transaction(queries);
+
+    return {
+      call: {
+        id: callId,
+        clientId,
+        ts: callData.ts,
+        durationSec: callData.durationSec,
+        sentiment: callData.sentiment,
+        score: callData.score,
+        bookingLikelihood: callData.bookingLikelihood,
+        notes: callData.notes || null,
+        createdAt: now,
+        updatedAt: now,
+      },
+      actionItem: {
+        id: actionItemId,
+        clientId,
+        owner: actionItemData.owner || null,
+        text: actionItemData.text,
+        due: actionItemData.dueDate || null,
+        status: 'open',
+        createdAt: now,
+        updatedAt: now,
+      }
     };
   }
 }

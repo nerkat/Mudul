@@ -12,10 +12,15 @@ import {
   CreatedCallOutSchema,
   CreatedActionItemOutSchema
 } from '../middleware/validation';
+import { writeRateLimit, idempotencyMiddleware, requestIdMiddleware } from '../middleware/security';
 import { v4 as uuidv4 } from 'uuid';
 import { clampQueryLimit, clampDuration, clampScore, clampBookingLikelihood } from '../schemas/constants';
 
 const router = express.Router();
+
+// Apply security middleware to all routes
+router.use(requestIdMiddleware);
+router.use(writeRateLimit);
 
 // Middleware to authenticate and get org context
 function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -147,7 +152,7 @@ router.get('/:id/action-items', requireAuth, validateResponse(ActionItemsSchema)
 });
 
 // POST /api/clients/:id/calls
-router.post('/:id/calls', requireAuth, validateRequest(LogCallForm), validateResponse(CreatedCallOutSchema), async (req, res) => {
+router.post('/:id/calls', requireAuth, idempotencyMiddleware, validateRequest(LogCallForm), validateResponse(CreatedCallOutSchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user; // Server-derived orgId
     const { id: clientId } = req.params;
@@ -190,7 +195,7 @@ router.post('/:id/calls', requireAuth, validateRequest(LogCallForm), validateRes
 });
 
 // POST /api/clients/:id/action-items
-router.post('/:id/action-items', requireAuth, validateRequest(NewActionItemForm), validateResponse(CreatedActionItemOutSchema), async (req, res) => {
+router.post('/:id/action-items', requireAuth, idempotencyMiddleware, validateRequest(NewActionItemForm), validateResponse(CreatedActionItemOutSchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user; // Server-derived orgId
     const { id: clientId } = req.params;

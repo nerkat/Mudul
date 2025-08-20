@@ -4,6 +4,7 @@ import { authRoutes } from './routes/auth';
 import { orgRoutes } from './routes/org';
 import { clientRoutes } from './routes/client';
 import { healthRoutes } from './routes/health';
+import { corsMiddleware, generalRateLimit } from './middleware/security';
 
 export function apiPlugin(): Plugin {
   let app: express.Application;
@@ -16,19 +17,9 @@ export function apiPlugin(): Plugin {
       // Middleware
       app.use(express.json());
       
-      // CORS for development
-      app.use((req, res, next) => {
-        res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.header('Access-Control-Allow-Credentials', 'true');
-        
-        if (req.method === 'OPTIONS') {
-          res.sendStatus(200);
-          return;
-        }
-        next();
-      });
+      // Security middleware
+      app.use(corsMiddleware);
+      app.use(generalRateLimit);
 
       // Test route
       app.get('/test', (_req, res) => {
@@ -42,16 +33,34 @@ export function apiPlugin(): Plugin {
       app.use('/clients', clientRoutes);
 
       // Error handling
-      app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
         console.error('API Error:', err);
         
-        // Generate trace ID for debugging
-        const traceId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Use existing trace ID or generate new one
+        const traceId = (req as any).traceId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Handle CORS errors
+        if (err.message && err.message.includes('CORS policy')) {
+          return res.status(403).json({
+            code: 'CORS_ERROR',
+            message: 'Origin not allowed by CORS policy',
+            traceId,
+          });
+        }
+        
+        // Handle rate limiting errors
+        if (err.status === 429) {
+          return res.status(429).json({
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: err.message || 'Too many requests',
+            traceId,
+          });
+        }
         
         // Handle specific error types
         if (err.name === 'ValidationError') {
           return res.status(422).json({
-            error: 'VALIDATION_ERROR',
+            code: 'VALIDATION_ERROR',
             message: 'Request validation failed',
             traceId,
             details: err.details,
@@ -60,7 +69,7 @@ export function apiPlugin(): Plugin {
         
         if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
           return res.status(409).json({
-            error: 'CONSTRAINT_VIOLATION',
+            code: 'CONSTRAINT_VIOLATION',
             message: 'Unique constraint violation',
             traceId,
           });
@@ -68,7 +77,7 @@ export function apiPlugin(): Plugin {
         
         // Default server error
         res.status(500).json({ 
-          error: 'INTERNAL_ERROR',
+          code: 'INTERNAL_ERROR',
           message: 'Internal server error',
           traceId,
         });

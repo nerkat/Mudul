@@ -76,6 +76,7 @@ model Client {
   actionItems ActionItem[]
 
   @@index([orgId])
+  @@index([orgId, createdAt]) // For listing clients by org with creation order
   @@unique([orgId, name]) // Prevent duplicate client names within org
   @@map("clients")
 }

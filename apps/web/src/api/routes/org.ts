@@ -9,9 +9,14 @@ import {
   NewClientForm,
   CreatedClientOutSchema
 } from '../middleware/validation';
+import { writeRateLimit, idempotencyMiddleware, requestIdMiddleware } from '../middleware/security';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
+
+// Apply security middleware to all routes
+router.use(requestIdMiddleware);
+router.use(writeRateLimit);
 
 // Middleware to authenticate and get org context
 function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -96,7 +101,7 @@ router.get('/clients-overview', requireAuth, validateResponse(ClientsOverviewSch
 });
 
 // POST /api/org/clients
-router.post('/clients', requireAuth, validateRequest(NewClientForm), validateResponse(CreatedClientOutSchema), async (req, res) => {
+router.post('/clients', requireAuth, idempotencyMiddleware, validateRequest(NewClientForm), validateResponse(CreatedClientOutSchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user; // Server-derived orgId, not client-supplied
     const traceId = (req as any).traceId;
