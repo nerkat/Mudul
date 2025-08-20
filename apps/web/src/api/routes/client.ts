@@ -1,6 +1,7 @@
 import express from 'express';
-import { MockAuthService } from '../services/auth';
-import { MockDataService } from '../services/data';
+import { PrismaAuthService } from '../services/prisma-auth';
+import { PrismaDataService } from '../services/prisma-data';
+import { validateResponse, ClientSummarySchema, ClientCallsSchema, ActionItemsSchema } from '../middleware/validation';
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
   }
 
   const token = authHeader.substring(7);
-  const userInfo = MockAuthService.getUserFromToken(token);
+  const userInfo = PrismaAuthService.getUserFromToken(token);
   
   if (!userInfo) {
     return res.status(401).json({
@@ -30,12 +31,12 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
 }
 
 // GET /api/clients/:id/summary
-router.get('/:id/summary', requireAuth, (req, res) => {
+router.get('/:id/summary', requireAuth, validateResponse(ClientSummarySchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user;
     const { id: clientId } = req.params;
     
-    const summary = MockDataService.getClientSummary(clientId, orgId);
+    const summary = await PrismaDataService.getClientSummary(clientId, orgId);
     res.json(summary);
   } catch (error: any) {
     console.error('Client summary error:', error);
@@ -55,13 +56,21 @@ router.get('/:id/summary', requireAuth, (req, res) => {
 });
 
 // GET /api/clients/:id/calls
-router.get('/:id/calls', requireAuth, (req, res) => {
+router.get('/:id/calls', requireAuth, validateResponse(ClientCallsSchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user;
     const { id: clientId } = req.params;
-    const limit = parseInt(req.query.limit as string) || 10;
     
-    const calls = MockDataService.getClientCalls(clientId, orgId, limit);
+    // Validate and enforce limit bounds
+    const limitParam = parseInt(req.query.limit as string) || 10;
+    if (limitParam < 1 || limitParam > 50) {
+      return res.status(400).json({
+        error: 'INVALID_LIMIT',
+        message: 'Limit must be between 1 and 50',
+      });
+    }
+    
+    const calls = await PrismaDataService.getClientCalls(clientId, orgId, limitParam);
     res.json(calls);
   } catch (error: any) {
     console.error('Client calls error:', error);
@@ -81,13 +90,13 @@ router.get('/:id/calls', requireAuth, (req, res) => {
 });
 
 // GET /api/clients/:id/action-items
-router.get('/:id/action-items', requireAuth, (req, res) => {
+router.get('/:id/action-items', requireAuth, validateResponse(ActionItemsSchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user;
     const { id: clientId } = req.params;
     const status = req.query.status as 'open' | 'done' | undefined;
     
-    const actionItems = MockDataService.getClientActionItems(clientId, orgId, status);
+    const actionItems = await PrismaDataService.getClientActionItems(clientId, orgId, status);
     res.json(actionItems);
   } catch (error: any) {
     console.error('Client action items error:', error);
