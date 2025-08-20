@@ -48,7 +48,7 @@ jobs:
             ${{ runner.os }}-
 
       - name: Install
-        run: pnpm i --frozen-lockfile --prefer-offline
+        run: pnpm i --prefer-offline
 
       - name: Build
         run: pnpm build
