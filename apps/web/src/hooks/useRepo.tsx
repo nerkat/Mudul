@@ -11,7 +11,9 @@ interface RepoContextValue {
   getDashboardId: typeof repo.getDashboardId;
   getAllClients: typeof repo.getAllClients;
   getAllCalls: typeof repo.getAllCalls;
+  getStandaloneActionItems: typeof repo.getStandaloneActionItems;
   createClient: (data: { name: string; notes?: string }) => Promise<{ id: string; name: string }>;
+  createActionItem: (data: { clientId: string; owner: string; text: string; dueDate: string | null; status?: 'open' | 'done' }) => Promise<{ id: string }>;
 }
 
 const RepoContext = createContext<RepoContextValue | null>(null);
@@ -56,6 +58,11 @@ export function RepoProvider({ children }: { children: React.ReactNode }) {
       getAllCalls: () => {
         return repo.getAllCalls().filter(node => node.orgId === orgId);
       },
+      getStandaloneActionItems: (clientId: string) => {
+        const client = repo.getNode(clientId);
+        if (!client || client.orgId !== orgId) return [];
+        return repo.getStandaloneActionItems(clientId);
+      },
       createClient: async (data: { name: string; notes?: string }) => {
         // Simulate async operation (in real app this would call API)
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -71,6 +78,20 @@ export function RepoProvider({ children }: { children: React.ReactNode }) {
         }
         
         return { id: nodeId, name: newNode.name };
+      },
+      createActionItem: async (data: { clientId: string; owner: string; text: string; dueDate: string | null; status?: 'open' | 'done' }) => {
+        // Simulate async operation (in real app this would call API)
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const actionItemId = repo.createActionItem({
+          clientId: data.clientId,
+          owner: data.owner,
+          text: data.text,
+          dueDate: data.dueDate,
+          status: data.status || 'open'
+        });
+        
+        return { id: actionItemId };
       }
     };
   }, [currentOrg?.id]);

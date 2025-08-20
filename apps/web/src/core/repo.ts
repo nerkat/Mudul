@@ -1,4 +1,4 @@
-import { nodes, calls } from "./seed";
+import { nodes, calls, standaloneActionItems } from "./seed";
 import { DashboardTemplates } from "./registry-json";
 import type { NodeBase, SalesCallMinimal } from "./types";
 import type { DashboardTemplate } from "./widgets/protocol";
@@ -147,7 +147,7 @@ export function hasExistingAnalysis(
  * Create a new client node under the root organization.
  * Returns the new node ID.
  */
-export function createClient({ name, notes }: { name: string; notes?: string }): string {
+export function createClient({ name }: { name: string; notes?: string }): string {
   const now = new Date().toISOString();
   const nodeId = `client-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
   
@@ -227,4 +227,84 @@ export function markNodeActive(nodeId: string): void {
   if (node) {
     node.updatedAt = new Date().toISOString();
   }
+}
+
+// ----- Standalone Action Items Management -----
+
+/**
+ * Create a new standalone action item for a client
+ */
+export function createActionItem({
+  clientId,
+  owner,
+  text,
+  dueDate,
+  status = 'open'
+}: {
+  clientId: string;
+  owner: string;
+  text: string;
+  dueDate: string | null;
+  status?: 'open' | 'done';
+}): string {
+  const now = new Date().toISOString();
+  const actionItemId = `action-standalone-${Date.now()}`;
+  
+  standaloneActionItems[actionItemId] = {
+    id: actionItemId,
+    clientId,
+    owner,
+    text,
+    dueDate,
+    status,
+    createdAt: now,
+    updatedAt: now
+  };
+  
+  return actionItemId;
+}
+
+/**
+ * Get all standalone action items for a client
+ */
+export function getStandaloneActionItems(clientId: string): Array<{
+  id: string;
+  owner: string;
+  text: string;
+  dueDate: string | null;
+  status: 'open' | 'done';
+}> {
+  return Object.values(standaloneActionItems)
+    .filter(item => item.clientId === clientId)
+    .map(item => ({
+      id: item.id,
+      owner: item.owner,
+      text: item.text,
+      dueDate: item.dueDate,
+      status: item.status
+    }));
+}
+
+/**
+ * Update the status of a standalone action item
+ */
+export function updateActionItemStatus(actionItemId: string, status: 'open' | 'done'): boolean {
+  const item = standaloneActionItems[actionItemId];
+  if (item) {
+    item.status = status;
+    item.updatedAt = new Date().toISOString();
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Delete a standalone action item
+ */
+export function deleteActionItem(actionItemId: string): boolean {
+  if (standaloneActionItems[actionItemId]) {
+    delete standaloneActionItems[actionItemId];
+    return true;
+  }
+  return false;
 }

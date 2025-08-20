@@ -367,7 +367,8 @@ export function WidgetRenderer({ config, call, nodeId }: WidgetRendererProps) {
     getAllClients: repo.getAllClients,
     getAllCalls: repo.getAllCalls,
     getCallByNode: repo.getCallByNode,
-    listCallsByClient: repo.listCallsByClient
+    listCallsByClient: repo.listCallsByClient,
+    getStandaloneActionItems: repo.getStandaloneActionItems
   });
 
   // Branch between paper and rich mode

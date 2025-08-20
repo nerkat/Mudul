@@ -364,6 +364,7 @@ export const Adapters: AdapterMap = {
       const clientCalls = ctx?.listCallsByClient?.(nodeId) ?? [];
       const allActions: Array<{ text: string; due: string | null; owner: string; source: string }> = [];
 
+      // Add action items from calls
       clientCalls.forEach(callNode => {
         const callDetail = ctx?.getCallByNode?.(callNode.id);
         if (callDetail?.actionItems) {
@@ -376,6 +377,17 @@ export const Adapters: AdapterMap = {
             });
           });
         }
+      });
+
+      // Add standalone action items
+      const standaloneActions = ctx?.getStandaloneActionItems?.(nodeId) ?? [];
+      standaloneActions.forEach(action => {
+        allActions.push({
+          text: action.text,
+          due: action.dueDate,
+          owner: action.owner,
+          source: "Manual Entry"
+        });
       });
 
       // Sort by due date, prioritizing items with due dates

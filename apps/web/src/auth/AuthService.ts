@@ -105,7 +105,8 @@ class AuthService {
         id: 'mock-user-1',
         email: 'demo@mudul.com',
         name: 'Demo User',
-        createdAt: '2024-01-01T00:00:00Z'
+        createdAt: '2024-01-01T00:00:00Z',
+        lastLoginAt: new Date().toISOString()
       },
       organization: {
         id: 'acme',
@@ -117,7 +118,7 @@ class AuthService {
         userId: 'mock-user-1',
         orgId: 'acme',
         role: 'owner',
-        joinedAt: '2024-01-01T00:00:00Z'
+        createdAt: '2024-01-01T00:00:00Z'
       },
       accessToken: 'mock-access-token',
       refreshToken: 'mock-refresh-token',
@@ -140,8 +141,7 @@ class AuthService {
       
       return {
         session,
-        organizations: [session.organization],
-        activeOrgId: session.organization.id
+        isFirstLogin: false
       };
     }
 

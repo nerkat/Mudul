@@ -243,3 +243,37 @@ export const calls: Record<string, SalesCallMinimal> = {
     complianceFlags: ["multi-stakeholder-approval"]
   }
 };
+
+// Standalone action items (not tied to specific calls)
+export const standaloneActionItems: Record<string, {
+  id: string;
+  clientId: string;
+  owner: string;
+  text: string;
+  dueDate: string | null;
+  status: 'open' | 'done';
+  createdAt: string;
+  updatedAt: string;
+}> = {
+  // Examples - these would be user-created action items
+  "action-standalone-1": {
+    id: "action-standalone-1",
+    clientId: "client-acme",
+    owner: "Sales Manager",
+    text: "Schedule quarterly business review",
+    dueDate: "2024-02-15",
+    status: "open",
+    createdAt: now,
+    updatedAt: now
+  },
+  "action-standalone-2": {
+    id: "action-standalone-2", 
+    clientId: "client-beta",
+    owner: "Account Manager",
+    text: "Send contract renewal reminder",
+    dueDate: "2024-02-01",
+    status: "open",
+    createdAt: now,
+    updatedAt: now
+  }
+};

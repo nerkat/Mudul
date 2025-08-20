@@ -17,6 +17,13 @@ export type AdapterCtx = {
   getAllCalls?: () => NodeBase[];
   getCallByNode?: (nodeId: string) => SalesCallMinimal | null;
   listCallsByClient?: (clientId: string) => NodeBase[];
+  getStandaloneActionItems?: (clientId: string) => Array<{
+    id: string;
+    owner: string;
+    text: string;
+    dueDate: string | null;
+    status: 'open' | 'done';
+  }>;
 };
 
 // Base adapter interface
