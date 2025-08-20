@@ -6,16 +6,22 @@ export {
   NewClientForm, 
   LogCallForm, 
   NewActionItemForm,
-  CreatedClientSchema,
-  CreatedCallSchema,
-  CreatedActionItemSchema,
   type NewClientFormData,
   type LogCallFormData, 
   type NewActionItemFormData,
-  type CreatedClient,
-  type CreatedCall,
-  type CreatedActionItem
 } from '../schemas/forms';
+
+// Output validation schemas - imported from output.ts
+export {
+  CreatedClientOutSchema,
+  CreatedCallOutSchema,
+  CreatedActionItemOutSchema,
+  ErrorResponseSchema,
+  type CreatedClientOut,
+  type CreatedCallOut,
+  type CreatedActionItemOut,
+  type ErrorResponse
+} from '../schemas/output';
 
 // User info schema for auth responses
 export const UserInfoSchema = z.object({
@@ -157,29 +163,32 @@ export function validateRequest<T>(schema: z.ZodSchema<T>) {
       console.error('Request validation error:', error);
       
       if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          error: 'VALIDATION_ERROR',
+        return res.status(422).json({
+          code: 'VALIDATION_ERROR',
           message: 'Invalid request data',
           details: error.errors,
+          traceId: (req as any).traceId || 'unknown'
         });
       }
       
-      return res.status(400).json({
-        error: 'VALIDATION_ERROR',
+      return res.status(422).json({
+        code: 'VALIDATION_ERROR',
         message: 'Invalid request format',
+        traceId: (req as any).traceId || 'unknown'
       });
     }
   };
 }
 
 /**
- * Standard error response helper
+ * Standard error response helper with trace ID
  */
-export function createErrorResponse(code: string, message: string, statusCode: number = 500, details?: any) {
+export function createErrorResponse(code: string, message: string, statusCode: number = 500, details?: any, traceId?: string) {
   const error = {
-    error: code,
+    code,
     message,
     ...(details && { details }),
+    ...(traceId && { traceId }),
     ...(process.env.NODE_ENV !== 'production' && { timestamp: new Date().toISOString() })
   };
   

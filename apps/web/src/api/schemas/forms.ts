@@ -1,24 +1,25 @@
 import { z } from 'zod';
+import { VALIDATION_LIMITS, VALIDATION_ENUMS } from './constants';
 
 // Form schemas for CRUD operations as specified in the issue
 
 export const NewClientForm = z.object({
-  name: z.string().min(2).max(100),
-  notes: z.string().max(2000).optional(),
+  name: z.string().min(VALIDATION_LIMITS.CLIENT_NAME_MIN).max(VALIDATION_LIMITS.CLIENT_NAME_MAX),
+  notes: z.string().max(VALIDATION_LIMITS.CLIENT_NOTES_MAX).optional(),
 }).strict();
 
 export const LogCallForm = z.object({
   ts: z.string().datetime(),           // ISO
-  durationSec: z.number().int().min(1).max(14400),
-  sentiment: z.enum(['pos', 'neu', 'neg']),
-  score: z.number().min(-1).max(1),
-  bookingLikelihood: z.number().min(0).max(1),
-  notes: z.string().max(2000).optional(),
+  durationSec: z.number().int().min(VALIDATION_LIMITS.CALL_DURATION_MIN).max(VALIDATION_LIMITS.CALL_DURATION_MAX),
+  sentiment: z.enum(VALIDATION_ENUMS.SENTIMENT),
+  score: z.number().min(VALIDATION_LIMITS.CALL_SCORE_MIN).max(VALIDATION_LIMITS.CALL_SCORE_MAX),
+  bookingLikelihood: z.number().min(VALIDATION_LIMITS.CALL_BOOKING_LIKELIHOOD_MIN).max(VALIDATION_LIMITS.CALL_BOOKING_LIKELIHOOD_MAX),
+  notes: z.string().max(VALIDATION_LIMITS.CALL_NOTES_MAX).optional(),
 }).strict();
 
 export const NewActionItemForm = z.object({
-  owner: z.string().max(120).optional(),
-  text: z.string().min(2).max(500),
+  owner: z.string().max(VALIDATION_LIMITS.ACTION_ITEM_OWNER_MAX).optional(),
+  text: z.string().min(VALIDATION_LIMITS.ACTION_ITEM_TEXT_MIN).max(VALIDATION_LIMITS.ACTION_ITEM_TEXT_MAX),
   dueDate: z.string().datetime().optional(), // ISO
 }).strict();
 

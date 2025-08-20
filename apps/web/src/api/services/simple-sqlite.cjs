@@ -2,6 +2,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
 
 // Reliable path resolution for different environments
 function findDatabasePath() {
@@ -306,7 +307,7 @@ class SimpleSQLiteService {
       throw new Error('CLIENT_NAME_EXISTS');
     }
 
-    const clientId = `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const clientId = uuidv4();
     const now = new Date().toISOString();
     
     await this.run(
@@ -336,7 +337,7 @@ class SimpleSQLiteService {
       throw new Error('CLIENT_NOT_FOUND');
     }
 
-    const callId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const callId = uuidv4();
     const now = new Date().toISOString();
     
     await this.run(
@@ -383,7 +384,7 @@ class SimpleSQLiteService {
       throw new Error('CLIENT_NOT_FOUND');
     }
 
-    const actionItemId = `action-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const actionItemId = uuidv4();
     const now = new Date().toISOString();
     
     await this.run(

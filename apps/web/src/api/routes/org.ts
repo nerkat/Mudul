@@ -7,8 +7,9 @@ import {
   OrgSummarySchema, 
   ClientsOverviewSchema,
   NewClientForm,
-  CreatedClientSchema
+  CreatedClientOutSchema
 } from '../middleware/validation';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
@@ -17,8 +18,9 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
-      error: 'UNAUTHORIZED',
+      code: 'UNAUTHORIZED',
       message: 'Missing or invalid authorization header',
+      traceId: uuidv4()
     });
   }
 
@@ -27,13 +29,15 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
   
   if (!userInfo) {
     return res.status(401).json({
-      error: 'UNAUTHORIZED',
+      code: 'UNAUTHORIZED',
       message: 'Invalid or expired access token',
+      traceId: uuidv4()
     });
   }
 
-  // Attach user info to request
+  // Attach user info to request - orgId is server-derived, not client-supplied
   (req as any).user = userInfo;
+  (req as any).traceId = uuidv4();
   next();
 }
 
@@ -41,21 +45,25 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
 router.get('/summary', requireAuth, validateResponse(OrgSummarySchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user;
+    const traceId = (req as any).traceId;
     const summary = await PrismaDataService.getOrgSummary(orgId);
     res.json(summary);
   } catch (error: any) {
     console.error('Org summary error:', error);
+    const traceId = (req as any).traceId;
     
     if (error.message === 'ORG_NOT_FOUND') {
       return res.status(404).json({
-        error: 'ORG_NOT_FOUND',
+        code: 'ORG_NOT_FOUND',
         message: 'Organization not found or access denied',
+        traceId
       });
     }
     
     res.status(500).json({
-      error: 'INTERNAL_ERROR',
+      code: 'INTERNAL_ERROR',
       message: 'Failed to get organization summary',
+      traceId
     });
   }
 });
@@ -64,51 +72,67 @@ router.get('/summary', requireAuth, validateResponse(OrgSummarySchema), async (r
 router.get('/clients-overview', requireAuth, validateResponse(ClientsOverviewSchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user;
+    const traceId = (req as any).traceId;
     const overview = await PrismaDataService.getClientsOverview(orgId);
     res.json(overview);
   } catch (error: any) {
     console.error('Clients overview error:', error);
+    const traceId = (req as any).traceId;
     
     if (error.message === 'ORG_NOT_FOUND') {
       return res.status(404).json({
-        error: 'ORG_NOT_FOUND',
+        code: 'ORG_NOT_FOUND',
         message: 'Organization not found or access denied',
+        traceId
       });
     }
     
     res.status(500).json({
-      error: 'INTERNAL_ERROR',
+      code: 'INTERNAL_ERROR',
       message: 'Failed to get clients overview',
+      traceId
     });
   }
 });
 
 // POST /api/org/clients
-router.post('/clients', requireAuth, validateRequest(NewClientForm), validateResponse(CreatedClientSchema), async (req, res) => {
+router.post('/clients', requireAuth, validateRequest(NewClientForm), validateResponse(CreatedClientOutSchema), async (req, res) => {
   try {
-    const { orgId } = (req as any).user;
-    const client = await PrismaDataService.createClient(orgId, req.body);
+    const { orgId } = (req as any).user; // Server-derived orgId, not client-supplied
+    const traceId = (req as any).traceId;
+    
+    // Strip any client-supplied orgId from body for IDOR prevention
+    const { orgId: clientOrgId, ...clientData } = req.body;
+    
+    const client = await PrismaDataService.createClient(orgId, clientData);
+    
+    // Set Location header as per REST standards
+    res.setHeader('Location', `/api/clients/${client.id}`);
     res.status(201).json(client);
   } catch (error: any) {
     console.error('Create client error:', error);
+    const traceId = (req as any).traceId;
     
     if (error.message === 'ORG_NOT_FOUND') {
       return res.status(404).json({
-        error: 'ORG_NOT_FOUND',
+        code: 'ORG_NOT_FOUND',
         message: 'Organization not found or access denied',
+        traceId
       });
     }
     
     if (error.message === 'CLIENT_NAME_EXISTS') {
       return res.status(409).json({
-        error: 'CLIENT_NAME_EXISTS',
+        code: 'CLIENT_NAME_EXISTS',
         message: 'A client with this name already exists',
+        traceId
       });
     }
     
     res.status(500).json({
-      error: 'INTERNAL_ERROR',
+      code: 'INTERNAL_ERROR',
       message: 'Failed to create client',
+      traceId
     });
   }
 });
