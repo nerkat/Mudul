@@ -97,16 +97,49 @@ When USE_LIVE_AI=false, the system falls back to a mock provider for safe local 
 
 ---
 
-🧪 Development
+## 🧪 Development
 
+```bash
 # Install dependencies
 pnpm install
+
+# Setup database
+pnpm db:setup
 
 # Run web app in dev mode
 pnpm dev
 
 # Build all packages
 pnpm build
+```
+
+### Database Mode Toggle
+
+The application supports switching between in-memory and API/database data sources via environment variables:
+
+```bash
+# Memory mode (default) - uses seed data
+VITE_USE_DB=false
+
+# API/Database mode - loads data from database via API
+VITE_USE_DB=true
+```
+
+**Testing Different Modes:**
+
+1. **Memory Mode (default)**: 
+   - Set `VITE_USE_DB=false` in `.env.local`
+   - Sidebar tree loads from `apps/web/src/core/seed.ts`
+   - No database required
+   - Fast development iteration
+
+2. **API/Database Mode**:
+   - Set `VITE_USE_DB=true` in `.env.local` 
+   - Requires database setup: `pnpm db:setup`
+   - Sidebar tree loads from `/api/org/*` endpoints
+   - Data persisted in SQLite database
+
+The toggle is handled in `useRepo.tsx` and maintains the same UI/UX regardless of data source.
 
 
 ---
