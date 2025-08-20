@@ -14,6 +14,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { NewCallPage } from "./pages/NewCallPage";
 import { NewClientPage } from "./pages/NewClientPage";
 import { NewActionItemPage } from "./pages/NewActionItemPage";
+import { QAPage } from "./pages/QAPage";
 
 const router = createBrowserRouter([
   {
@@ -35,6 +36,7 @@ const router = createBrowserRouter([
       { path: "calls/:id", element: <CallDashboardPage /> },
       { path: "clients/new", element: <NewClientPage /> },
       { path: "clients/:clientId/actions/new", element: <NewActionItemPage /> },
+      { path: "qa", element: <QAPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },
