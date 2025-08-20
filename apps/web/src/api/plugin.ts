@@ -3,6 +3,7 @@ import express from 'express';
 import { authRoutes } from './routes/auth';
 import { orgRoutes } from './routes/org';
 import { clientRoutes } from './routes/client';
+import { healthRoutes } from './routes/health';
 
 export function apiPlugin(): Plugin {
   let app: express.Application;
@@ -35,16 +36,41 @@ export function apiPlugin(): Plugin {
       });
 
       // Routes
+      app.use('/health', healthRoutes);
       app.use('/auth', authRoutes);
       app.use('/org', orgRoutes);
       app.use('/clients', clientRoutes);
 
       // Error handling
-      app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
         console.error('API Error:', err);
+        
+        // Generate trace ID for debugging
+        const traceId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Handle specific error types
+        if (err.name === 'ValidationError') {
+          return res.status(422).json({
+            error: 'VALIDATION_ERROR',
+            message: 'Request validation failed',
+            traceId,
+            details: err.details,
+          });
+        }
+        
+        if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+          return res.status(409).json({
+            error: 'CONSTRAINT_VIOLATION',
+            message: 'Unique constraint violation',
+            traceId,
+          });
+        }
+        
+        // Default server error
         res.status(500).json({ 
-          error: 'Internal server error',
-          message: err.message 
+          error: 'INTERNAL_ERROR',
+          message: 'Internal server error',
+          traceId,
         });
       });
 

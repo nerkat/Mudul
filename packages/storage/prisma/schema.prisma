@@ -76,6 +76,7 @@ model Client {
   actionItems ActionItem[]
 
   @@index([orgId])
+  @@unique([orgId, name]) // Prevent duplicate client names within org
   @@map("clients")
 }
 
@@ -98,6 +99,7 @@ model Call {
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([orgId, clientId, ts])
+  @@index([clientId, ts])
   @@map("calls")
 }
 
@@ -114,10 +116,12 @@ model ActionItem {
 
   // Relations
   org    Org     @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
   owner  User?   @relation("ActionItemOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
+  @@index([orgId])
   @@index([orgId, status, due])
+  @@index([clientId, status, due])
   @@map("action_items")
 }
 

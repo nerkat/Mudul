@@ -1,6 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
-import { MockAuthService } from '../services/auth';
+import { PrismaAuthService } from '../services/prisma-auth';
+import { validateResponse, LoginResponseSchema, RefreshResponseSchema, LogoutResponseSchema } from '../middleware/validation';
 
 const router = express.Router();
 
@@ -38,7 +39,7 @@ function checkRateLimit(ip: string): boolean {
 }
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', validateResponse(LoginResponseSchema), async (req, res) => {
   try {
     // Rate limiting
     const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
@@ -62,7 +63,7 @@ router.post('/login', async (req, res) => {
     const { email, password, rememberMe } = validation.data;
 
     // Authenticate
-    const result = await MockAuthService.login(email, password, rememberMe);
+    const result = await PrismaAuthService.login(email, password, rememberMe);
     
     res.json(result);
   } catch (error: any) {
@@ -90,8 +91,17 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /api/auth/refresh
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', validateResponse(RefreshResponseSchema), async (req, res) => {
   try {
+    // Rate limiting for refresh endpoint (more lenient than login)
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+    if (!checkRateLimit(clientIp)) {
+      return res.status(429).json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many refresh attempts. Please try again later.',
+      });
+    }
+
     // Validate request
     const validation = RefreshRequestSchema.safeParse(req.body);
     if (!validation.success) {
@@ -105,7 +115,7 @@ router.post('/refresh', async (req, res) => {
     const { refreshToken } = validation.data;
 
     // Refresh token
-    const result = await MockAuthService.refreshToken(refreshToken);
+    const result = await PrismaAuthService.refreshToken(refreshToken);
     
     res.json(result);
   } catch (error: any) {
@@ -133,12 +143,12 @@ router.post('/refresh', async (req, res) => {
 });
 
 // POST /api/auth/logout
-router.post('/logout', (req, res) => {
+router.post('/logout', validateResponse(LogoutResponseSchema), async (req, res) => {
   try {
     const { refreshToken } = req.body;
     
     if (refreshToken) {
-      MockAuthService.logout(refreshToken);
+      await PrismaAuthService.logout(refreshToken);
     }
     
     res.json({ message: 'Logged out successfully' });
