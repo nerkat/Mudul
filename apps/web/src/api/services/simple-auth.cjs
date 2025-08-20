@@ -4,7 +4,7 @@ const argon2 = require('argon2');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 
-const dbPath = process.env.DATABASE_URL?.replace('file:', '') || path.join(__dirname, '../../packages/storage/dev.db');
+const dbPath = process.env.DATABASE_URL?.replace('file:', '') || path.join(__dirname, '../../../packages/storage/dev.db');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
 const JWT_ACCESS_EXPIRES = '15m';
 const JWT_REFRESH_EXPIRES = '30d';

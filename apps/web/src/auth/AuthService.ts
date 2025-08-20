@@ -2,9 +2,37 @@ import type {
   AuthSession, 
   LoginCredentials, 
   AuthError, 
-  AuthResponse 
+  AuthResponse,
+  User,
+  Organization,
+  Membership
 } from './types';
 import { getAuthItem, setAuthItem, removeAuthItem, clearAuthData } from '../utils/storage';
+
+// Mock data for fallback auth
+const MOCK_USER: User = {
+  id: 'user-1',
+  email: 'demo@mudul.com',
+  name: 'Demo User',
+  avatarUrl: null,
+  createdAt: '2024-01-01T00:00:00Z'
+};
+
+const MOCK_ORGANIZATION: Organization = {
+  id: 'acme',
+  name: 'Acme Sales Org',
+  planTier: 'pro',
+  createdAt: '2024-01-01T00:00:00Z'
+};
+
+const MOCK_MEMBERSHIPS: Membership[] = [
+  {
+    userId: 'user-1',
+    orgId: 'acme',
+    role: 'owner',
+    createdAt: '2024-01-01T00:00:00Z'
+  }
+];
 
 // HTTP client for API calls
 class ApiClient {
@@ -96,6 +124,20 @@ class AuthService {
    * Authenticate user with email/password
    */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    // Check if we should use API mode
+    const useDb = import.meta.env.VITE_USE_DB === "true";
+    
+    if (useDb) {
+      return this.loginWithApi(credentials);
+    } else {
+      return this.loginWithMock(credentials);
+    }
+  }
+
+  /**
+   * API-based login
+   */
+  private async loginWithApi(credentials: LoginCredentials): Promise<AuthResponse> {
     await this.simulateDelay();
 
     try {
@@ -146,6 +188,57 @@ class AuthService {
 
       throw this.createError('server_error', 'Login failed due to server error');
     }
+  }
+
+  /**
+   * Mock-based login (fallback for memory mode)
+   */
+  private async loginWithMock(credentials: LoginCredentials): Promise<AuthResponse> {
+    await this.simulateDelay();
+
+    // Validate demo credentials
+    if (credentials.email !== 'demo@mudul.com' || credentials.password !== 'password') {
+      throw this.createError('invalid_credentials', 'Invalid email or password');
+    }
+
+    // Generate mock session
+    const user = MOCK_USER;
+    const tokens = this.generateTokens(user, credentials.rememberMe);
+    
+    const session: AuthSession = {
+      user,
+      organization: MOCK_ORGANIZATION,
+      membership: MOCK_MEMBERSHIPS[0],
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresAt: tokens.expiresAt
+    };
+
+    this.currentSession = session;
+    this.storeSession(session);
+
+    return {
+      session,
+      isFirstLogin: false
+    };
+  }
+
+  /**
+   * Generate mock JWT tokens (in production, these would come from the server)
+   */
+  private generateTokens(user: User, rememberMe: boolean = false): { accessToken: string; refreshToken?: string; expiresAt: string } {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + (15 * 60 * 1000)); // 15 minutes
+
+    // Simple mock token (in production, use proper JWT)
+    const accessToken = `access_${user.id}_${now.getTime()}`;
+    const refreshToken = rememberMe ? `refresh_${user.id}_${now.getTime()}` : undefined;
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresAt: expiresAt.toISOString()
+    };
   }
 
   /**

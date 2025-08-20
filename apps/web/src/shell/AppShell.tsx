@@ -40,11 +40,78 @@ import { ThemeSwitch } from '../components/ThemeSwitch';
 
 const drawerWidth = 280;
 
+// Component to handle async loading of client calls
+function ClientTreeItem({ client, repo, theme }: { client: any; repo: any; theme: any }) {
+  const [calls, setCalls] = useState<any[]>([]);
+  const [callsLoading, setCallsLoading] = useState(false);
+
+  React.useEffect(() => {
+    const loadCalls = async () => {
+      try {
+        setCallsLoading(true);
+        const callsResult = repo.getChildren(client.id);
+        const resolvedCalls = repo.isAsync ? await callsResult : callsResult;
+        setCalls(resolvedCalls || []);
+      } catch (error) {
+        console.error('Failed to load calls for client:', client.id, error);
+        setCalls([]);
+      } finally {
+        setCallsLoading(false);
+      }
+    };
+
+    loadCalls();
+  }, [client.id, repo]);
+
+  return (
+    <TreeItem
+      itemId={client.id}
+      label={
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
+          <Business fontSize="small" />
+          {client.name}
+          {callsLoading && (
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              (loading...)
+            </Typography>
+          )}
+        </Box>
+      }
+    >
+      {calls.map((call) => (
+        <TreeItem
+          key={call.id}
+          itemId={call.id}
+          label={
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              gap: theme.spacing(1),
+              py: theme.spacing(0.5)
+            }}>
+              <Call fontSize="small" />
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                  {call.name}
+                </Typography>
+              </Box>
+            </Box>
+          }
+        />
+      ))}
+    </TreeItem>
+  );
+}
+
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const [orgMenuAnchor, setOrgMenuAnchor] = useState<null | HTMLElement>(null);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [root, setRoot] = useState<any>(null);
+  const [clients, setClients] = useState<any[]>([]);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
@@ -52,9 +119,35 @@ export function AppShell() {
   const { user, logout, membership } = useAuth();
   const { currentOrg, availableOrgs, switchOrg } = useOrg();
 
-  // Get the tree data from repo
-  const root = repo.getRoot();
-  const clients = useMemo(() => root ? repo.getChildren(root.id) : [], [root?.id, repo]);
+  // Load tree data - handling both sync and async repos
+  React.useEffect(() => {
+    const loadTreeData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const rootResult = repo.getRoot();
+        const resolvedRoot = repo.isAsync ? await rootResult : rootResult;
+        setRoot(resolvedRoot);
+        
+        if (resolvedRoot) {
+          const clientsResult = repo.getChildren(resolvedRoot.id);
+          const resolvedClients = repo.isAsync ? await clientsResult : clientsResult;
+          setClients(resolvedClients || []);
+        } else {
+          setClients([]);
+        }
+      } catch (err) {
+        console.error('Failed to load tree data:', err);
+        setError('Failed to load data');
+        setClients([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTreeData();
+  }, [repo, currentOrg?.id]); // Re-load when repo or org changes
 
   // Initialize expanded items when clients change
   React.useEffect(() => {
@@ -168,43 +261,23 @@ export function AppShell() {
           </Box>
           
           {/* Direct client list without org nesting */}
-          {clients.map((client) => {
-            const calls = repo.getChildren(client.id);
-            return (
-              <TreeItem
-                key={client.id}
-                itemId={client.id}
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
-                    <Business fontSize="small" />
-                    {client.name}
-                  </Box>
-                }
-              >
-                {calls.map((call) => (
-                  <TreeItem
-                    key={call.id}
-                    itemId={call.id}
-                    label={
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        gap: theme.spacing(1),
-                        py: theme.spacing(0.5)
-                      }}>
-                        <Call fontSize="small" />
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                            {call.name}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    }
-                  />
-                ))}
-              </TreeItem>
-            );
-          })}
+          {loading && (
+            <Box sx={{ px: theme.spacing(2), py: theme.spacing(1) }}>
+              <Typography variant="caption" color="text.secondary">
+                Loading...
+              </Typography>
+            </Box>
+          )}
+          {error && (
+            <Box sx={{ px: theme.spacing(2), py: theme.spacing(1) }}>
+              <Typography variant="caption" color="error">
+                {error}
+              </Typography>
+            </Box>
+          )}
+          {!loading && !error && clients.map((client) => (
+            <ClientTreeItem key={client.id} client={client} repo={repo} theme={theme} />
+          ))}
         </SimpleTreeView>
         
         {/* New Call Button */}
