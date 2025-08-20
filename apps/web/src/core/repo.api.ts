@@ -40,6 +40,8 @@ class ApiClient {
 const api = new ApiClient();
 
 // Cache for reducing API calls during tree expansion
+// Note: Using TTL cache for Phase 1. This will cause stale data after updates.
+// Future implementation should use React Query for proper invalidation.
 const cache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 30000; // 30 seconds
 

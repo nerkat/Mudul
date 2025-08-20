@@ -44,23 +44,41 @@ const drawerWidth = 280;
 function ClientTreeItem({ client, repo, theme }: { client: any; repo: any; theme: any }) {
   const [calls, setCalls] = useState<any[]>([]);
   const [callsLoading, setCallsLoading] = useState(false);
+  const [callsError, setCallsError] = useState<string | null>(null);
 
   React.useEffect(() => {
+    const abortController = new AbortController();
+    
     const loadCalls = async () => {
       try {
         setCallsLoading(true);
+        setCallsError(null);
+        
+        if (abortController.signal.aborted) return;
+        
         const callsResult = repo.getChildren(client.id);
         const resolvedCalls = repo.isAsync ? await callsResult : callsResult;
+        
+        if (abortController.signal.aborted) return;
         setCalls(resolvedCalls || []);
       } catch (error) {
-        console.error('Failed to load calls for client:', client.id, error);
-        setCalls([]);
+        if (!abortController.signal.aborted) {
+          console.error('Failed to load calls for client:', client.id, error);
+          setCallsError('Failed to load calls');
+          setCalls([]);
+        }
       } finally {
-        setCallsLoading(false);
+        if (!abortController.signal.aborted) {
+          setCallsLoading(false);
+        }
       }
     };
 
     loadCalls();
+    
+    return () => {
+      abortController.abort();
+    };
   }, [client.id, repo]);
 
   return (
@@ -75,30 +93,49 @@ function ClientTreeItem({ client, repo, theme }: { client: any; repo: any; theme
               (loading...)
             </Typography>
           )}
+          {callsError && (
+            <Typography variant="caption" color="error" sx={{ ml: 1 }}>
+              (error)
+            </Typography>
+          )}
         </Box>
       }
     >
-      {calls.map((call) => (
-        <TreeItem
-          key={call.id}
-          itemId={call.id}
-          label={
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center',
-              gap: theme.spacing(1),
-              py: theme.spacing(0.5)
-            }}>
-              <Call fontSize="small" />
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                  {call.name}
-                </Typography>
+      {callsError ? (
+        <Box sx={{ px: theme.spacing(2), py: theme.spacing(1) }}>
+          <Typography variant="caption" color="error">
+            {callsError}
+          </Typography>
+        </Box>
+      ) : calls.length === 0 && !callsLoading ? (
+        <Box sx={{ px: theme.spacing(2), py: theme.spacing(1) }}>
+          <Typography variant="caption" color="text.secondary">
+            No calls yet.
+          </Typography>
+        </Box>
+      ) : (
+        calls.map((call) => (
+          <TreeItem
+            key={call.id}
+            itemId={call.id}
+            label={
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                gap: theme.spacing(1),
+                py: theme.spacing(0.5)
+              }}>
+                <Call fontSize="small" />
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                    {call.name}
+                  </Typography>
+                </Box>
               </Box>
-            </Box>
-          }
-        />
-      ))}
+            }
+          />
+        ))
+      )}
     </TreeItem>
   );
 }
@@ -121,32 +158,54 @@ export function AppShell() {
 
   // Load tree data - handling both sync and async repos
   React.useEffect(() => {
+    const abortController = new AbortController();
+    
     const loadTreeData = async () => {
       try {
         setLoading(true);
         setError(null);
         
+        // Check if component is still mounted
+        if (abortController.signal.aborted) return;
+        
         const rootResult = repo.getRoot();
         const resolvedRoot = repo.isAsync ? await rootResult : rootResult;
+        
+        // Check again after async operation
+        if (abortController.signal.aborted) return;
         setRoot(resolvedRoot);
         
         if (resolvedRoot) {
           const clientsResult = repo.getChildren(resolvedRoot.id);
           const resolvedClients = repo.isAsync ? await clientsResult : clientsResult;
+          
+          // Final check before setting state
+          if (abortController.signal.aborted) return;
           setClients(resolvedClients || []);
         } else {
-          setClients([]);
+          if (!abortController.signal.aborted) {
+            setClients([]);
+          }
         }
       } catch (err) {
-        console.error('Failed to load tree data:', err);
-        setError('Failed to load data');
-        setClients([]);
+        if (!abortController.signal.aborted) {
+          console.error('Failed to load tree data:', err);
+          setError('Failed to load data');
+          setClients([]);
+        }
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     loadTreeData();
+    
+    // Cleanup function to abort on unmount
+    return () => {
+      abortController.abort();
+    };
   }, [repo, currentOrg?.id]); // Re-load when repo or org changes
 
   // Initialize expanded items when clients change
@@ -264,7 +323,7 @@ export function AppShell() {
           {loading && (
             <Box sx={{ px: theme.spacing(2), py: theme.spacing(1) }}>
               <Typography variant="caption" color="text.secondary">
-                Loading...
+                Loading projects...
               </Typography>
             </Box>
           )}
@@ -272,6 +331,20 @@ export function AppShell() {
             <Box sx={{ px: theme.spacing(2), py: theme.spacing(1) }}>
               <Typography variant="caption" color="error">
                 {error}
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => repo.refreshTree()}
+                sx={{ mt: 1, display: 'block' }}
+              >
+                Retry
+              </Button>
+            </Box>
+          )}
+          {!loading && !error && clients.length === 0 && (
+            <Box sx={{ px: theme.spacing(2), py: theme.spacing(1) }}>
+              <Typography variant="caption" color="text.secondary">
+                No clients yet.
               </Typography>
             </Box>
           )}

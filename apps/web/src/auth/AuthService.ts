@@ -15,7 +15,8 @@ const MOCK_USER: User = {
   email: 'demo@mudul.com',
   name: 'Demo User',
   avatarUrl: null,
-  createdAt: '2024-01-01T00:00:00Z'
+  createdAt: '2024-01-01T00:00:00Z',
+  lastLoginAt: '2024-01-01T00:00:00Z'
 };
 
 const MOCK_ORGANIZATION: Organization = {
@@ -126,9 +127,10 @@ class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     // Check if we should use API mode
     const useDb = import.meta.env.VITE_USE_DB === "true";
+    const useMockAuth = import.meta.env.VITE_MOCK_AUTH === "true";
     
     if (useDb) {
-      return this.loginWithApi(credentials);
+      return this.loginWithApi(credentials, useMockAuth);
     } else {
       return this.loginWithMock(credentials);
     }
@@ -137,7 +139,7 @@ class AuthService {
   /**
    * API-based login
    */
-  private async loginWithApi(credentials: LoginCredentials): Promise<AuthResponse> {
+  private async loginWithApi(credentials: LoginCredentials, useMockAuth: boolean = false): Promise<AuthResponse> {
     await this.simulateDelay();
 
     try {
@@ -174,6 +176,12 @@ class AuthService {
     } catch (error: any) {
       console.error('Login failed:', error);
 
+      // Only fallback to mock auth if explicitly enabled
+      if (useMockAuth) {
+        console.warn('API login failed, falling back to mock auth (dev mode)');
+        return this.loginWithMock(credentials);
+      }
+
       if (error.message === 'INVALID_CREDENTIALS') {
         throw this.createError('invalid_credentials', 'Invalid email or password');
       }
@@ -186,7 +194,8 @@ class AuthService {
         throw this.createError('rate_limit', 'Too many login attempts. Please try again later.');
       }
 
-      throw this.createError('server_error', 'Login failed due to server error');
+      // For network/API errors in DB mode without mock auth, show clear error
+      throw this.createError('api_unavailable', 'Unable to connect to authentication service. Please check your connection or contact support.');
     }
   }
 
