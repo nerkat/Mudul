@@ -2,6 +2,13 @@
 import { authService } from "../auth/AuthService";
 import type { NodeBase, SalesCallMinimal, NodeKind } from "./types";
 
+// Stable node ID helpers to avoid future drift
+export const nid = (kind: "org"|"client"|"call_session", id: string) => `${kind}:${id}`;
+export const parseNid = (s: string) => { 
+  const [kind, id] = s.split(":"); 
+  return { kind, id }; 
+};
+
 // HTTP client for API calls with authentication
 class ApiClient {
   private baseUrl = ''; // Same origin
@@ -29,6 +36,21 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      // Special handling for 401 - trigger logout
+      if (response.status === 401) {
+        console.warn('API request unauthorized, triggering logout');
+        authService.logout?.();
+        throw new Error('Unauthorized');
+      }
+
+      // Error telemetry for debugging
+      const traceId = response.headers.get('x-trace-id') || 'unknown';
+      console.warn(`API ${endpoint} failed:`, {
+        status: response.status,
+        path: endpoint,
+        traceId
+      });
+
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `API ${endpoint} failed: ${response.status}`);
     }
@@ -42,6 +64,7 @@ const api = new ApiClient();
 // Cache for reducing API calls during tree expansion
 // Note: Using TTL cache for Phase 1. This will cause stale data after updates.
 // Future implementation should use React Query for proper invalidation.
+// TODO: Include orgId in cache key for multi-org safety when implemented
 const cache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 30000; // 30 seconds
 
@@ -66,7 +89,7 @@ export async function getRoot(): Promise<NodeBase | null> {
     const { org } = await api.get('/api/org/summary');
     
     const rootNode: NodeBase = {
-      id: `org:${org.id}`,
+      id: nid("org", org.id),
       orgId: org.id,
       parentId: null,
       kind: "group" as NodeKind,
@@ -95,14 +118,14 @@ export async function getNode(id: string): Promise<NodeBase | null> {
     }
 
     if (id.startsWith("client:")) {
-      const clientId = id.split(":")[1];
+      const { id: clientId } = parseNid(id);
       const { clients } = await api.get('/api/org/clients-overview');
       const client = clients.find((c: any) => c.id === clientId);
       
       if (!client) return null;
 
       const node: NodeBase = {
-        id: `client:${client.id}`,
+        id: nid("client", client.id),
         orgId: client.orgId || "unknown", // Assuming org context from auth
         parentId: "root", // All clients are under root for now
         kind: "lead" as NodeKind,
@@ -118,7 +141,7 @@ export async function getNode(id: string): Promise<NodeBase | null> {
     }
 
     if (id.startsWith("call:")) {
-      const callId = id.split(":")[1];
+      const { id: callId } = parseNid(id);
       // Find which client this call belongs to by checking all clients
       const { clients } = await api.get('/api/org/clients-overview');
       
@@ -128,9 +151,9 @@ export async function getNode(id: string): Promise<NodeBase | null> {
         
         if (call) {
           const node: NodeBase = {
-            id: `call:${call.id}`,
+            id: nid("call_session", call.id),
             orgId: client.orgId || "unknown",
-            parentId: `client:${client.id}`,
+            parentId: nid("client", client.id),
             kind: "call_session" as NodeKind,
             name: call.title || "Call",
             slug: (call.title || "call").toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -162,7 +185,7 @@ export async function getChildren(parentId: string): Promise<NodeBase[]> {
       // Load clients for org
       const { clients } = await api.get('/api/org/clients-overview');
       const children = clients.map((client: any) => ({
-        id: `client:${client.id}`,
+        id: nid("client", client.id),
         orgId: client.orgId || "unknown",
         parentId: parentId,
         kind: "lead" as NodeKind,
@@ -179,10 +202,10 @@ export async function getChildren(parentId: string): Promise<NodeBase[]> {
 
     if (parentId.startsWith("client:")) {
       // Load calls for client
-      const clientId = parentId.split(":")[1];
+      const { id: clientId } = parseNid(parentId);
       const { calls } = await api.get(`/api/clients/${clientId}/calls`);
       const children = calls.map((call: any) => ({
-        id: `call:${call.id}`,
+        id: nid("call_session", call.id),
         orgId: "unknown", // Will be set by parent client context
         parentId: parentId,
         kind: "call_session" as NodeKind,
@@ -212,7 +235,7 @@ export async function getCallByNode(nodeId: string): Promise<SalesCallMinimal | 
     const cached = getCached<SalesCallMinimal>(`call:${nodeId}`);
     if (cached) return cached;
 
-    const callId = nodeId.split(":")[1];
+    const { id: callId } = parseNid(nodeId);
     // Find which client this call belongs to
     const { clients } = await api.get('/api/org/clients-overview');
     
@@ -253,8 +276,8 @@ export async function getCallByNode(nodeId: string): Promise<SalesCallMinimal | 
 
 export async function listCallsByClient(clientId: string): Promise<NodeBase[]> {
   try {
-    const actualClientId = clientId.startsWith("client:") ? clientId.split(":")[1] : clientId;
-    return getChildren(`client:${actualClientId}`);
+    const actualClientId = clientId.startsWith("client:") ? parseNid(clientId).id : clientId;
+    return getChildren(nid("client", actualClientId));
   } catch (error) {
     console.error('Failed to list calls by client:', error);
     return [];

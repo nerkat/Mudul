@@ -112,6 +112,9 @@ function ClientTreeItem({ client, repo, theme }: { client: any; repo: any; theme
           <Typography variant="caption" color="text.secondary">
             No calls yet.
           </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            Start a call to begin tracking.
+          </Typography>
         </Box>
       ) : (
         calls.map((call) => (
@@ -345,6 +348,9 @@ export function AppShell() {
             <Box sx={{ px: theme.spacing(2), py: theme.spacing(1) }}>
               <Typography variant="caption" color="text.secondary">
                 No clients yet.
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                Create a client to get started.
               </Typography>
             </Box>
           )}
