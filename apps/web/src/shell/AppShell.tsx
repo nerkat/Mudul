@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
   AppBar, 
   Box, 
@@ -150,7 +150,6 @@ export function AppShell() {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [root, setRoot] = useState<any>(null);
   const [clients, setClients] = useState<any[]>([]);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -176,7 +175,6 @@ export function AppShell() {
         
         // Check again after async operation
         if (abortController.signal.aborted) return;
-        setRoot(resolvedRoot);
         
         if (resolvedRoot) {
           const clientsResult = repo.getChildren(resolvedRoot.id);

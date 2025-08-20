@@ -300,8 +300,8 @@ describe('Authentication and Refresh Token Management', () => {
 
   describe('Rate Limiting', () => {
     it('should enforce rate limiting on login attempts', async () => {
-      const clientIp = '127.0.0.1';
-      let rateLimitHit = false;
+      const _clientIp = '127.0.0.1';
+      let _rateLimitHit = false;
 
       // Make multiple failed login attempts
       for (let i = 0; i < 10; i++) {

@@ -1,15 +1,73 @@
-import { Box, Typography, Paper, IconButton } from '@mui/material';
+import { useState, useEffect } from 'react';
+import { Box, Typography, Paper, IconButton, CircularProgress, Alert } from '@mui/material';
 import { DataGrid, GridToolbar, type GridColDef } from '@mui/x-data-grid';
 import { Dashboard as DashboardIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useRepo } from '../hooks/useRepo';
+import type { NodeBase } from '../core/types';
 
 export function CallsPage() {
   const navigate = useNavigate();
   const repo = useRepo();
-  
-  // Get all calls from the repo
-  const allCalls = repo.getAllCalls();
+  const [allCalls, setAllCalls] = useState<NodeBase[]>([]);
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCallsAndData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const callsResult = repo.getAllCalls();
+        
+        const resolvedCalls = repo.isAsync ? await callsResult : callsResult as NodeBase[];
+        
+        if (!isMounted) return;
+        setAllCalls(resolvedCalls);
+
+        // Transform call nodes into table rows
+        const tableRows = await Promise.all(
+          resolvedCalls.map(async (call) => {
+            const clientResult = repo.getNode(call.parentId || "");
+            const callDataResult = repo.getCallByNode(call.id);
+            
+            const client = repo.isAsync ? await clientResult : clientResult;
+            const callData = repo.isAsync ? await callDataResult : callDataResult;
+            
+            return {
+              id: call.id,
+              title: call.name,
+              clientName: client?.name || "Unknown",
+              date: new Date(call.createdAt),
+              sentiment: callData?.sentiment?.overall || "unknown"
+            };
+          })
+        );
+
+        if (isMounted) {
+          setRows(tableRows);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load calls');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadCallsAndData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [repo]);
 
   const columns: GridColDef[] = [
     { field: 'id', headerName: 'ID', width: 150 },
@@ -70,19 +128,26 @@ export function CallsPage() {
     },
   ];
 
-  // Transform call nodes into table rows
-  const rows = allCalls.map((call) => {
-    const client = repo.getNode(call.parentId || "");
-    const callData = repo.getCallByNode(call.id);
-    
-    return {
-      id: call.id,
-      title: call.name,
-      clientName: client?.name || "Unknown",
-      date: new Date(call.createdAt),
-      sentiment: callData?.sentiment?.overall || "unknown"
-    };
-  });
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Sales Calls
+        </Typography>
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box>

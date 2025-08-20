@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import { authRoutes } from '../routes/auth';
@@ -16,7 +16,7 @@ describe('Cross-Organization Security (IDOR Prevention)', () => {
   let demoUserToken: string;
   let viewerUserToken: string;
   let demoOrgClientId: string;
-  let viewerOrgId: string;
+  let _viewerOrgId: string;
 
   beforeAll(async () => {
     // Set up database and seed data

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -9,11 +9,13 @@ import {
   Alert,
   Paper,
   Stack,
+  CircularProgress,
 } from '@mui/material';
 import { ArrowBack, PlayArrow, Cancel, Refresh } from '@mui/icons-material';
 import { useRepo } from '../hooks/useRepo';
 import { useAnalyzeCall } from '../hooks/useAnalyzeCall';
 import { createCallNode, deleteNode, markNodeActive } from '../core/repo';
+import type { NodeBase } from '../core/types';
 
 export function NewCallPage() {
   const navigate = useNavigate();
@@ -28,12 +30,49 @@ export function NewCallPage() {
   });
   const [transcript, setTranscript] = useState('');
   
+  // Client loading state
+  const [clients, setClients] = useState<NodeBase[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(true);
+  const [clientsError, setClientsError] = useState<string | null>(null);
+
+  // Load clients on mount
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadClients = async () => {
+      setClientsLoading(true);
+      setClientsError(null);
+      
+      try {
+        const clientsResult = repo.getAllClients();
+        const resolvedClients = repo.isAsync ? await clientsResult : clientsResult as NodeBase[];
+        
+        if (isMounted) {
+          setClients(resolvedClients);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setClientsError(err instanceof Error ? err.message : 'Failed to load clients');
+        }
+      } finally {
+        if (isMounted) {
+          setClientsLoading(false);
+        }
+      }
+    };
+
+    loadClients();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [repo]);
+  
   // UI state
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [currentDraftNodeId, setCurrentDraftNodeId] = useState<string | null>(null);
 
-  const clients = repo.getAllClients();
   const isAnalyzing = analyzeCall.loading;
   const hasAnalysisData = !!analyzeCall.lastResponse;
 
@@ -135,6 +174,12 @@ export function NewCallPage() {
             <Alert severity="success">{successMessage}</Alert>
           )}
 
+          {clientsError && (
+            <Alert severity="error">
+              Failed to load clients: {clientsError}
+            </Alert>
+          )}
+
           <TextField
             select
             label="Client"
@@ -144,12 +189,22 @@ export function NewCallPage() {
             helperText={errors.clientId}
             required
             fullWidth
+            disabled={clientsLoading || !!clientsError}
           >
-            {clients.map((client) => (
-              <MenuItem key={client.id} value={client.id}>
-                {client.name}
+            {clientsLoading ? (
+              <MenuItem disabled>
+                <CircularProgress size={20} sx={{ mr: 1 }} />
+                Loading clients...
               </MenuItem>
-            ))}
+            ) : clients.length === 0 ? (
+              <MenuItem disabled>No clients available</MenuItem>
+            ) : (
+              clients.map((client) => (
+                <MenuItem key={client.id} value={client.id}>
+                  {client.name}
+                </MenuItem>
+              ))
+            )}
           </TextField>
 
           <TextField

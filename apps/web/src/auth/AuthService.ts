@@ -14,7 +14,7 @@ const MOCK_USER: User = {
   id: 'user-1',
   email: 'demo@mudul.com',
   name: 'Demo User',
-  avatarUrl: null,
+  avatarUrl: undefined,
   createdAt: '2024-01-01T00:00:00Z',
   lastLoginAt: '2024-01-01T00:00:00Z'
 };

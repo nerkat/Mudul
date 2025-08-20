@@ -5,8 +5,7 @@ import {
   ClientsOverviewSchema,
   ClientSummarySchema,
   ClientCallsSchema,
-  ActionItemsSchema,
-  validateResponse
+  ActionItemsSchema
 } from '../middleware/validation';
 
 describe('Zod Response Validation', () => {
