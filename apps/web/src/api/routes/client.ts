@@ -1,7 +1,17 @@
 import express from 'express';
 import { PrismaAuthService } from '../services/prisma-auth';
 import { PrismaDataService } from '../services/prisma-data';
-import { validateResponse, ClientSummarySchema, ClientCallsSchema, ActionItemsSchema } from '../middleware/validation';
+import { 
+  validateResponse, 
+  validateRequest,
+  ClientSummarySchema, 
+  ClientCallsSchema, 
+  ActionItemsSchema,
+  LogCallForm,
+  NewActionItemForm,
+  CreatedCallSchema,
+  CreatedActionItemSchema
+} from '../middleware/validation';
 
 const router = express.Router();
 
@@ -111,6 +121,56 @@ router.get('/:id/action-items', requireAuth, validateResponse(ActionItemsSchema)
     res.status(500).json({
       error: 'INTERNAL_ERROR',
       message: 'Failed to get client action items',
+    });
+  }
+});
+
+// POST /api/clients/:id/calls
+router.post('/:id/calls', requireAuth, validateRequest(LogCallForm), validateResponse(CreatedCallSchema), async (req, res) => {
+  try {
+    const { orgId } = (req as any).user;
+    const { id: clientId } = req.params;
+    
+    const call = await PrismaDataService.createCall(clientId, orgId, req.body);
+    res.status(201).json(call);
+  } catch (error: any) {
+    console.error('Create call error:', error);
+    
+    if (error.message === 'CLIENT_NOT_FOUND') {
+      return res.status(404).json({
+        error: 'CLIENT_NOT_FOUND',
+        message: 'Client not found or access denied',
+      });
+    }
+    
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Failed to create call',
+    });
+  }
+});
+
+// POST /api/clients/:id/action-items
+router.post('/:id/action-items', requireAuth, validateRequest(NewActionItemForm), validateResponse(CreatedActionItemSchema), async (req, res) => {
+  try {
+    const { orgId } = (req as any).user;
+    const { id: clientId } = req.params;
+    
+    const actionItem = await PrismaDataService.createActionItem(clientId, orgId, req.body);
+    res.status(201).json(actionItem);
+  } catch (error: any) {
+    console.error('Create action item error:', error);
+    
+    if (error.message === 'CLIENT_NOT_FOUND') {
+      return res.status(404).json({
+        error: 'CLIENT_NOT_FOUND',
+        message: 'Client not found or access denied',
+      });
+    }
+    
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Failed to create action item',
     });
   }
 });

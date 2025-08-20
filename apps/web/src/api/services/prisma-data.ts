@@ -45,6 +45,38 @@ export class PrismaDataService {
   }
 
   /**
+   * Create a new client
+   */
+  static async createClient(orgId: string, data: { name: string; notes?: string }) {
+    return await sqliteService.createClient(orgId, data);
+  }
+
+  /**
+   * Create a new call
+   */
+  static async createCall(clientId: string, orgId: string, data: {
+    ts: string;
+    durationSec: number;
+    sentiment: 'pos' | 'neu' | 'neg';
+    score: number;
+    bookingLikelihood: number;
+    notes?: string;
+  }) {
+    return await sqliteService.createCall(clientId, orgId, data);
+  }
+
+  /**
+   * Create a new action item
+   */
+  static async createActionItem(clientId: string, orgId: string, data: {
+    owner?: string;
+    text: string;
+    dueDate?: string;
+  }) {
+    return await sqliteService.createActionItem(clientId, orgId, data);
+  }
+
+  /**
    * Close SQLite connection
    */
   static async disconnect() {

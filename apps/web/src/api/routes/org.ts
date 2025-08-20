@@ -1,7 +1,14 @@
 import express from 'express';
 import { PrismaAuthService } from '../services/prisma-auth';
 import { PrismaDataService } from '../services/prisma-data';
-import { validateResponse, OrgSummarySchema, ClientsOverviewSchema } from '../middleware/validation';
+import { 
+  validateResponse, 
+  validateRequest,
+  OrgSummarySchema, 
+  ClientsOverviewSchema,
+  NewClientForm,
+  CreatedClientSchema
+} from '../middleware/validation';
 
 const router = express.Router();
 
@@ -72,6 +79,36 @@ router.get('/clients-overview', requireAuth, validateResponse(ClientsOverviewSch
     res.status(500).json({
       error: 'INTERNAL_ERROR',
       message: 'Failed to get clients overview',
+    });
+  }
+});
+
+// POST /api/org/clients
+router.post('/clients', requireAuth, validateRequest(NewClientForm), validateResponse(CreatedClientSchema), async (req, res) => {
+  try {
+    const { orgId } = (req as any).user;
+    const client = await PrismaDataService.createClient(orgId, req.body);
+    res.status(201).json(client);
+  } catch (error: any) {
+    console.error('Create client error:', error);
+    
+    if (error.message === 'ORG_NOT_FOUND') {
+      return res.status(404).json({
+        error: 'ORG_NOT_FOUND',
+        message: 'Organization not found or access denied',
+      });
+    }
+    
+    if (error.message === 'CLIENT_NAME_EXISTS') {
+      return res.status(409).json({
+        error: 'CLIENT_NAME_EXISTS',
+        message: 'A client with this name already exists',
+      });
+    }
+    
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Failed to create client',
     });
   }
 });

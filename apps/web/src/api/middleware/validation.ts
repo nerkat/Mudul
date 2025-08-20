@@ -1,6 +1,22 @@
 // Response validation middleware using Zod
 import { z } from 'zod';
 
+// Form schemas - imported from forms.ts
+export { 
+  NewClientForm, 
+  LogCallForm, 
+  NewActionItemForm,
+  CreatedClientSchema,
+  CreatedCallSchema,
+  CreatedActionItemSchema,
+  type NewClientFormData,
+  type LogCallFormData, 
+  type NewActionItemFormData,
+  type CreatedClient,
+  type CreatedCall,
+  type CreatedActionItem
+} from '../schemas/forms';
+
 // User info schema for auth responses
 export const UserInfoSchema = z.object({
   id: z.string(),
@@ -125,6 +141,34 @@ export function validateResponse<T>(schema: z.ZodSchema<T>) {
     };
     
     next();
+  };
+}
+
+/**
+ * Middleware to validate request body with Zod schemas
+ */
+export function validateRequest<T>(schema: z.ZodSchema<T>) {
+  return (req: any, res: any, next: any) => {
+    try {
+      const validatedData = schema.parse(req.body);
+      req.body = validatedData;
+      next();
+    } catch (error) {
+      console.error('Request validation error:', error);
+      
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: 'Invalid request data',
+          details: error.errors,
+        });
+      }
+      
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Invalid request format',
+      });
+    }
   };
 }
 

@@ -286,6 +286,131 @@ class SimpleSQLiteService {
       this.db.close(resolve);
     });
   }
+
+  /**
+   * Create a new client
+   */
+  async createClient(orgId, data) {
+    // Verify org exists
+    const orgs = await this.query('SELECT id FROM orgs WHERE id = ?', [orgId]);
+    if (!orgs || orgs.length === 0) {
+      throw new Error('ORG_NOT_FOUND');
+    }
+
+    // Check for duplicate client name within org
+    const existing = await this.query(
+      'SELECT id FROM clients WHERE org_id = ? AND name = ?',
+      [orgId, data.name]
+    );
+    if (existing && existing.length > 0) {
+      throw new Error('CLIENT_NAME_EXISTS');
+    }
+
+    const clientId = `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+    
+    await this.run(
+      'INSERT INTO clients (id, org_id, name, slug, created_at) VALUES (?, ?, ?, ?, ?)',
+      [clientId, orgId, data.name, data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), now]
+    );
+
+    return {
+      id: clientId,
+      name: data.name,
+      notes: data.notes || null,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  /**
+   * Create a new call
+   */
+  async createCall(clientId, orgId, data) {
+    // Verify client exists and belongs to org
+    const client = await this.query(
+      'SELECT id FROM clients WHERE id = ? AND org_id = ?',
+      [clientId, orgId]
+    );
+    if (!client || client.length === 0) {
+      throw new Error('CLIENT_NOT_FOUND');
+    }
+
+    const callId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+    
+    await this.run(
+      'INSERT INTO calls (id, org_id, client_id, name, summary, ts, duration_sec, sentiment, score, booking_likelihood, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        callId, 
+        orgId, 
+        clientId, 
+        `Call ${new Date(data.ts).toLocaleDateString()}`,
+        data.notes || null,
+        data.ts,
+        data.durationSec,
+        data.sentiment.toUpperCase(),
+        data.score,
+        data.bookingLikelihood,
+        now
+      ]
+    );
+
+    return {
+      id: callId,
+      clientId,
+      ts: data.ts,
+      durationSec: data.durationSec,
+      sentiment: data.sentiment,
+      score: data.score,
+      bookingLikelihood: data.bookingLikelihood,
+      notes: data.notes || null,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  /**
+   * Create a new action item
+   */
+  async createActionItem(clientId, orgId, data) {
+    // Verify client exists and belongs to org
+    const client = await this.query(
+      'SELECT id FROM clients WHERE id = ? AND org_id = ?',
+      [clientId, orgId]
+    );
+    if (!client || client.length === 0) {
+      throw new Error('CLIENT_NOT_FOUND');
+    }
+
+    const actionItemId = `action-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+    
+    await this.run(
+      'INSERT INTO action_items (id, org_id, client_id, owner_id, text, due, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        actionItemId,
+        orgId,
+        clientId,
+        null, // We'll use owner text field for now instead of FK
+        data.text,
+        data.dueDate || null,
+        'OPEN',
+        now
+      ]
+    );
+
+    return {
+      id: actionItemId,
+      clientId,
+      owner: data.owner || null,
+      text: data.text,
+      due: data.dueDate || null,
+      status: 'open',
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
 }
 
 module.exports = { SimpleSQLiteService };
