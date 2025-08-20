@@ -1,8 +1,13 @@
 // Real auth service using SQLite directly
-const { SimpleAuthService } = require('./simple-auth.cjs');
+let authService: any;
 
-// Initialize auth service
-const authService = new SimpleAuthService();
+if (typeof window === 'undefined') {
+  // Server-only import
+  const { SimpleAuthService } = require('./simple-auth.cjs');
+  authService = new SimpleAuthService();
+} else {
+  throw new Error('PrismaAuthService is server-only; imported in browser bundle');
+}
 
 export class PrismaAuthService {
   /**

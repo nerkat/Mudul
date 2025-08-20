@@ -1,6 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import { createHash } from 'node:crypto';
 
 /**
  * CORS configuration for API routes
@@ -218,16 +219,9 @@ export const idempotencyMiddleware = (req: Request, res: Response, next: NextFun
     return next(); // Skip if no user context (will fail auth later)
   }
 
-  // Create body hash for uniqueness
-  const bodyStr = JSON.stringify(req.body || {});
-  // Simple hash function for testing (in production use proper crypto)
-  let bodyHash = 0;
-  for (let i = 0; i < bodyStr.length; i++) {
-    const char = bodyStr.charCodeAt(i);
-    bodyHash = ((bodyHash << 5) - bodyHash) + char;
-    bodyHash = bodyHash & bodyHash; // Convert to 32bit integer
-  }
-  bodyHash = Math.abs(bodyHash).toString(36);
+  // Create stable crypto hash for uniqueness
+  const raw = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
+  const bodyHash = createHash('sha256').update(raw).digest('base64url');
   const route = `${req.method} ${req.path}`;
   
   // Create compound key: idempotency-key + orgId + route + bodyHash
@@ -294,8 +288,8 @@ export const loggingMiddleware = (req: Request, res: Response, next: NextFunctio
   const startTime = Date.now();
   
   // Override res.end to capture response time and status
-  const originalEnd = res.end;
-  res.end = function(...args: any[]) {
+  const originalEnd: typeof res.end = res.end.bind(res);
+  res.end = function end(...args: Parameters<typeof res.end>) {
     const endTime = Date.now();
     const latency = endTime - startTime;
     

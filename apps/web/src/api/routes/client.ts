@@ -55,7 +55,8 @@ router.get('/:id/summary', requireAuth, validateResponse(ClientSummarySchema), a
   try {
     const { orgId } = (req as any).user;
     const { id: clientId } = req.params;
-    const traceId = (req as any).traceId;
+    const traceId = (req as any).traceId as string | undefined;
+    if (traceId) res.setHeader('x-request-id', traceId);
     
     const summary = await PrismaDataService.getClientSummary(clientId, orgId);
     res.json(summary);
@@ -84,7 +85,8 @@ router.get('/:id/calls', requireAuth, validateResponse(ClientCallsSchema), async
   try {
     const { orgId } = (req as any).user;
     const { id: clientId } = req.params;
-    const traceId = (req as any).traceId;
+    const traceId = (req as any).traceId as string | undefined;
+    if (traceId) res.setHeader('x-request-id', traceId);
     
     // Validate and enforce limit bounds (server-side clamping)
     const limitParam = parseInt(req.query.limit as string) || 10;
@@ -127,7 +129,8 @@ router.get('/:id/action-items', requireAuth, validateResponse(ActionItemsSchema)
     const { orgId } = (req as any).user;
     const { id: clientId } = req.params;
     const status = req.query.status as 'open' | 'done' | undefined;
-    const traceId = (req as any).traceId;
+    const traceId = (req as any).traceId as string | undefined;
+    if (traceId) res.setHeader('x-request-id', traceId);
     
     const actionItems = await PrismaDataService.getClientActionItems(clientId, orgId, status);
     res.json(actionItems);
@@ -156,7 +159,8 @@ router.post('/:id/calls', requireAuth, idempotencyMiddleware, validateRequest(Lo
   try {
     const { orgId } = (req as any).user; // Server-derived orgId
     const { id: clientId } = req.params;
-    const traceId = (req as any).traceId;
+    const traceId = (req as any).traceId as string | undefined;
+    if (traceId) res.setHeader('x-request-id', traceId);
     
     // Strip any client-supplied orgId from body for IDOR prevention
     const { orgId: clientOrgId, clientId: clientClientId, ...callData } = req.body;
@@ -215,7 +219,8 @@ router.post('/:id/action-items', requireAuth, idempotencyMiddleware, validateReq
   try {
     const { orgId } = (req as any).user; // Server-derived orgId
     const { id: clientId } = req.params;
-    const traceId = (req as any).traceId;
+    const traceId = (req as any).traceId as string | undefined;
+    if (traceId) res.setHeader('x-request-id', traceId);
     
     // Strip any client-supplied orgId from body for IDOR prevention
     const { orgId: clientOrgId, clientId: clientClientId, ...actionItemData } = req.body;

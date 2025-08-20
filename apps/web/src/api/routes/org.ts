@@ -50,7 +50,8 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
 router.get('/summary', requireAuth, validateResponse(OrgSummarySchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user;
-    const traceId = (req as any).traceId;
+    const traceId = (req as any).traceId as string | undefined;
+    if (traceId) res.setHeader('x-request-id', traceId);
     const summary = await PrismaDataService.getOrgSummary(orgId);
     res.json(summary);
   } catch (error: any) {
@@ -77,7 +78,8 @@ router.get('/summary', requireAuth, validateResponse(OrgSummarySchema), async (r
 router.get('/clients-overview', requireAuth, validateResponse(ClientsOverviewSchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user;
-    const traceId = (req as any).traceId;
+    const traceId = (req as any).traceId as string | undefined;
+    if (traceId) res.setHeader('x-request-id', traceId);
     const overview = await PrismaDataService.getClientsOverview(orgId);
     res.json(overview);
   } catch (error: any) {
@@ -104,7 +106,8 @@ router.get('/clients-overview', requireAuth, validateResponse(ClientsOverviewSch
 router.post('/clients', requireAuth, idempotencyMiddleware, validateRequest(NewClientForm), validateResponse(CreatedClientOutSchema), async (req, res) => {
   try {
     const { orgId } = (req as any).user; // Server-derived orgId, not client-supplied
-    const traceId = (req as any).traceId;
+    const traceId = (req as any).traceId as string | undefined;
+    if (traceId) res.setHeader('x-request-id', traceId);
     
     // Strip any client-supplied orgId from body for IDOR prevention
     const { orgId: clientOrgId, ...clientData } = req.body;

@@ -1,8 +1,13 @@
 // Real data service that uses SQLite directly
-const { SimpleSQLiteService } = require('./simple-sqlite.cjs');
+let sqliteService: any;
 
-// Initialize service
-const sqliteService = new SimpleSQLiteService();
+if (typeof window === 'undefined') {
+  // Server-only import
+  const { SimpleSQLiteService } = require('./simple-sqlite.cjs');
+  sqliteService = new SimpleSQLiteService();
+} else {
+  throw new Error('PrismaDataService is server-only; imported in browser bundle');
+}
 
 export class PrismaDataService {
   /**
