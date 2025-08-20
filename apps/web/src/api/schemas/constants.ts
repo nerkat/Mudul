@@ -32,6 +32,32 @@ export const VALIDATION_ENUMS = {
   ACTION_ITEM_STATUS: ['open', 'done'] as const,
 } as const;
 
+/**
+ * Sentiment/Score mapping and validation
+ * Enforces consistency between sentiment enum and numeric score
+ * Ranges are designed to be non-overlapping for clear boundaries
+ */
+export const SENTIMENT_SCORE_MAPPING = {
+  'neg': { min: -1.0, max: -0.1 },
+  'neu': { min: -0.0999, max: 0.0999 }, 
+  'pos': { min: 0.1, max: 1.0 }
+} as const;
+
+export function validateSentimentScoreConsistency(sentiment: string, score: number): boolean {
+  if (!Object.keys(SENTIMENT_SCORE_MAPPING).includes(sentiment)) {
+    return false;
+  }
+  
+  const mapping = SENTIMENT_SCORE_MAPPING[sentiment as keyof typeof SENTIMENT_SCORE_MAPPING];
+  return score >= mapping.min && score <= mapping.max;
+}
+
+export function deriveSentimentFromScore(score: number): 'pos' | 'neu' | 'neg' {
+  if (score >= 0.1) return 'pos';
+  if (score <= -0.1) return 'neg';
+  return 'neu';
+}
+
 // Helper functions for clamping values
 export function clampDuration(value: number): number {
   return Math.max(VALIDATION_LIMITS.CALL_DURATION_MIN, Math.min(VALIDATION_LIMITS.CALL_DURATION_MAX, value));

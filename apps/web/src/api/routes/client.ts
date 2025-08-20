@@ -14,7 +14,7 @@ import {
 } from '../middleware/validation';
 import { writeRateLimit, idempotencyMiddleware, requestIdMiddleware } from '../middleware/security';
 import { v4 as uuidv4 } from 'uuid';
-import { clampQueryLimit, clampDuration, clampScore, clampBookingLikelihood } from '../schemas/constants';
+import { clampQueryLimit, clampDuration, clampScore, clampBookingLikelihood, validateSentimentScoreConsistency } from '../schemas/constants';
 
 const router = express.Router();
 
@@ -160,6 +160,22 @@ router.post('/:id/calls', requireAuth, idempotencyMiddleware, validateRequest(Lo
     
     // Strip any client-supplied orgId from body for IDOR prevention
     const { orgId: clientOrgId, clientId: clientClientId, ...callData } = req.body;
+    
+    // Validate sentiment/score consistency before processing
+    if (!validateSentimentScoreConsistency(callData.sentiment, callData.score)) {
+      return res.status(422).json({
+        code: 'VALIDATION_ERROR',
+        message: 'Sentiment and score values are inconsistent',
+        details: {
+          sentiment: callData.sentiment,
+          score: callData.score,
+          expectedRange: callData.sentiment === 'pos' ? '0.1 to 1.0' : 
+                        callData.sentiment === 'neu' ? '-0.1 to 0.1' : 
+                        '-1.0 to -0.1'
+        },
+        traceId
+      });
+    }
     
     // Server-side clamping of values to ensure safety
     const clampedData = {

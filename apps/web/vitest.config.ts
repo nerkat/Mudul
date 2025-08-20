@@ -6,7 +6,10 @@ export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'node', // Changed from jsdom to node for API tests
     setupFiles: ['./src/test/setup.ts'],
+  },
+  define: {
+    global: 'globalThis',
   },
 });
