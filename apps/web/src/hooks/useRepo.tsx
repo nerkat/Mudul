@@ -11,6 +11,7 @@ interface RepoContextValue {
   getDashboardId: typeof repo.getDashboardId;
   getAllClients: typeof repo.getAllClients;
   getAllCalls: typeof repo.getAllCalls;
+  createClient: (data: { name: string; notes?: string }) => Promise<{ id: string; name: string }>;
 }
 
 const RepoContext = createContext<RepoContextValue | null>(null);
@@ -54,6 +55,22 @@ export function RepoProvider({ children }: { children: React.ReactNode }) {
       },
       getAllCalls: () => {
         return repo.getAllCalls().filter(node => node.orgId === orgId);
+      },
+      createClient: async (data: { name: string; notes?: string }) => {
+        // Simulate async operation (in real app this would call API)
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const nodeId = repo.createClient({
+          name: data.name,
+          notes: data.notes
+        });
+        
+        const newNode = repo.getNode(nodeId);
+        if (!newNode) {
+          throw new Error('Failed to create client');
+        }
+        
+        return { id: nodeId, name: newNode.name };
       }
     };
   }, [currentOrg?.id]);

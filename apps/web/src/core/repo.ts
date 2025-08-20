@@ -144,6 +144,33 @@ export function hasExistingAnalysis(
 // ----- Call creation and lifecycle management -----
 
 /**
+ * Create a new client node under the root organization.
+ * Returns the new node ID.
+ */
+export function createClient({ name, notes }: { name: string; notes?: string }): string {
+  const now = new Date().toISOString();
+  const nodeId = `client-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
+  
+  // Create the client node
+  nodes[nodeId] = {
+    id: nodeId,
+    orgId: "acme",
+    parentId: "root",
+    kind: "lead",
+    name,
+    slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    dashboardId: "client-dashboard",
+    createdAt: now,
+    updatedAt: now
+  };
+  
+  // TODO: If we had client-specific data, we would store it here
+  // For now, client data is just the node itself
+  
+  return nodeId;
+}
+
+/**
  * Create a new call node under the specified client.
  * Returns the new node ID.
  */

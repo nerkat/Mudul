@@ -207,8 +207,30 @@ export function AppShell() {
           })}
         </SimpleTreeView>
         
-        {/* New Call Button */}
-        <Box sx={{ mt: theme.spacing(2) }}>
+        {/* Action Buttons */}
+        <Box sx={{ mt: theme.spacing(2), display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Button
+            component="a"
+            href="/clients/new"
+            onClick={(e: React.MouseEvent) => {
+              e.preventDefault();
+              navigate('/clients/new');
+              if (isMobile) {
+                setMobileOpen(false);
+              }
+            }}
+            variant="outlined"
+            startIcon={<Business />}
+            fullWidth
+            sx={{ 
+              borderRadius: theme.shape.borderRadius,
+              textTransform: 'none',
+              fontWeight: 'medium'
+            }}
+          >
+            New Client
+          </Button>
+          
           <Button
             component="a"
             href="/calls/new"
