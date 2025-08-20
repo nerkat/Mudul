@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build_test:
+    # If you have a self-hosted box (e.g., G700), label it and use that array.
+    # runs-on: [self-hosted, linux, g700]
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+      PNPM_HOME: ~/.pnpm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Enable pnpm + set persistent store
+        run: |
+          corepack enable
+          pnpm config set store-dir ~/.pnpm-store
+          pnpm config set prefer-offline true
+
+      - name: Extra cache for pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-${{ github.ref }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ github.ref }}-
+            ${{ runner.os }}-
+
+      - name: Install
+        run: pnpm i --frozen-lockfile --prefer-offline
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test -- --reporter=dot
