@@ -11,13 +11,13 @@
     }
   },
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx src/seed.ts",
-    "db:studio": "prisma studio"
+  "build": "tsc",
+  "typecheck": "tsc --noEmit",
+  "db:generate": "DATABASE_URL=\"${DATABASE_URL:-file:./dev.db}\" prisma generate",
+  "db:push": "DATABASE_URL=\"${DATABASE_URL:-file:./dev.db}\" prisma db push",
+  "db:migrate": "DATABASE_URL=\"${DATABASE_URL:-file:./dev.db}\" prisma migrate dev",
+  "db:seed": "DATABASE_URL=\"${DATABASE_URL:-file:./dev.db}\" tsx src/seed.ts",
+  "db:studio": "DATABASE_URL=\"${DATABASE_URL:-file:./dev.db}\" prisma studio"
   },
   "dependencies": {
     "@mudul/core": "workspace:*",

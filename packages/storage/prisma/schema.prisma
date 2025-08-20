@@ -49,7 +49,7 @@ model Membership {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
   orgId     String   @map("org_id")
-  role      Role     @default(VIEWER)
+  role      String   @default("VIEWER")
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
@@ -90,7 +90,7 @@ model Call {
   summary           String?
   ts                DateTime   @default(now())
   durationSec       Int?       @map("duration_sec")
-  sentiment         Sentiment  @default(NEUTRAL)
+  sentiment         String     @default("NEUTRAL")
   score             Float?     // sentiment score 0-1
   bookingLikelihood Float?     @map("booking_likelihood") // 0-1
   createdAt         DateTime   @default(now()) @map("created_at")
@@ -106,14 +106,14 @@ model Call {
 
 // Action Items table
 model ActionItem {
-  id        String          @id @default(cuid())
-  orgId     String          @map("org_id")
-  clientId  String?         @map("client_id")
-  ownerId   String?         @map("owner_id") // FK to users
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  clientId  String?  @map("client_id")
+  ownerId   String?  @map("owner_id") // FK to users
   text      String
   due       DateTime?
-  status    ActionItemStatus @default(OPEN)
-  createdAt DateTime        @default(now()) @map("created_at")
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
   org    Org     @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -140,19 +140,4 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-// Enums
-enum Role {
-  OWNER
-  VIEWER
-}
-
-enum Sentiment {
-  POSITIVE @map("pos")
-  NEUTRAL  @map("neu") 
-  NEGATIVE @map("neg")
-}
-
-enum ActionItemStatus {
-  OPEN
-  DONE
-}
+// (Enums removed for SQLite compatibility; using string fields instead.)
