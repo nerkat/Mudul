@@ -6,14 +6,23 @@ import path from 'node:path'
 export default defineConfig(({ mode }) => {
   loadEnv(mode, process.cwd(), ''); // don't import app/server code here
   return {
-    plugins: [react()],
+  plugins: [react()],
     root: __dirname,
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),
       },
     },
-    server: { port: 5173, strictPort: true },
+    server: { 
+      port: 5173, 
+      strictPort: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        }
+      }
+    },
     optimizeDeps: { exclude: ['sqlite3', 'better-sqlite3'] },
     ssr: { external: ['sqlite3', 'better-sqlite3'] },
     build: {

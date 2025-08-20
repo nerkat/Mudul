@@ -1,8 +1,9 @@
 // Real auth service using SQLite directly
+import { createRequire } from 'module';
 let authService: any;
 
 if (typeof window === 'undefined') {
-  // Server-only import
+  const require = createRequire(import.meta.url);
   const { SimpleAuthService } = require('./simple-auth.cjs');
   authService = new SimpleAuthService();
 } else {

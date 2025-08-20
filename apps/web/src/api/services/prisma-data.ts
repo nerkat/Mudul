@@ -1,8 +1,9 @@
 // Real data service that uses SQLite directly
+import { createRequire } from 'module';
 let sqliteService: any;
 
 if (typeof window === 'undefined') {
-  // Server-only import
+  const require = createRequire(import.meta.url);
   const { SimpleSQLiteService } = require('./simple-sqlite.cjs');
   sqliteService = new SimpleSQLiteService();
 } else {

@@ -3,8 +3,30 @@ const sqlite3 = require('sqlite3').verbose();
 const argon2 = require('argon2');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = process.env.DATABASE_URL?.replace('file:', '') || path.join(__dirname, '../../packages/storage/dev.db');
+function resolveDbPath() {
+  // If DATABASE_URL provided (Prisma style file:./relative/path)
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL.replace('file:', '');
+  }
+  const candidates = [
+    path.join(process.cwd(), 'packages/storage/dev.db'),
+    path.resolve(process.cwd(), '../../packages/storage/dev.db'),
+    path.resolve(process.cwd(), '../..', 'packages/storage/dev.db'),
+    path.join(__dirname, '../../../../packages/storage/dev.db'),
+    path.join(__dirname, '../../../packages/storage/dev.db'),
+    path.join(process.cwd(), '..', 'packages/storage/dev.db'),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  // Fallback to previous (likely incorrect) relative path so error surfaces
+  return path.join(__dirname, '../../packages/storage/dev.db');
+}
+
+const dbPath = resolveDbPath();
+console.log('[simple-auth] Using SQLite DB:', dbPath);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
 const JWT_ACCESS_EXPIRES = '15m';
 const JWT_REFRESH_EXPIRES = '30d';

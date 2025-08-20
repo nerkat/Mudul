@@ -1,4 +1,6 @@
 // Database health check service
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const { SimpleSQLiteService } = require('./simple-sqlite.cjs');
 
 export class DatabaseHealthService {
