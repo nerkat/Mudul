@@ -12,7 +12,7 @@ import {
   Divider,
   Stack
 } from '@mui/material';
-import { PlayArrow, Refresh, Cancel, Description, InsertChartOutlined } from '@mui/icons-material';
+import { PlayArrow, Refresh, Cancel, Description, InsertChartOutlined, Add, Phone, Assignment } from '@mui/icons-material';
 import { useNode } from '../hooks/useNode';
 import { useSalesCall } from '../hooks/useSalesCall';
 import { useAnalyzeCall } from '../hooks/useAnalyzeCall';
@@ -21,6 +21,11 @@ import { DashboardTemplate } from '../core/widgets/protocol';
 import { DashboardTemplates } from '../core/registry-json';
 import type { AnalysisError } from '../services/errors';
 import { useViewMode } from '../ctx/ViewModeContext';  // Use context instead of standalone hook
+import { NewClientFormDialog } from '../components/forms/NewClientFormDialog';
+import { LogCallFormDialog } from '../components/forms/LogCallFormDialog';
+import { NewActionItemFormDialog } from '../components/forms/NewActionItemFormDialog';
+import { crudApiService } from '../services/crudApi';
+import type { NewClientFormData, LogCallFormData, NewActionItemFormData } from '../api/schemas/forms';
 
 export function DashboardPage() {
   const { nodeId } = useParams<{ nodeId: string }>();
@@ -36,8 +41,62 @@ export function DashboardPage() {
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
+  // Form dialog states
+  const [showNewClientDialog, setShowNewClientDialog] = useState(false);
+  const [showLogCallDialog, setShowLogCallDialog] = useState(false);
+  const [showNewActionItemDialog, setShowNewActionItemDialog] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+
   // Keyboard: press "p" to toggle paper/rich mode (handled by ViewModeContext)
   // Remove duplicate keyboard handler since ViewModeContext already handles it
+
+  // CRUD form handlers
+  const handleCreateClient = async (data: NewClientFormData) => {
+    setFormLoading(true);
+    try {
+      await crudApiService.createClient(data);
+      setToastMessage('Client created successfully!');
+      setShowSuccessToast(true);
+      // TODO: Refresh client list data
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Failed to create client');
+      setShowErrorToast(true);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleLogCall = async (data: LogCallFormData) => {
+    if (!nodeId) return;
+    setFormLoading(true);
+    try {
+      await crudApiService.createCall(nodeId, data);
+      setToastMessage('Call logged successfully!');
+      setShowSuccessToast(true);
+      // TODO: Refresh call list data
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Failed to log call');
+      setShowErrorToast(true);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleCreateActionItem = async (data: NewActionItemFormData) => {
+    if (!nodeId) return;
+    setFormLoading(true);
+    try {
+      await crudApiService.createActionItem(nodeId, data);
+      setToastMessage('Action item added successfully!');
+      setShowSuccessToast(true);
+      // TODO: Refresh action items data
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Failed to create action item');
+      setShowErrorToast(true);
+    } finally {
+      setFormLoading(false);
+    }
+  };
 
   // Handle analysis results (no full page reload)
   useEffect(() => {
@@ -214,6 +273,39 @@ export function DashboardPage() {
             </IconButton>
           </Tooltip>
 
+          {/* Dashboard-specific CRUD buttons - only show in rich mode */}
+          {mode === 'rich' && node?.dashboardId === 'org-dashboard' && (
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => setShowNewClientDialog(true)}
+              size="small"
+            >
+              New Client
+            </Button>
+          )}
+
+          {mode === 'rich' && node?.dashboardId === 'client-dashboard' && (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                startIcon={<Phone />}
+                onClick={() => setShowLogCallDialog(true)}
+                size="small"
+              >
+                Log Call
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Assignment />}
+                onClick={() => setShowNewActionItemDialog(true)}
+                size="small"
+              >
+                Add Action Item
+              </Button>
+            </Box>
+          )}
+
           {isCallSession && (
             <Box sx={{ display: 'flex', gap: 1 }}>
               {analyzing && (
@@ -304,6 +396,28 @@ export function DashboardPage() {
         autoHideDuration={6000}
         onClose={() => setShowErrorToast(false)}
         message={toastMessage}
+      />
+
+      {/* CRUD Form Dialogs */}
+      <NewClientFormDialog
+        open={showNewClientDialog}
+        onClose={() => setShowNewClientDialog(false)}
+        onSubmit={handleCreateClient}
+        loading={formLoading}
+      />
+
+      <LogCallFormDialog
+        open={showLogCallDialog}
+        onClose={() => setShowLogCallDialog(false)}
+        onSubmit={handleLogCall}
+        loading={formLoading}
+      />
+
+      <NewActionItemFormDialog
+        open={showNewActionItemDialog}
+        onClose={() => setShowNewActionItemDialog(false)}
+        onSubmit={handleCreateActionItem}
+        loading={formLoading}
       />
     </Box>
   );
