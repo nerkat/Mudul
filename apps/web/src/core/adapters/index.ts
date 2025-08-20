@@ -210,7 +210,7 @@ export const Adapters: AdapterMap = {
       if (cached) return cached;
       
       const clients = ctx?.getAllClients?.() ?? [];
-      const allCalls = ctx?.getAllCalls?.() ?? [];
+      const allCalls = ctx?.getAllCallsWithOptimistic?.() ?? ctx?.getAllCalls?.() ?? [];
       
       const clientData = clients.map(client => {
         const clientCalls = allCalls.filter(call => call.parentId === client.id);
@@ -244,11 +244,11 @@ export const Adapters: AdapterMap = {
       const cached = getCachedResult(cacheKey);
       if (cached) return cached;
       
-      const allCalls = ctx?.getAllCalls?.() ?? [];
+      const allCalls = ctx?.getAllCallsWithOptimistic?.() ?? ctx?.getAllCalls?.() ?? [];
       const callData: { sentiment: number; count: number }[] = [];
       
       allCalls.forEach(callNode => {
-        const callDetail = ctx?.getCallByNode?.(callNode.id);
+        const callDetail = ctx?.getCallByNodeWithOptimistic?.(callNode.id) ?? ctx?.getCallByNode?.(callNode.id);
         if (callDetail?.sentiment?.score) {
           callData.push({ sentiment: callDetail.sentiment.score, count: 1 });
         }
@@ -282,14 +282,14 @@ export const Adapters: AdapterMap = {
       const cached = getCachedResult(cacheKey);
       if (cached) return cached;
       
-      const allCalls = ctx?.getAllCalls?.() ?? [];
+      const allCalls = ctx?.getAllCallsWithOptimistic?.() ?? ctx?.getAllCalls?.() ?? [];
       let totalBooking = 0;
       let totalObjections = 0;
       let totalActions = 0;
       let callCount = 0;
 
       allCalls.forEach(callNode => {
-        const callDetail = ctx?.getCallByNode?.(callNode.id);
+        const callDetail = ctx?.getCallByNodeWithOptimistic?.(callNode.id) ?? ctx?.getCallByNode?.(callNode.id);
         if (callDetail) {
           callCount++;
           totalBooking += callDetail.bookingLikelihood ?? 0;
@@ -326,14 +326,14 @@ export const Adapters: AdapterMap = {
         return validateAndCache(cacheKey, result, RecentCallsDataSchema);
       }
       
-      const clientCalls = ctx?.listCallsByClient?.(nodeId) ?? [];
+      const clientCalls = ctx?.listCallsByClientWithOptimistic?.(nodeId) ?? ctx?.listCallsByClient?.(nodeId) ?? [];
       const recentCalls = clientCalls
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         .slice(0, params?.maxItems ?? 5);
 
       const result = {
         calls: recentCalls.map(callNode => {
-          const callDetail = ctx?.getCallByNode?.(callNode.id);
+          const callDetail = ctx?.getCallByNodeWithOptimistic?.(callNode.id) ?? ctx?.getCallByNode?.(callNode.id);
           return {
             id: callDetail?.id ?? callNode.id,
             name: callNode.name,
@@ -361,11 +361,11 @@ export const Adapters: AdapterMap = {
         return validateAndCache(cacheKey, result, FollowUpsDataSchema);
       }
       
-      const clientCalls = ctx?.listCallsByClient?.(nodeId) ?? [];
+      const clientCalls = ctx?.listCallsByClientWithOptimistic?.(nodeId) ?? ctx?.listCallsByClient?.(nodeId) ?? [];
       const allActions: Array<{ text: string; due: string | null; owner: string; source: string }> = [];
 
       clientCalls.forEach(callNode => {
-        const callDetail = ctx?.getCallByNode?.(callNode.id);
+        const callDetail = ctx?.getCallByNodeWithOptimistic?.(callNode.id) ?? ctx?.getCallByNode?.(callNode.id);
         if (callDetail?.actionItems) {
           callDetail.actionItems.forEach(action => {
             allActions.push({
@@ -407,7 +407,7 @@ export const Adapters: AdapterMap = {
         return validateAndCache(cacheKey, result, ClientKPIsDataSchema);
       }
       
-      const clientCalls = ctx?.listCallsByClient?.(nodeId) ?? [];
+      const clientCalls = ctx?.listCallsByClientWithOptimistic?.(nodeId) ?? ctx?.listCallsByClient?.(nodeId) ?? [];
       let totalSentiment = 0;
       let sentimentCount = 0;
       let positiveOutcomes = 0;
@@ -418,7 +418,7 @@ export const Adapters: AdapterMap = {
           lastActivityDate = callNode.updatedAt;
         }
         
-        const callDetail = ctx?.getCallByNode?.(callNode.id);
+        const callDetail = ctx?.getCallByNodeWithOptimistic?.(callNode.id) ?? ctx?.getCallByNode?.(callNode.id);
         if (callDetail?.sentiment?.score) {
           totalSentiment += callDetail.sentiment.score;
           sentimentCount++;

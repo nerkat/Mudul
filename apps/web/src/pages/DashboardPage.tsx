@@ -24,8 +24,9 @@ import { useViewMode } from '../ctx/ViewModeContext';  // Use context instead of
 import { NewClientFormDialog } from '../components/forms/NewClientFormDialog';
 import { LogCallFormDialog } from '../components/forms/LogCallFormDialog';
 import { NewActionItemFormDialog } from '../components/forms/NewActionItemFormDialog';
-import { crudApiService } from '../services/crudApi';
+import { crudApiService, createOptimisticCall, createOptimisticActionItem } from '../services/crudApi';
 import type { NewClientFormData, LogCallFormData, NewActionItemFormData } from '../api/schemas/forms';
+import * as repo from '../core/repo';
 
 export function DashboardPage() {
   const { nodeId } = useParams<{ nodeId: string }>();
@@ -46,6 +47,9 @@ export function DashboardPage() {
   const [showLogCallDialog, setShowLogCallDialog] = useState(false);
   const [showNewActionItemDialog, setShowNewActionItemDialog] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
+  
+  // Force re-render when optimistic updates happen
+  const [, forceUpdate] = useState({});
 
   // Keyboard: press "p" to toggle paper/rich mode (handled by ViewModeContext)
   // Remove duplicate keyboard handler since ViewModeContext already handles it
@@ -69,12 +73,29 @@ export function DashboardPage() {
   const handleLogCall = async (data: LogCallFormData) => {
     if (!nodeId) return;
     setFormLoading(true);
+    
+    // Create optimistic call data
+    const optimisticCall = createOptimisticCall(data);
+    
     try {
-      await crudApiService.createCall(nodeId, data);
+      // Add optimistic update immediately
+      repo.addOptimisticCall(nodeId, optimisticCall);
+      forceUpdate({}); // Trigger re-render to show optimistic data
+      
+      // Make API call
+      const realCall = await crudApiService.createCall(nodeId, data);
+      
+      // Replace optimistic data with real data
+      repo.replaceOptimisticCall(optimisticCall.id, realCall);
+      forceUpdate({}); // Trigger re-render with real data
+      
       setToastMessage('Call logged successfully!');
       setShowSuccessToast(true);
-      // TODO: Refresh call list data
     } catch (error) {
+      // Remove optimistic data on error
+      repo.removeOptimisticCall(optimisticCall.id);
+      forceUpdate({}); // Trigger re-render to remove failed optimistic data
+      
       setToastMessage(error instanceof Error ? error.message : 'Failed to log call');
       setShowErrorToast(true);
     } finally {
@@ -85,12 +106,29 @@ export function DashboardPage() {
   const handleCreateActionItem = async (data: NewActionItemFormData) => {
     if (!nodeId) return;
     setFormLoading(true);
+    
+    // Create optimistic action item data
+    const optimisticActionItem = createOptimisticActionItem(data);
+    
     try {
-      await crudApiService.createActionItem(nodeId, data);
+      // Add optimistic update immediately
+      repo.addOptimisticActionItem(nodeId, optimisticActionItem);
+      forceUpdate({}); // Trigger re-render to show optimistic data
+      
+      // Make API call
+      const realActionItem = await crudApiService.createActionItem(nodeId, data);
+      
+      // Replace optimistic data with real data
+      repo.replaceOptimisticActionItem(optimisticActionItem.id, realActionItem);
+      forceUpdate({}); // Trigger re-render with real data
+      
       setToastMessage('Action item added successfully!');
       setShowSuccessToast(true);
-      // TODO: Refresh action items data
     } catch (error) {
+      // Remove optimistic data on error
+      repo.removeOptimisticActionItem(optimisticActionItem.id);
+      forceUpdate({}); // Trigger re-render to remove failed optimistic data
+      
       setToastMessage(error instanceof Error ? error.message : 'Failed to create action item');
       setShowErrorToast(true);
     } finally {

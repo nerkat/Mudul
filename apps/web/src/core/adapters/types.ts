@@ -15,8 +15,11 @@ export type AdapterCtx = {
   getChildren?: (parentId: string) => NodeBase[];
   getAllClients?: () => NodeBase[];
   getAllCalls?: () => NodeBase[];
+  getAllCallsWithOptimistic?: () => NodeBase[];
   getCallByNode?: (nodeId: string) => SalesCallMinimal | null;
+  getCallByNodeWithOptimistic?: (nodeId: string) => SalesCallMinimal | null;
   listCallsByClient?: (clientId: string) => NodeBase[];
+  listCallsByClientWithOptimistic?: (clientId: string) => NodeBase[];
 };
 
 // Base adapter interface

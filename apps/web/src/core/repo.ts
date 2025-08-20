@@ -3,6 +3,7 @@ import { DashboardTemplates } from "./registry-json";
 import type { NodeBase, SalesCallMinimal } from "./types";
 import type { DashboardTemplate } from "./widgets/protocol";
 import { isAnalysisDuplicate } from "../services/versioning";
+import type { OptimisticCall, OptimisticActionItem } from "../services/crudApi";
 
 export function getRoot(): NodeBase | null {
   return nodes["root"] || null;
@@ -39,6 +40,158 @@ export function getAllClients(): NodeBase[] {
 
 export function getAllCalls(): NodeBase[] {
   return Object.values(nodes).filter(node => node.kind === "call_session");
+}
+
+// ----- Optimistic Updates -----
+
+// Storage for optimistic data that hasn't been persisted yet
+const optimisticCalls = new Map<string, { nodeData: NodeBase; callData: SalesCallMinimal }>();
+const optimisticActionItems = new Map<string, { clientId: string; actionItem: OptimisticActionItem }>();
+
+// Function to add optimistic call
+export function addOptimisticCall(clientId: string, optimisticCall: OptimisticCall): void {
+  const nodeData: NodeBase = {
+    id: optimisticCall.id,
+    name: optimisticCall.name,
+    kind: "call_session",
+    parentId: clientId,
+    dashboardId: "sales-call-default",
+    createdAt: optimisticCall.date,
+    updatedAt: optimisticCall.date
+  };
+
+  const callData: SalesCallMinimal = {
+    id: optimisticCall.id,
+    sentiment: {
+      overall: optimisticCall.sentiment,
+      score: optimisticCall.score
+    },
+    bookingLikelihood: optimisticCall.bookingLikelihood,
+    actionItems: [],
+    keyMoments: [],
+    objections: []
+  };
+
+  optimisticCalls.set(optimisticCall.id, { nodeData, callData });
+}
+
+// Function to replace optimistic call with real data
+export function replaceOptimisticCall(tempId: string, realCall: { id: string; [key: string]: any }): void {
+  const optimistic = optimisticCalls.get(tempId);
+  if (optimistic) {
+    // Remove optimistic version
+    optimisticCalls.delete(tempId);
+    
+    // Add real call to permanent storage
+    const realNodeData: NodeBase = {
+      ...optimistic.nodeData,
+      id: realCall.id,
+      createdAt: realCall.createdAt || optimistic.nodeData.createdAt,
+      updatedAt: realCall.updatedAt || optimistic.nodeData.updatedAt
+    };
+    
+    const realCallData: SalesCallMinimal = {
+      ...optimistic.callData,
+      id: realCall.id,
+      sentiment: realCall.sentiment ? {
+        overall: realCall.sentiment,
+        score: realCall.score || optimistic.callData.sentiment?.score || 0
+      } : optimistic.callData.sentiment,
+      bookingLikelihood: realCall.bookingLikelihood ?? optimistic.callData.bookingLikelihood
+    };
+    
+    nodes[realCall.id] = realNodeData;
+    calls[realCall.id] = realCallData;
+  }
+}
+
+// Function to remove optimistic call (on error)
+export function removeOptimisticCall(tempId: string): void {
+  optimisticCalls.delete(tempId);
+}
+
+// Function to add optimistic action item
+export function addOptimisticActionItem(clientId: string, actionItem: OptimisticActionItem): void {
+  optimisticActionItems.set(actionItem.id, { clientId, actionItem });
+}
+
+// Function to replace optimistic action item with real data
+export function replaceOptimisticActionItem(tempId: string, realActionItem: { id: string; [key: string]: any }): void {
+  const optimistic = optimisticActionItems.get(tempId);
+  if (optimistic) {
+    optimisticActionItems.delete(tempId);
+    
+    // Find the most recent call for this client to attach the action item
+    const clientCalls = listCallsByClient(optimistic.clientId);
+    const latestCall = clientCalls.sort((a, b) => 
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    )[0];
+    
+    if (latestCall) {
+      const callData = calls[latestCall.id];
+      if (callData) {
+        callData.actionItems = callData.actionItems || [];
+        callData.actionItems.push({
+          text: realActionItem.text || optimistic.actionItem.text,
+          owner: realActionItem.ownerName || optimistic.actionItem.ownerName || '',
+          due: realActionItem.due || optimistic.actionItem.due
+        });
+      }
+    }
+  }
+}
+
+// Function to remove optimistic action item (on error)
+export function removeOptimisticActionItem(tempId: string): void {
+  optimisticActionItems.delete(tempId);
+}
+
+// Modified functions to include optimistic data
+export function getAllCallsWithOptimistic(): NodeBase[] {
+  const realCalls = getAllCalls();
+  const optimisticCallNodes = Array.from(optimisticCalls.values()).map(({ nodeData }) => nodeData);
+  return [...realCalls, ...optimisticCallNodes];
+}
+
+export function listCallsByClientWithOptimistic(clientId: string): NodeBase[] {
+  const realCalls = listCallsByClient(clientId);
+  const optimisticCallNodes = Array.from(optimisticCalls.values())
+    .filter(({ nodeData }) => nodeData.parentId === clientId)
+    .map(({ nodeData }) => nodeData);
+  return [...realCalls, ...optimisticCallNodes];
+}
+
+export function getCallByNodeWithOptimistic(nodeId: string): SalesCallMinimal | null {
+  // Check optimistic data first
+  const optimistic = optimisticCalls.get(nodeId);
+  if (optimistic) {
+    return optimistic.callData;
+  }
+  
+  // Merge optimistic action items into existing calls
+  const realCall = getCallByNode(nodeId);
+  if (realCall) {
+    const optimisticActions = Array.from(optimisticActionItems.values())
+      .filter(({ clientId }) => {
+        // Find if this call belongs to the client with optimistic action items
+        const callNode = getNode(nodeId);
+        return callNode?.parentId === clientId;
+      })
+      .map(({ actionItem }) => ({
+        text: actionItem.text,
+        owner: actionItem.ownerName || '',
+        due: actionItem.due
+      }));
+    
+    if (optimisticActions.length > 0) {
+      return {
+        ...realCall,
+        actionItems: [...(realCall.actionItems || []), ...optimisticActions]
+      };
+    }
+  }
+  
+  return realCall;
 }
 
 // ----- Mutation methods for AI analysis -----
