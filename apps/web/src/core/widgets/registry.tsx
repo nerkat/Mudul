@@ -159,7 +159,6 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
           key="pieChart"
           sx={{ 
             p: theme.spacing(2), 
-            borderRadius: theme.shape.borderRadius,
             height: `${params.height}px`
           }}
         >
@@ -282,7 +281,6 @@ export function WidgetRenderer({ config, call, nodeId }: WidgetRendererProps) {
       <Alert 
         severity="error" 
         sx={{ 
-          borderRadius: theme.shape.borderRadius,
           '& .MuiAlert-message': { 
             fontWeight: 'medium' 
           }
@@ -310,7 +308,6 @@ export function WidgetRenderer({ config, call, nodeId }: WidgetRendererProps) {
       <Alert 
         severity="error" 
         sx={{ 
-          borderRadius: theme.shape.borderRadius,
           '& .MuiAlert-message': { 
             fontWeight: 'medium' 
           }
@@ -339,7 +336,6 @@ export function WidgetRenderer({ config, call, nodeId }: WidgetRendererProps) {
       <Alert 
         severity="warning" 
         sx={{ 
-          borderRadius: theme.shape.borderRadius,
           '& .MuiAlert-message': { 
             fontWeight: 'medium' 
           }
@@ -383,7 +379,6 @@ export function WidgetRenderer({ config, call, nodeId }: WidgetRendererProps) {
       <Alert 
         severity="error" 
         sx={{ 
-          borderRadius: theme.shape.borderRadius,
           '& .MuiAlert-message': { 
             fontWeight: 'medium' 
           }

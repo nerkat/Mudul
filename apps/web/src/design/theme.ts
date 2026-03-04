@@ -19,7 +19,7 @@ export function createAppTheme(mode: 'light' | 'dark' = 'dark'): Theme {
         disabled: tokens.color.text.muted  // Map muted to disabled for consistency
       }
     },
-    shape: { borderRadius: tokens.radius.md },
+    shape: { borderRadius: tokens.radius.lg },
     spacing: (factor: number) => `${tokens.space.xs * factor}px`, // Use token-based spacing
     typography: {
       fontFamily: tokens.font.family,

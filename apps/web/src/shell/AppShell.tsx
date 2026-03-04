@@ -223,7 +223,6 @@ export function AppShell() {
             startIcon={<Add />}
             fullWidth
             sx={{ 
-              borderRadius: theme.shape.borderRadius,
               textTransform: 'none',
               fontWeight: 'medium'
             }}

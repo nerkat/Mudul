@@ -16,7 +16,6 @@ export function ThemeSwitch() {
           value={appTheme}
           onChange={(e) => setTheme(e.target.value as Theme)}
           sx={{
-            borderRadius: theme.shape.borderRadius,
             '& .MuiOutlinedInput-notchedOutline': {
               borderColor: theme.palette.divider,
             },
