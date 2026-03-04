@@ -1,11 +1,15 @@
 // Database health check service
-const { SimpleSQLiteService } = require('./simple-sqlite.cjs');
+// Note: Vite bundles its config as ESM; using Node's `createRequire` ensures
+// the native sqlite3 dependency is loaded via real CJS `require` (not a shim).
+import { createRequire } from 'node:module';
 
 export class DatabaseHealthService {
   private static service: any = null;
 
   private static getService() {
     if (!this.service) {
+      const require = createRequire(import.meta.url);
+      const { SimpleSQLiteService } = require('./simple-sqlite.cjs') as { SimpleSQLiteService: any };
       this.service = new SimpleSQLiteService();
     }
     return this.service;
