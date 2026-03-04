@@ -205,7 +205,6 @@ export const Rich = {
         <MuiPaper 
           sx={{ 
             p: theme.spacing(2), 
-            borderRadius: theme.shape.borderRadius,
             color: theme.palette.text.secondary 
           }}
         >
@@ -215,7 +214,7 @@ export const Rich = {
     }
     
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Summary
         </Typography>
@@ -229,7 +228,7 @@ export const Rich = {
   Sentiment: ({ data }: SentimentWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Sentiment
         </Typography>
@@ -248,7 +247,7 @@ export const Rich = {
   Booking: ({ data }: BookingWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Booking Likelihood
         </Typography>
@@ -262,7 +261,7 @@ export const Rich = {
   Objections: ({ data }: ObjectionsWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Objections
         </Typography>
@@ -298,7 +297,7 @@ export const Rich = {
   ActionItems: ({ data }: ActionItemsWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Action Items
         </Typography>
@@ -334,7 +333,7 @@ export const Rich = {
   KeyMoments: ({ data }: KeyMomentsWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Key Moments
         </Typography>
@@ -371,7 +370,7 @@ export const Rich = {
   Entities: ({ data }: EntitiesWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Entities
         </Typography>
@@ -408,7 +407,7 @@ export const Rich = {
   Compliance: ({ data }: ComplianceWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Compliance Flags
         </Typography>
@@ -434,7 +433,7 @@ export const Rich = {
   ClientStats: ({ data }: ClientStatsWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Client Overview
         </Typography>
@@ -470,7 +469,7 @@ export const Rich = {
   ActivitySummary: ({ data }: ActivitySummaryWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Activity Summary
         </Typography>
@@ -504,7 +503,7 @@ export const Rich = {
                        data.status === 'Fair' ? 'warning' : 'error';
     
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Health Signals
         </Typography>
@@ -539,7 +538,7 @@ export const Rich = {
   RecentCalls: ({ data }: RecentCallsWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Recent Calls
         </Typography>
@@ -576,7 +575,7 @@ export const Rich = {
   FollowUps: ({ data }: FollowUpsWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Follow-ups
         </Typography>
@@ -617,7 +616,7 @@ export const Rich = {
   ClientKPIs: ({ data }: ClientKPIsWidgetProps) => {
     const theme = useTheme();
     return (
-      <MuiPaper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius }}>
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
         <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
           Client KPIs
         </Typography>
