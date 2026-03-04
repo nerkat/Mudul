@@ -1,42 +1,71 @@
 // Real auth service using SQLite directly
-const { SimpleAuthService } = require('./simple-auth.cjs');
-
-// Initialize auth service
-const authService = new SimpleAuthService();
+// Note: Vite bundles its config as ESM; using Node's `createRequire` ensures
+// the native sqlite3 dependency is loaded via real CJS `require` (not a shim).
+import { createRequire } from 'node:module';
+import { MockAuthService } from './auth';
 
 export class PrismaAuthService {
+  private static service: any = null;
+  private static warned = false;
+
+  private static getService() {
+    if (!this.service) {
+      try {
+        const require = createRequire(import.meta.url);
+        const { SimpleAuthService } = require('./simple-auth.cjs') as { SimpleAuthService: any };
+        this.service = new SimpleAuthService();
+      } catch (error) {
+        if (process.env.NODE_ENV === 'production') {
+          throw error;
+        }
+
+        if (!this.warned) {
+          console.warn('[PrismaAuthService] SQLite auth unavailable; falling back to MockAuthService in non-production.');
+          this.warned = true;
+        }
+
+        this.service = MockAuthService;
+      }
+    }
+    return this.service;
+  }
+
   /**
    * Login with email and password
    */
   static async login(email: string, password: string, rememberMe = false) {
-    return await authService.login(email, password, rememberMe);
+    return await this.getService().login(email, password, rememberMe);
   }
 
   /**
    * Refresh access token using refresh token
    */
   static async refreshToken(refreshToken: string) {
-    return await authService.refreshToken(refreshToken);
+    return await this.getService().refreshToken(refreshToken);
   }
 
   /**
    * Logout and revoke refresh token
    */
   static async logout(refreshToken: string) {
-    return await authService.logout(refreshToken);
+    return await this.getService().logout(refreshToken);
   }
 
   /**
    * Get user info from access token
    */
   static getUserFromToken(token: string) {
-    return authService.getUserFromToken(token);
+    return this.getService().getUserFromToken(token);
   }
 
   /**
    * Close SQLite connection
    */
   static async disconnect() {
-    await authService.disconnect();
+    if (!this.service) return;
+    if (typeof this.service.disconnect === 'function') {
+      await this.service.disconnect();
+    }
+    this.service = null;
   }
 }

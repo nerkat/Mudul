@@ -1,4 +1,3 @@
-import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 
 // Mock data (same as current AuthService but structured for backend)
@@ -35,16 +34,53 @@ const MOCK_ORGS: Record<string, MockOrg> = {};
 const MOCK_MEMBERSHIPS: MockMembership[] = [];
 const MOCK_REFRESH_TOKENS: Record<string, { userId: string; expiresAt: Date }> = {};
 
+let argon2Module: any | null | undefined;
+
+async function getArgon2(): Promise<any | null> {
+  if (argon2Module !== undefined) return argon2Module;
+
+  try {
+    const mod: any = await import('argon2');
+    argon2Module = mod?.default ?? mod;
+    return argon2Module;
+  } catch (error) {
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
+
+    console.warn('[MockAuthService] argon2 unavailable; using plaintext demo passwords in non-production.');
+    argon2Module = null;
+    return null;
+  }
+}
+
+async function verifyPassword(stored: string, password: string): Promise<boolean> {
+  const argon2 = await getArgon2();
+
+  if (argon2 && typeof stored === 'string' && stored.startsWith('$argon2')) {
+    return await argon2.verify(stored, password);
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('PASSWORD_VERIFIER_UNAVAILABLE');
+  }
+
+  return stored === password;
+}
+
 // Initialize mock data
 async function initializeMockData() {
   if (Object.keys(MOCK_USERS).length > 0) return; // Already initialized
+
+  const argon2 = await getArgon2();
+  const passwordHash = argon2 ? await argon2.hash('password') : 'password';
 
   // Create mock users with hashed passwords
   MOCK_USERS['demo@mudul.com'] = {
     id: 'user-1',
     email: 'demo@mudul.com',
     name: 'Demo User',
-    passwordHash: await argon2.hash('password'),
+    passwordHash,
     createdAt: '2024-01-01T00:00:00Z',
     lastLoginAt: '2024-01-15T10:00:00Z'
   };
@@ -53,7 +89,7 @@ async function initializeMockData() {
     id: 'user-2', 
     email: 'viewer@mudul.com',
     name: 'Viewer User',
-    passwordHash: await argon2.hash('password'),
+    passwordHash,
     createdAt: '2024-01-01T00:00:00Z',
     lastLoginAt: '2024-01-15T10:00:00Z'
   };
@@ -146,7 +182,7 @@ export class MockAuthService {
     }
 
     // Verify password
-    const isValid = await argon2.verify(user.passwordHash, password);
+    const isValid = await verifyPassword(user.passwordHash, password);
     if (!isValid) {
       throw new Error('INVALID_CREDENTIALS');
     }
