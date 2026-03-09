@@ -38,17 +38,12 @@ export function liveAiPlugin(): Plugin {
               AI_API_KEY: process.env.AI_API_KEY ? 'present' : 'missing'
             });
           }
-          // Parse request body
-          let body = '';
-          req.on('data', chunk => {
-            body += chunk.toString();
-          });
-
-          await new Promise<void>((resolve) => {
-            req.on('end', resolve);
-          });
-
-          const { transcript, mode, schemaVersion } = JSON.parse(body);
+          // Parse request body.
+          // Note: In Vite dev, another middleware (e.g. Express json()) may have already
+          // consumed the stream. In that case, use `req.body` instead of waiting for
+          // data/end events that will never fire.
+          const parsed = await parseJsonBody(req);
+          const { transcript, mode, schemaVersion } = parsed ?? {};
 
           // Validate required fields
           if (!transcript || !mode || !schemaVersion) {
@@ -74,8 +69,8 @@ export function liveAiPlugin(): Plugin {
           if (process.env.NODE_ENV !== 'production') {
             console.log('[SERVER ENV]', {
               cwd: process.cwd(),
-              AI_API_KEY: process.env.AI_API_KEY,
-              OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+              AI_API_KEY: process.env.AI_API_KEY ? 'present' : 'missing',
+              OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'present' : 'missing',
               hasKey: !!(process.env.AI_API_KEY || process.env.OPENAI_API_KEY),
               AI_MODEL: process.env.AI_MODEL,
               OPENAI_MODEL: process.env.OPENAI_MODEL,
@@ -186,6 +181,59 @@ export function liveAiPlugin(): Plugin {
       });
     },
   };
+}
+
+async function parseJsonBody(req: any): Promise<any> {
+  // If upstream middleware already parsed body (Express), prefer it.
+  if (req && typeof req.body === 'object' && req.body !== null) {
+    return req.body;
+  }
+
+  // If the request stream has already ended and no body was attached, bail fast.
+  if (req?.readableEnded || req?.complete) {
+    return null;
+  }
+
+  const bodyText = await readBodyText(req, 5000);
+  if (!bodyText) return null;
+
+  try {
+    return JSON.parse(bodyText);
+  } catch {
+    return null;
+  }
+}
+
+function readBodyText(req: any, timeoutMs: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('body_timeout'));
+    }, timeoutMs);
+
+    const onData = (chunk: any) => {
+      body += chunk?.toString?.() ?? String(chunk);
+    };
+    const onEnd = () => {
+      cleanup();
+      resolve(body);
+    };
+    const onError = (err: any) => {
+      cleanup();
+      reject(err);
+    };
+    const cleanup = () => {
+      clearTimeout(timer);
+      req?.off?.('data', onData);
+      req?.off?.('end', onEnd);
+      req?.off?.('error', onError);
+    };
+
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onError);
+  });
 }
 
 async function generateContentHash(input: string): Promise<string> {
