@@ -43,7 +43,12 @@ export function apiPlugin(): Plugin {
 
       // Error handling
       app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-        console.error('API Error:', err);
+        // Avoid logging raw error objects directly (Node v24 has an inspect edge-case
+        // that can crash the process for some error shapes). Log a safe string shape.
+        const safeErr = err instanceof Error
+          ? { name: err.name, message: err.message, stack: err.stack }
+          : { message: typeof err === 'string' ? err : 'Unknown error', details: String(err) };
+        console.error('API Error:', safeErr);
         
         // Generate trace ID for debugging
         const traceId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
