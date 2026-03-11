@@ -12,12 +12,14 @@ import {
 } from '@mui/material';
 import { ArrowBack, PlayArrow, Cancel, Refresh } from '@mui/icons-material';
 import { useRepo } from '../hooks/useRepo';
+import { useOrg } from '../auth/OrgContext';
 import { useAnalyzeCall } from '../hooks/useAnalyzeCall';
-import { createCallNode, deleteNode, markNodeActive } from '../core/repo';
+import { createCallNode, createClientNode, deleteNode, markNodeActive } from '../core/repo';
 
 export function NewCallPage() {
   const navigate = useNavigate();
   const repo = useRepo();
+  const { currentOrg } = useOrg();
   const analyzeCall = useAnalyzeCall();
   
   // Form state
@@ -26,6 +28,7 @@ export function NewCallPage() {
     const today = new Date().toLocaleDateString();
     return `New Call – ${today}`;
   });
+  const [clientName, setClientName] = useState('');
   const [transcript, setTranscript] = useState('');
   
   // UI state
@@ -34,14 +37,19 @@ export function NewCallPage() {
   const [currentDraftNodeId, setCurrentDraftNodeId] = useState<string | null>(null);
 
   const clients = repo.getAllClients();
+  const hasClients = clients.length > 0;
   const isAnalyzing = analyzeCall.loading;
   const hasAnalysisData = !!analyzeCall.lastResponse;
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     
-    if (!clientId) {
-      newErrors.clientId = 'Client is required';
+    if (hasClients) {
+      if (!clientId) {
+        newErrors.clientId = 'Client is required';
+      }
+    } else if (clientName.trim().length < 2) {
+      newErrors.clientName = 'Client name must be at least 2 characters';
     }
     
     if (transcript.trim().length < 20) {
@@ -59,8 +67,23 @@ export function NewCallPage() {
     setSuccessMessage('');
 
     try {
+      const resolvedClientId = hasClients
+        ? clientId
+        : currentOrg
+          ? createClientNode({
+              orgId: currentOrg.id,
+              orgName: currentOrg.name,
+              clientName: clientName.trim(),
+            })
+          : '';
+
+      if (!resolvedClientId) {
+        setErrors({ general: 'No active organization was found for this call.' });
+        return;
+      }
+
       // Create draft call node
-      const draftNodeId = createCallNode({ clientId, title });
+      const draftNodeId = createCallNode({ clientId: resolvedClientId, title });
       setCurrentDraftNodeId(draftNodeId);
 
       // Analyze the call
@@ -135,22 +158,39 @@ export function NewCallPage() {
             <Alert severity="success">{successMessage}</Alert>
           )}
 
-          <TextField
-            select
-            label="Client"
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            error={!!errors.clientId}
-            helperText={errors.clientId}
-            required
-            fullWidth
-          >
-            {clients.map((client) => (
-              <MenuItem key={client.id} value={client.id}>
-                {client.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          {hasClients ? (
+            <TextField
+              select
+              label="Client"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              error={!!errors.clientId}
+              helperText={errors.clientId}
+              required
+              fullWidth
+            >
+              {clients.map((client) => (
+                <MenuItem key={client.id} value={client.id}>
+                  {client.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          ) : (
+            <>
+              <Alert severity="info">
+                This org does not have any clients yet. Create the first client here and the call will be attached to it.
+              </Alert>
+              <TextField
+                label="First Client Name"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                error={!!errors.clientName}
+                helperText={errors.clientName || 'Add the client you are about to call'}
+                required
+                fullWidth
+              />
+            </>
+          )}
 
           <TextField
             label="Title"

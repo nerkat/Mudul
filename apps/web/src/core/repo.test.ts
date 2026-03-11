@@ -1,7 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { upsertCall, setDashboard, getCallByNode, hasExistingAnalysis } from '../core/repo';
+import {
+  upsertCall,
+  setDashboard,
+  getCallByNode,
+  hasExistingAnalysis,
+  ensureOrgRoot,
+  getRoot,
+  createClientNode,
+  getAllClients,
+} from '../core/repo';
 import { DashboardTemplates } from '../core/registry-json';
-import { calls } from '../core/seed';
+import { calls, nodes } from '../core/seed';
 
 describe('Repository Mutation Methods', () => {
   beforeEach(() => {
@@ -11,6 +20,35 @@ describe('Repository Mutation Methods', () => {
         delete calls[key];
       }
     });
+
+    Object.keys(nodes).forEach(key => {
+      if (key.startsWith('root-test-') || key.startsWith('client-test-org-')) {
+        delete nodes[key];
+      }
+    });
+  });
+
+  it('should create and resolve an org-specific root node', () => {
+    const root = ensureOrgRoot('test-org-123', 'Test Org');
+
+    expect(root.id).toBe('root-test-org-123');
+    expect(root.dashboardId).toBe('org-dashboard');
+    expect(getRoot('test-org-123')?.id).toBe(root.id);
+  });
+
+  it('should create the first client under an org-specific root', () => {
+    const clientId = createClientNode({
+      orgId: 'test-org-456',
+      orgName: 'Empty Org',
+      clientName: 'First Client',
+    });
+
+    const root = getRoot('test-org-456');
+    const clients = getAllClients('test-org-456');
+
+    expect(root?.id).toBe('root-test-org-456');
+    expect(clients.some(client => client.id === clientId)).toBe(true);
+    expect(nodes[clientId]?.parentId).toBe(root?.id);
   });
 
   it('should upsert call data correctly', () => {
