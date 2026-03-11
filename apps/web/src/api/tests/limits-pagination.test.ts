@@ -3,6 +3,10 @@ import express from 'express';
 import request from 'supertest';
 import { clientRoutes } from '../routes/client';
 
+function googleCredential(email: string, name = 'Test User'): string {
+  return `test-google-token:${encodeURIComponent(email)}:${encodeURIComponent(name)}`;
+}
+
 describe('Query Parameter Limits and Pagination', () => {
   let app: express.Application;
   let accessToken: string;
@@ -12,11 +16,9 @@ describe('Query Parameter Limits and Pagination', () => {
     app.use(express.json());
     app.use('/clients', clientRoutes);
 
-    // Get access token for testing
-    // Note: This assumes auth service is working
     try {
       const { PrismaAuthService } = await import('../services/prisma-auth');
-      const authResult = await PrismaAuthService.login('demo@mudul.com', 'password', false);
+      const authResult = await PrismaAuthService.loginWithGoogle(googleCredential('demo@mudul.com', 'Demo User'), true);
       accessToken = authResult.accessToken;
     } catch (error) {
       console.warn('Could not get access token for testing:', error);

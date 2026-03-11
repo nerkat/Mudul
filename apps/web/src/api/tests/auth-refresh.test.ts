@@ -3,6 +3,10 @@ import request from 'supertest';
 import express from 'express';
 import { authRoutes } from '../routes/auth';
 
+function googleCredential(email: string, name = 'Test User'): string {
+  return `test-google-token:${encodeURIComponent(email)}:${encodeURIComponent(name)}`;
+}
+
 // Create test app
 const app = express();
 app.use(express.json());
@@ -21,13 +25,12 @@ describe('Authentication and Refresh Token Management', () => {
   });
 
   describe('Login Flow', () => {
-    it('should authenticate with valid credentials', async () => {
+    it('should authenticate with a valid Google credential', async () => {
       const response = await request(app)
-        .post('/api/auth/login')
+        .post('/api/auth/google')
         .send({
-          email: 'demo@mudul.com',
-          password: 'password',
-          rememberMe: false
+          credential: googleCredential('demo@mudul.com', 'Demo User'),
+          rememberMe: true
         });
 
       expect(response.status).toBe(200);
@@ -36,43 +39,40 @@ describe('Authentication and Refresh Token Management', () => {
       expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('id');
       expect(response.body.user).toHaveProperty('email', 'demo@mudul.com');
-      expect(response.body.user).toHaveProperty('orgId');
+      expect(response.body).toHaveProperty('activeOrgId');
     });
 
-    it('should reject invalid credentials', async () => {
+    it('should reject an invalid Google credential payload', async () => {
       const response = await request(app)
-        .post('/api/auth/login')
+        .post('/api/auth/google')
         .send({
-          email: 'demo@mudul.com',
-          password: 'wrong-password'
+          credential: 'test-google-token:not-an-email:Invalid User'
         });
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('INVALID_CREDENTIALS');
+      expect(response.body.error).toBe('GOOGLE_TOKEN_INVALID');
     });
 
-    it('should reject non-existent user', async () => {
+    it('should provision a new user when the Google identity is new', async () => {
+      const email = `new-user-${Date.now()}@example.com`;
       const response = await request(app)
-        .post('/api/auth/login')
+        .post('/api/auth/google')
         .send({
-          email: 'nonexistent@mudul.com',
-          password: 'password'
+          credential: googleCredential(email, 'Provisioned User'),
+          rememberMe: true
         });
 
-      expect(response.status).toBe(401);
-      expect(response.body.error).toBe('INVALID_CREDENTIALS');
+      expect(response.status).toBe(200);
+      expect(response.body.user.email).toBe(email);
     });
 
-    it('should handle malformed email', async () => {
+    it('should reject malformed Google login requests', async () => {
       const response = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'not-an-email',
-          password: 'password'
-        });
+        .post('/api/auth/google')
+        .send({});
 
       expect(response.status).toBe(400);
-      // Should validate email format
+      expect(response.body.error).toBe('INVALID_REQUEST');
     });
   });
 
@@ -81,12 +81,10 @@ describe('Authentication and Refresh Token Management', () => {
     let userId: string;
 
     beforeAll(async () => {
-      // Get initial tokens
       const loginResponse = await request(app)
-        .post('/api/auth/login')
+        .post('/api/auth/google')
         .send({
-          email: 'demo@mudul.com',
-          password: 'password',
+          credential: googleCredential('demo@mudul.com', 'Demo User'),
           rememberMe: true
         });
 
@@ -176,12 +174,11 @@ describe('Authentication and Refresh Token Management', () => {
     });
 
     it('should clean up refresh tokens on logout', async () => {
-      // Get a fresh login
       const loginResponse = await request(app)
-        .post('/api/auth/login')
+        .post('/api/auth/google')
         .send({
-          email: 'demo@mudul.com',
-          password: 'password'
+          credential: googleCredential('demo@mudul.com', 'Demo User'),
+          rememberMe: true
         });
 
       const refreshToken = loginResponse.body.refreshToken;
@@ -229,10 +226,10 @@ describe('Authentication and Refresh Token Management', () => {
       
       for (let i = 0; i < 5; i++) {
         const response = await request(app)
-          .post('/api/auth/login')
+          .post('/api/auth/google')
           .send({
-            email: 'demo@mudul.com',
-            password: 'password'
+            credential: googleCredential('demo@mudul.com', `Demo User ${i}`),
+            rememberMe: true
           });
 
         expect(response.status).toBe(200);
@@ -258,14 +255,11 @@ describe('Authentication and Refresh Token Management', () => {
     });
 
     it('should enforce proper token expiration', async () => {
-      // This test would require manipulating system time or database directly
-      // For now, we'll verify that tokens have expiration dates set
-      
       const loginResponse = await request(app)
-        .post('/api/auth/login')
+        .post('/api/auth/google')
         .send({
-          email: 'demo@mudul.com',
-          password: 'password'
+          credential: googleCredential('demo@mudul.com', 'Demo User'),
+          rememberMe: true
         });
 
       const refreshToken = loginResponse.body.refreshToken;
@@ -300,28 +294,18 @@ describe('Authentication and Refresh Token Management', () => {
 
   describe('Rate Limiting', () => {
     it('should enforce rate limiting on login attempts', async () => {
-      const clientIp = '127.0.0.1';
-      let rateLimitHit = false;
-
-      // Make multiple failed login attempts
       for (let i = 0; i < 10; i++) {
         const response = await request(app)
-          .post('/api/auth/login')
+          .post('/api/auth/google')
           .send({
-            email: 'demo@mudul.com',
-            password: 'wrong-password'
+            credential: 'test-google-token:not-an-email:Invalid User'
           });
 
         if (response.status === 429) {
-          rateLimitHit = true;
           expect(response.body.error).toBe('RATE_LIMIT_EXCEEDED');
           break;
         }
       }
-
-      // Note: This test might not work in test environment if rate limiting is IP-based
-      // and multiple test runs share the same IP. The important thing is that the 
-      // rate limiting code exists and has proper error responses.
     });
   });
 });

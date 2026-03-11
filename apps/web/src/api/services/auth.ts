@@ -41,40 +41,7 @@ const MOCK_MEMBERSHIPS: MockMembership[] = [];
 const MOCK_REFRESH_TOKENS: Record<string, { userId: string; expiresAt: Date }> = {};
 const MOCK_GOOGLE_IDENTITIES: Record<string, { userId: string; email: string }> = {};
 
-let argon2Module: any | null | undefined;
 let googleClientPromise: Promise<any> | null = null;
-
-async function getArgon2(): Promise<any | null> {
-  if (argon2Module !== undefined) return argon2Module;
-
-  try {
-    const mod: any = await import('argon2');
-    argon2Module = mod?.default ?? mod;
-    return argon2Module;
-  } catch (error) {
-    if (process.env.NODE_ENV === 'production') {
-      throw error;
-    }
-
-    console.warn('[MockAuthService] argon2 unavailable; using plaintext demo passwords in non-production.');
-    argon2Module = null;
-    return null;
-  }
-}
-
-async function verifyPassword(stored: string, password: string): Promise<boolean> {
-  const argon2 = await getArgon2();
-
-  if (argon2 && typeof stored === 'string' && stored.startsWith('$argon2')) {
-    return await argon2.verify(stored, password);
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('PASSWORD_VERIFIER_UNAVAILABLE');
-  }
-
-  return stored === password;
-}
 
 async function verifyGoogleCredential(credential: string): Promise<{ sub: string; email: string; name: string }> {
   if (process.env.NODE_ENV === 'test' && credential.startsWith('test-google-token:')) {
@@ -163,13 +130,10 @@ function ensureMembershipForUser(userId: string, email: string, name: string) {
 async function initializeMockData() {
   if (Object.keys(MOCK_USERS).length > 0) return;
 
-  const argon2 = await getArgon2();
-  const passwordHash = argon2 ? await argon2.hash('password') : 'password';
-
   for (const user of demoUsers) {
     MOCK_USERS[user.email] = {
       ...user,
-      passwordHash,
+      passwordHash: `GOOGLE_AUTH_ONLY:${user.id}`,
     };
   }
 
@@ -236,45 +200,6 @@ export class MockAuthService {
     } catch {
       return null;
     }
-  }
-
-  static async login(email: string, password: string, rememberMe = false) {
-    await initializeMockData();
-
-    const user = MOCK_USERS[email.toLowerCase()];
-    if (!user) {
-      throw new Error('INVALID_CREDENTIALS');
-    }
-
-    const isValid = await verifyPassword(user.passwordHash, password);
-    if (!isValid) {
-      throw new Error('INVALID_CREDENTIALS');
-    }
-
-    const memberships = getMembershipsForUser(user.id);
-    if (memberships.length === 0) {
-      throw new Error('NO_ORG_ACCESS');
-    }
-
-    const activeMembership = memberships[0];
-    const accessToken = this.generateAccessToken(user.id, activeMembership.orgId);
-    const refreshToken = rememberMe ? this.generateRefreshToken(user.id) : undefined;
-
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
-      orgs: memberships.map((membership) => ({
-        id: membership.orgId,
-        name: MOCK_ORGS[membership.orgId].name,
-        role: membership.role,
-      })),
-      activeOrgId: activeMembership.orgId,
-    };
   }
 
   static async loginWithGoogle(credential: string, rememberMe = true) {

@@ -1,6 +1,5 @@
 import type { 
   AuthSession, 
-  LoginCredentials, 
   GoogleLoginRequest,
   AuthError, 
   AuthResponse 
@@ -91,35 +90,6 @@ class AuthService {
    */
   private async simulateDelay(ms: number = 300): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Authenticate user with email/password
-   */
-  async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    await this.simulateDelay();
-
-    try {
-      const result = await this.apiClient.post('/api/auth/login', credentials);
-
-      return this.consumeAuthResult(result);
-    } catch (error: any) {
-      console.error('Login failed:', error);
-
-      if (error.message === 'INVALID_CREDENTIALS') {
-        throw this.createError('invalid_credentials', 'Invalid email or password');
-      }
-
-      if (error.message === 'NO_ORG_ACCESS') {
-        throw this.createError('no_membership', 'User has no organization membership');
-      }
-
-      if (error.message === 'RATE_LIMIT_EXCEEDED') {
-        throw this.createError('rate_limit', 'Too many login attempts. Please try again later.');
-      }
-
-      throw this.createError('server_error', 'Login failed due to server error');
-    }
   }
 
   /**

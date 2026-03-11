@@ -5,6 +5,10 @@ import { authRoutes } from '../routes/auth';
 import { orgRoutes } from '../routes/org';
 import { clientRoutes } from '../routes/client';
 
+function googleCredential(email: string, name = 'Test User'): string {
+  return `test-google-token:${encodeURIComponent(email)}:${encodeURIComponent(name)}`;
+}
+
 // Create test app
 const app = express();
 app.use(express.json());
@@ -21,12 +25,11 @@ describe('Empty States and Pagination', () => {
     const { SimpleSQLiteService } = require('../services/simple-sqlite.cjs');
     sqliteService = new SimpleSQLiteService();
 
-    // Login to get token
     const loginResponse = await request(app)
-      .post('/api/auth/login')
+      .post('/api/auth/google')
       .send({
-        email: 'demo@mudul.com',
-        password: 'password'
+        credential: googleCredential('demo@mudul.com', 'Demo User'),
+        rememberMe: true
       });
     
     expect(loginResponse.status).toBe(200);
@@ -191,9 +194,11 @@ describe('Empty States and Pagination', () => {
         .get(`/api/clients/${testClientId}/calls?limit=1000`)
         .set('Authorization', `Bearer ${userToken}`);
 
-      expect(response.status).toBe(200);
-      // Should return all available calls (15) even though limit is 1000
-      expect(response.body.items.length).toBeLessThanOrEqual(15);
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({
+        error: 'INVALID_LIMIT',
+        message: 'Limit must be between 1 and 50',
+      });
     });
 
     it('should handle zero and negative limit values', async () => {
@@ -201,17 +206,21 @@ describe('Empty States and Pagination', () => {
         .get(`/api/clients/${testClientId}/calls?limit=0`)
         .set('Authorization', `Bearer ${userToken}`);
 
-      expect(zeroResponse.status).toBe(200);
-      // Should return empty array or default to some minimum
-      expect(Array.isArray(zeroResponse.body.items)).toBe(true);
+      expect(zeroResponse.status).toBe(400);
+      expect(zeroResponse.body).toMatchObject({
+        error: 'INVALID_LIMIT',
+        message: 'Limit must be between 1 and 50',
+      });
 
       const negativeResponse = await request(app)
         .get(`/api/clients/${testClientId}/calls?limit=-5`)
         .set('Authorization', `Bearer ${userToken}`);
 
-      expect(negativeResponse.status).toBe(200);
-      // Should handle gracefully, probably default to 10
-      expect(Array.isArray(negativeResponse.body.items)).toBe(true);
+      expect(negativeResponse.status).toBe(400);
+      expect(negativeResponse.body).toMatchObject({
+        error: 'INVALID_LIMIT',
+        message: 'Limit must be between 1 and 50',
+      });
     });
   });
 
