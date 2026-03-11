@@ -94,6 +94,9 @@ export function createAppTheme(mode: 'light' | 'dark' = 'dark'): Theme {
         styleOverrides: {
           paper: {
             backgroundColor: tokens.color.bg.surface,
+            borderRadius: 0,
+            border: 0,
+            boxShadow: 'none',
             borderRight: `1px solid ${tokens.color.chip.border}`,
           }
         }
@@ -102,6 +105,8 @@ export function createAppTheme(mode: 'light' | 'dark' = 'dark'): Theme {
         styleOverrides: {
           root: {
             backgroundColor: tokens.color.bg.surface,
+            borderRadius: 0,
+            border: 0,
             borderBottom: `1px solid ${tokens.color.chip.border}`,
             boxShadow: 'none', // Remove default shadow
           }
