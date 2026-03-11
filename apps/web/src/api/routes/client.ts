@@ -5,6 +5,19 @@ import { validateResponse, ClientSummarySchema, ClientCallsSchema, ActionItemsSc
 
 const router = express.Router();
 
+const CreateClientRequestSchema = {
+  parse(body: unknown) {
+    const value = body as { name?: unknown };
+    const name = typeof value?.name === 'string' ? value.name.trim() : '';
+
+    if (name.length < 2) {
+      throw new Error('INVALID_CLIENT_NAME');
+    }
+
+    return { name };
+  },
+};
+
 // Middleware to authenticate and get org context
 function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
   const authHeader = req.headers.authorization;
@@ -29,6 +42,35 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
   (req as any).user = userInfo;
   next();
 }
+
+router.post('/', requireAuth, async (req, res) => {
+  try {
+    const { orgId } = (req as any).user;
+    const { name } = CreateClientRequestSchema.parse(req.body);
+    const client = await PrismaDataService.createClient(orgId, name);
+    res.status(201).json(client);
+  } catch (error: any) {
+    if (error.message === 'INVALID_CLIENT_NAME') {
+      return res.status(400).json({
+        error: 'INVALID_CLIENT_NAME',
+        message: 'Client name must be at least 2 characters',
+      });
+    }
+
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(409).json({
+        error: 'CLIENT_ALREADY_EXISTS',
+        message: 'A client with that name already exists in this org',
+      });
+    }
+
+    console.error('Create client error:', error);
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Failed to create client',
+    });
+  }
+});
 
 // GET /api/clients/:id/summary
 router.get('/:id/summary', requireAuth, validateResponse(ClientSummarySchema), async (req, res) => {

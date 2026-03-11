@@ -3,6 +3,7 @@ import express from 'express';
 import { authRoutes } from './routes/auth';
 import { orgRoutes } from './routes/org';
 import { clientRoutes } from './routes/client';
+import { callRoutes } from './routes/call';
 import { healthRoutes } from './routes/health';
 
 export function apiPlugin(): Plugin {
@@ -40,6 +41,7 @@ export function apiPlugin(): Plugin {
       app.use('/auth', authRoutes);
       app.use('/org', orgRoutes);
       app.use('/clients', clientRoutes);
+      app.use('/calls', callRoutes);
 
       // Error handling
       app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {

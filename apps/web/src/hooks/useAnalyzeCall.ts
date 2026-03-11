@@ -15,10 +15,11 @@ export interface AnalyzeOutcome {
   status: "success" | "duplicate" | "error" | "aborted";
   error: AnalysisError | null;
   result: UpsertCallResult | null;
+  response: any | null;
 }
 
 export interface UseAnalyzeCallActions {
-  analyze: (nodeId: string, transcript: string, mode?: AnalysisMode) => Promise<AnalyzeOutcome>;
+  analyze: (nodeId: string, transcript: string, mode?: AnalysisMode, options?: { persistLocal?: boolean }) => Promise<AnalyzeOutcome>;
   reset: () => void;
   cancel: () => void;
 }
@@ -42,7 +43,8 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
   const analyze = useCallback(async (
     nodeId: string,
     transcript: string,
-    mode: AnalysisMode = "sales_v1"
+    mode: AnalysisMode = "sales_v1",
+    options?: { persistLocal?: boolean }
   ): Promise<AnalyzeOutcome> => {
     // cancel any in-flight request
     if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -57,16 +59,17 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
   setState(prev => ({ ...prev, loading: true, error: null, lastResult: null }));
 
   // We'll accumulate outcome info locally to return synchronously to caller (avoids stale reads)
-  let outcome: AnalyzeOutcome = { status: "aborted", error: null, result: null };
+  let outcome: AnalyzeOutcome = { status: "aborted", error: null, result: null, response: null };
+  const persistLocal = options?.persistLocal !== false;
 
     try {
       // === Idempotency pre-check (before network) ===
       const normalized = normalizeTranscript(transcript);
       const contentHash = createAnalysisContentHash(normalized, mode);
-      const isDuplicate = hasExistingAnalysis(nodeId, contentHash);
+      const isDuplicate = persistLocal ? hasExistingAnalysis(nodeId, contentHash) : false;
 
       if (isDuplicate) {
-        if (runIdRef.current !== runId) return { status: "aborted", error: null, result: null };
+        if (runIdRef.current !== runId) return { status: "aborted", error: null, result: null, response: null };
         const duplicateResult: UpsertCallResult = {
           updated: false,
           isDuplicate: true,
@@ -77,7 +80,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
           loading: false,
           lastResult: duplicateResult,
         }));
-        outcome = { status: "duplicate", error: null, result: duplicateResult };
+        outcome = { status: "duplicate", error: null, result: duplicateResult, response: null };
         return outcome;
       }
 
@@ -96,7 +99,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
       });
 
       if (abortController.signal.aborted || currentNodeIdRef.current !== nodeId || runIdRef.current !== runId) {
-        return { status: "aborted", error: null, result: null }; // stale
+        return { status: "aborted", error: null, result: null, response: null }; // stale
       }
 
       const result = await response.json();
@@ -107,7 +110,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
       const hasAnalysis = !!result?.analysis;
 
       if (hasHttpError || hasBodyError || !hasAnalysis) {
-        if (runIdRef.current !== runId) return { status: "aborted", error: null, result: null };
+        if (runIdRef.current !== runId) return { status: "aborted", error: null, result: null, response: null };
         const errorObj: AnalysisError = {
           code: (result?.error?.code || "UNKNOWN_ERROR") as any,
             message:
@@ -124,7 +127,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
           loading: false,
           error: errorObj,
         }));
-        outcome = { status: "error", error: errorObj, result: null };
+        outcome = { status: "error", error: errorObj, result: null, response: null };
         return outcome;
       }
 
@@ -155,9 +158,11 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
         Object.entries(patch).filter(([, value]) => value !== undefined)
       );
 
-      const upsertResult = upsertCall(nodeId, cleanPatch);
+      const upsertResult = persistLocal
+        ? upsertCall(nodeId, cleanPatch)
+        : { updated: true, isDuplicate: false };
 
-  if (result.dashboard && upsertResult.updated) {
+  if (persistLocal && result.dashboard && upsertResult.updated) {
         try {
           setDashboard(nodeId, {
             version: result.dashboard.version,
@@ -168,7 +173,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
         }
       }
 
-  if (runIdRef.current !== runId) return { status: "aborted", error: null, result: null };
+  if (runIdRef.current !== runId) return { status: "aborted", error: null, result: null, response: null };
       setState(prev => ({
         ...prev,
         loading: false,
@@ -185,11 +190,20 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
         },
         lastResult: upsertResult,
       }));
-      outcome = { status: "success", error: null, result: upsertResult };
+      outcome = {
+        status: "success",
+        error: null,
+        result: upsertResult,
+        response: {
+          analysis: result.analysis,
+          meta: result.meta,
+          dashboard: result.dashboard,
+        },
+      };
 
     } catch (error) {
       if (abortController.signal.aborted || currentNodeIdRef.current !== nodeId || runIdRef.current !== runId) {
-        return { status: "aborted", error: null, result: null };
+        return { status: "aborted", error: null, result: null, response: null };
       }
       const errorObj: AnalysisError = {
         code: "SERVER_ERROR",
@@ -201,7 +215,7 @@ export function useAnalyzeCall(): UseAnalyzeCallReturn {
         loading: false,
         error: errorObj,
       }));
-      outcome = { status: "error", error: errorObj, result: null };
+      outcome = { status: "error", error: errorObj, result: null, response: null };
     }
 
     return outcome;

@@ -13,13 +13,14 @@ import {
 import { ArrowBack, PlayArrow, Cancel, Refresh } from '@mui/icons-material';
 import { useRepo } from '../hooks/useRepo';
 import { useOrg } from '../auth/OrgContext';
+import { useAuth } from '../auth/AuthContext';
 import { useAnalyzeCall } from '../hooks/useAnalyzeCall';
-import { createCallNode, createClientNode, deleteNode, markNodeActive } from '../core/repo';
 
 export function NewCallPage() {
   const navigate = useNavigate();
   const repo = useRepo();
   const { currentOrg } = useOrg();
+  const { session } = useAuth();
   const analyzeCall = useAnalyzeCall();
   
   // Form state
@@ -34,12 +35,30 @@ export function NewCallPage() {
   // UI state
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
-  const [currentDraftNodeId, setCurrentDraftNodeId] = useState<string | null>(null);
 
   const clients = repo.getAllClients();
   const hasClients = clients.length > 0;
   const isAnalyzing = analyzeCall.loading;
   const hasAnalysisData = !!analyzeCall.lastResponse;
+
+  const authorizedPost = async (endpoint: string, body: unknown) => {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.accessToken || ''}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.message || result.error || 'REQUEST_FAILED');
+    }
+
+    return result;
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -67,14 +86,27 @@ export function NewCallPage() {
     setSuccessMessage('');
 
     try {
+      const outcome = await analyzeCall.analyze(
+        `draft-${Date.now()}`,
+        transcript.trim(),
+        'sales_v1',
+        { persistLocal: false }
+      );
+
+      if (outcome.status === 'error') {
+        setErrors({ general: outcome.error?.message || 'Analysis failed. Please try again.' });
+        return;
+      }
+
+      if (outcome.status !== 'success' || !outcome.response?.analysis) {
+        setErrors({ general: 'Analysis was cancelled or did not complete.' });
+        return;
+      }
+
       const resolvedClientId = hasClients
         ? clientId
         : currentOrg
-          ? createClientNode({
-              orgId: currentOrg.id,
-              orgName: currentOrg.name,
-              clientName: clientName.trim(),
-            })
+          ? (await authorizedPost('/api/clients', { name: clientName.trim() })).id
           : '';
 
       if (!resolvedClientId) {
@@ -82,41 +114,20 @@ export function NewCallPage() {
         return;
       }
 
-      // Create draft call node
-      const draftNodeId = createCallNode({ clientId: resolvedClientId, title });
-      setCurrentDraftNodeId(draftNodeId);
+      const createdCall = await authorizedPost('/api/calls', {
+        clientId: resolvedClientId,
+        title,
+        transcript: transcript.trim(),
+        analysis: outcome.response.analysis,
+        meta: outcome.response.meta,
+      });
 
-      // Analyze the call
-      const outcome = await analyzeCall.analyze(draftNodeId, transcript.trim());
+      await repo.refresh();
+      setSuccessMessage('Call created and analyzed successfully!');
+      setTimeout(() => navigate(`/node/${createdCall.node.id}`), 600);
+      return;
 
-      // Decide based on direct outcome to avoid stale state reads
-      if (outcome.status === 'success' || outcome.status === 'duplicate') {
-        const updated = outcome.result?.updated || outcome.result?.isDuplicate;
-        if (updated) {
-          markNodeActive(draftNodeId);
-          setSuccessMessage('Call created and analyzed successfully!');
-          setTimeout(() => navigate(`/node/${draftNodeId}`), 1000);
-          return;
-        }
-      }
-
-      if (outcome.status === 'error') {
-        deleteNode(draftNodeId);
-        setCurrentDraftNodeId(null);
-        setErrors({ general: outcome.error?.message || 'Analysis failed. Please try again.' });
-        return;
-      }
-
-      // Fallback (aborted or unexpected)
-      deleteNode(draftNodeId);
-      setCurrentDraftNodeId(null);
-      setErrors({ general: 'Analysis was cancelled or did not complete.' });
     } catch (error) {
-      // Rollback on error
-      if (currentDraftNodeId) {
-        deleteNode(currentDraftNodeId);
-        setCurrentDraftNodeId(null);
-      }
       setErrors({ 
         general: error instanceof Error ? error.message : 'An unexpected error occurred' 
       });
@@ -125,12 +136,6 @@ export function NewCallPage() {
 
   const handleCancel = () => {
     analyzeCall.cancel();
-    
-    // Rollback draft if exists
-    if (currentDraftNodeId) {
-      deleteNode(currentDraftNodeId);
-      setCurrentDraftNodeId(null);
-    }
   };
 
   return (

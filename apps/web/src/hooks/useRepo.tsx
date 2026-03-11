@@ -1,63 +1,93 @@
-import React, { createContext, useContext, useMemo } from "react";
-import * as repo from "../core/repo";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { NodeBase, SalesCallMinimal } from "../core/types";
 import { useOrg } from "../auth/OrgContext";
+import { useAuth } from "../auth/AuthContext";
 
 interface RepoContextValue {
-  getRoot: typeof repo.getRoot;
-  getNode: typeof repo.getNode;
-  getChildren: typeof repo.getChildren;
-  getCallByNode: typeof repo.getCallByNode;
-  listCallsByClient: typeof repo.listCallsByClient;
-  getDashboardId: typeof repo.getDashboardId;
-  getAllClients: typeof repo.getAllClients;
-  getAllCalls: typeof repo.getAllCalls;
+  getRoot: () => NodeBase | null;
+  getNode: (id: string) => NodeBase | null;
+  getChildren: (parentId: string) => NodeBase[];
+  getCallByNode: (nodeId: string) => SalesCallMinimal | null;
+  listCallsByClient: (clientId: string) => NodeBase[];
+  getDashboardId: (nodeId: string) => string | null;
+  getAllClients: () => NodeBase[];
+  getAllCalls: () => NodeBase[];
+  refresh: () => Promise<void>;
+  isLoading: boolean;
 }
 
 const RepoContext = createContext<RepoContextValue | null>(null);
 
 export function RepoProvider({ children }: { children: React.ReactNode }) {
   const { currentOrg } = useOrg();
-  
-  // Create org-scoped repo functions
-  const value: RepoContextValue = useMemo(() => {
-    const orgId = currentOrg?.id;
+  const { session } = useAuth();
+  const [nodesById, setNodesById] = useState<Record<string, NodeBase>>({});
+  const [callDataById, setCallDataById] = useState<Record<string, SalesCallMinimal>>({});
+  const [isLoading, setIsLoading] = useState(false);
 
-    if (currentOrg) {
-      repo.ensureOrgRoot(currentOrg.id, currentOrg.name, currentOrg.createdAt);
+  const refresh = useCallback(async () => {
+    if (!currentOrg?.id || !session?.accessToken) {
+      setNodesById({});
+      setCallDataById({});
+      return;
     }
-    
-    return {
-      getRoot: () => orgId ? repo.getRoot(orgId) : null,
-      getNode: (id: string) => {
-        const node = repo.getNode(id);
-        return node && node.orgId === orgId ? node : null;
-      },
-      getChildren: (parentId: string) => {
-        return repo.getChildren(parentId).filter(node => node.orgId === orgId);
-      },
-      getCallByNode: (nodeId: string) => {
-        const node = repo.getNode(nodeId);
-        if (!node || node.orgId !== orgId) return null;
-        return repo.getCallByNode(nodeId);
-      },
-      listCallsByClient: (clientId: string) => {
-        const client = repo.getNode(clientId);
-        if (!client || client.orgId !== orgId) return [];
-        return repo.listCallsByClient(clientId).filter(node => node.orgId === orgId);
-      },
-      getDashboardId: (nodeId: string) => {
-        const node = repo.getNode(nodeId);
-        if (!node || node.orgId !== orgId) return null;
-        return repo.getDashboardId(nodeId);
-      },
-      getAllClients: () => {
-        return orgId ? repo.getAllClients(orgId) : [];
-      },
-      getAllCalls: () => {
-        return repo.getAllCalls().filter(node => node.orgId === orgId);
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/org/tree', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.accessToken}`,
+        },
+        credentials: 'include',
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'ORG_TREE_LOAD_FAILED');
       }
+
+      const nextNodes = [result.root, ...(result.clients || []), ...(result.calls || [])]
+        .filter(Boolean)
+        .reduce((acc: Record<string, NodeBase>, node: NodeBase) => {
+          acc[node.id] = node;
+          return acc;
+        }, {});
+
+      setNodesById(nextNodes);
+      setCallDataById(result.callData || {});
+    } catch (error) {
+      console.error('Failed to load repo tree:', error);
+      setNodesById({});
+      setCallDataById({});
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentOrg?.id, session?.accessToken]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const value: RepoContextValue = useMemo(() => {
+    const getNode = (id: string) => nodesById[id] || null;
+    const getChildren = (parentId: string) => Object.values(nodesById).filter(node => node.parentId === parentId);
+    const getRoot = () => Object.values(nodesById).find(node => node.parentId === null && node.kind === 'group') || null;
+
+    return {
+      getRoot,
+      getNode,
+      getChildren,
+      getCallByNode: (nodeId: string) => callDataById[nodeId] || null,
+      listCallsByClient: (clientId: string) => Object.values(nodesById).filter(node => node.parentId === clientId && node.kind === 'call_session'),
+      getDashboardId: (nodeId: string) => getNode(nodeId)?.dashboardId || null,
+      getAllClients: () => Object.values(nodesById).filter(node => node.kind === 'lead'),
+      getAllCalls: () => Object.values(nodesById).filter(node => node.kind === 'call_session'),
+      refresh,
+      isLoading,
     };
-  }, [currentOrg?.id]);
+  }, [callDataById, isLoading, nodesById, refresh]);
 
   return <RepoContext.Provider value={value}>{children}</RepoContext.Provider>;
 }
