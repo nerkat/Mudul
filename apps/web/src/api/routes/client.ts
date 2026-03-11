@@ -72,6 +72,28 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+router.post('/:id/archive', requireAuth, async (req, res) => {
+  try {
+    const { orgId } = (req as any).user;
+    const { id: clientId } = req.params;
+    const archived = await PrismaDataService.archiveClient(orgId, clientId);
+    res.json(archived);
+  } catch (error: any) {
+    if (error.message === 'CLIENT_NOT_FOUND') {
+      return res.status(404).json({
+        error: 'CLIENT_NOT_FOUND',
+        message: 'Client not found or access denied',
+      });
+    }
+
+    console.error('Archive client error:', error);
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Failed to archive client',
+    });
+  }
+});
+
 // GET /api/clients/:id/summary
 router.get('/:id/summary', requireAuth, validateResponse(ClientSummarySchema), async (req, res) => {
   try {

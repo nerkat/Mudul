@@ -14,6 +14,7 @@ export interface NodeBase {
   slug: string;
   dashboardId?: string | null;
   dataRef?: { type: "session" | "lead" | "candidate" | "position"; id: string };
+  archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

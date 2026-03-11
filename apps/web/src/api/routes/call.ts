@@ -89,4 +89,26 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+router.post('/:id/archive', requireAuth, async (req, res) => {
+  try {
+    const { orgId } = (req as any).user;
+    const { id: callId } = req.params;
+    const archived = await PrismaDataService.archiveCall(orgId, callId);
+    res.json(archived);
+  } catch (error: any) {
+    if (error.message === 'CALL_NOT_FOUND') {
+      return res.status(404).json({
+        error: 'CALL_NOT_FOUND',
+        message: 'Call not found or access denied',
+      });
+    }
+
+    console.error('Archive call error:', error);
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Failed to archive call',
+    });
+  }
+});
+
 export { router as callRoutes };
