@@ -1,6 +1,5 @@
 // Simple auth service using SQLite directly
 const sqlite3 = require('sqlite3').verbose();
-const argon2 = require('argon2');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
@@ -266,22 +265,6 @@ class SimpleAuthService {
       })),
       activeOrgId: activeMembership.org_id,
     };
-  }
-
-  async login(email, password, rememberMe = false) {
-    const users = await this.query('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
-
-    if (!users || users.length === 0) {
-      throw new Error('INVALID_CREDENTIALS');
-    }
-
-    const user = users[0];
-    const isValid = await argon2.verify(user.password_hash, password);
-    if (!isValid) {
-      throw new Error('INVALID_CREDENTIALS');
-    }
-
-    return await this.buildAuthResponseForUser(user.id, rememberMe);
   }
 
   async provisionGoogleUser(profile) {

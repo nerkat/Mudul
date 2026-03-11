@@ -121,7 +121,6 @@ All API endpoints require JWT authentication:
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/login` - Login with email/password
 - `POST /api/auth/google` - Login with a Google credential token
 - `POST /api/auth/refresh` - Refresh access token  
 - `POST /api/auth/logout` - Logout and revoke refresh token

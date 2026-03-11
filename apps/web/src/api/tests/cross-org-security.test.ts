@@ -5,6 +5,10 @@ import { authRoutes } from '../routes/auth';
 import { orgRoutes } from '../routes/org';
 import { clientRoutes } from '../routes/client';
 
+function googleCredential(email: string, name = 'Test User'): string {
+  return `test-google-token:${encodeURIComponent(email)}:${encodeURIComponent(name)}`;
+}
+
 // Create test app
 const app = express();
 app.use(express.json());
@@ -16,36 +20,32 @@ describe('Cross-Organization Security (IDOR Prevention)', () => {
   let demoUserToken: string;
   let viewerUserToken: string;
   let demoOrgClientId: string;
-  let viewerOrgId: string;
+  let sqliteService: any;
 
   beforeAll(async () => {
-    // Set up database and seed data
     const { SimpleSQLiteService } = require('../services/simple-sqlite.cjs');
-    const sqliteService = new SimpleSQLiteService();
+    sqliteService = new SimpleSQLiteService();
     
-    // Get demo user token (Acme Sales org)
     const demoLogin = await request(app)
-      .post('/api/auth/login')
+      .post('/api/auth/google')
       .send({
-        email: 'demo@mudul.com',
-        password: 'password'
+        credential: googleCredential('demo@mudul.com', 'Demo User'),
+        rememberMe: true
       });
     
     expect(demoLogin.status).toBe(200);
     demoUserToken = demoLogin.body.accessToken;
 
-    // Get viewer user token (different org if exists, or create test scenario)
     const viewerLogin = await request(app)
-      .post('/api/auth/login')
+      .post('/api/auth/google')
       .send({
-        email: 'viewer@mudul.com',
-        password: 'password'
+        credential: googleCredential('viewer@mudul.com', 'Viewer User'),
+        rememberMe: true
       });
     
     expect(viewerLogin.status).toBe(200);
     viewerUserToken = viewerLogin.body.accessToken;
 
-    // Get a client ID from demo user's org
     const clientsResponse = await request(app)
       .get('/api/org/clients-overview')
       .set('Authorization', `Bearer ${demoUserToken}`);
@@ -54,6 +54,9 @@ describe('Cross-Organization Security (IDOR Prevention)', () => {
     expect(clientsResponse.body.items.length).toBeGreaterThan(0);
     demoOrgClientId = clientsResponse.body.items[0].id;
 
+  });
+
+  afterAll(async () => {
     await sqliteService.disconnect();
   });
 

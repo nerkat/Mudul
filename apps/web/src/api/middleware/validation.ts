@@ -94,10 +94,14 @@ export const ActionItemsSchema = z.object({
  * Middleware to validate API responses with Zod schemas
  */
 export function validateResponse<T>(schema: z.ZodSchema<T>) {
-  return (req: any, res: any, next: any) => {
+  return (_req: any, res: any, next: any) => {
     const originalJson = res.json;
     
     res.json = function(data: any) {
+      if (this.statusCode >= 400) {
+        return originalJson.call(this, data);
+      }
+
       try {
         // Validate the response data
         const validatedData = schema.parse(data);
@@ -111,7 +115,7 @@ export function validateResponse<T>(schema: z.ZodSchema<T>) {
           return originalJson.call(this, {
             error: 'RESPONSE_VALIDATION_ERROR',
             message: 'API response does not match expected schema',
-            details: error instanceof z.ZodError ? error.errors : [error.message],
+            details: error instanceof z.ZodError ? error.errors : [error instanceof Error ? error.message : String(error)],
             invalidData: data,
           });
         }

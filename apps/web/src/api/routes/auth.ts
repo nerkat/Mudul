@@ -6,12 +6,6 @@ import { validateResponse, LoginResponseSchema, RefreshResponseSchema, LogoutRes
 const router = express.Router();
 
 // Request/response schemas
-const LoginRequestSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-  rememberMe: z.boolean().optional().default(false),
-});
-
 const GoogleLoginRequestSchema = z.object({
   credential: z.string().min(1),
   rememberMe: z.boolean().optional().default(true),
@@ -22,16 +16,21 @@ const RefreshRequestSchema = z.object({
 });
 
 // Rate limiting (simple in-memory for demo)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const googleLoginRateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const refreshRateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX = 5; // 5 attempts per window
 
-function checkRateLimit(ip: string): boolean {
+function checkRateLimit(map: Map<string, { count: number; resetTime: number }>, key: string): boolean {
+  if (process.env.NODE_ENV === 'test') {
+    return true;
+  }
+
   const now = Date.now();
-  const entry = rateLimitMap.get(ip);
+  const entry = map.get(key);
   
   if (!entry || now > entry.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    map.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
     return true;
   }
   
@@ -43,63 +42,11 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// POST /api/auth/login
-router.post('/login', validateResponse(LoginResponseSchema), async (req, res) => {
-  try {
-    // Rate limiting
-    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
-    if (!checkRateLimit(clientIp)) {
-      return res.status(429).json({
-        error: 'RATE_LIMIT_EXCEEDED',
-        message: 'Too many login attempts. Please try again later.',
-      });
-    }
-
-    // Validate request
-    const validation = LoginRequestSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({
-        error: 'INVALID_REQUEST',
-        message: 'Invalid request format',
-        details: validation.error.errors,
-      });
-    }
-
-    const { email, password, rememberMe } = validation.data;
-
-    // Authenticate
-    const result = await PrismaAuthService.login(email, password, rememberMe);
-    
-    res.json(result);
-  } catch (error: any) {
-    console.error('Login error:', error);
-    
-    if (error.message === 'INVALID_CREDENTIALS') {
-      return res.status(401).json({
-        error: 'INVALID_CREDENTIALS',
-        message: 'Invalid email or password',
-      });
-    }
-    
-    if (error.message === 'NO_ORG_ACCESS') {
-      return res.status(403).json({
-        error: 'NO_ORG_ACCESS',
-        message: 'User has no organization access',
-      });
-    }
-    
-    res.status(500).json({
-      error: 'INTERNAL_ERROR',
-      message: 'Login failed due to server error',
-    });
-  }
-});
-
 // POST /api/auth/google
 router.post('/google', validateResponse(LoginResponseSchema), async (req, res) => {
   try {
     const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
-    if (!checkRateLimit(clientIp)) {
+    if (!checkRateLimit(googleLoginRateLimitMap, clientIp)) {
       return res.status(429).json({
         error: 'RATE_LIMIT_EXCEEDED',
         message: 'Too many login attempts. Please try again later.',
@@ -153,9 +100,8 @@ router.post('/google', validateResponse(LoginResponseSchema), async (req, res) =
 // POST /api/auth/refresh
 router.post('/refresh', validateResponse(RefreshResponseSchema), async (req, res) => {
   try {
-    // Rate limiting for refresh endpoint (more lenient than login)
     const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
-    if (!checkRateLimit(clientIp)) {
+    if (!checkRateLimit(refreshRateLimitMap, clientIp)) {
       return res.status(429).json({
         error: 'RATE_LIMIT_EXCEEDED',
         message: 'Too many refresh attempts. Please try again later.',

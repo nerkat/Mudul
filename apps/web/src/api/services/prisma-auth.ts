@@ -31,13 +31,6 @@ export class PrismaAuthService {
   }
 
   /**
-   * Login with email and password
-   */
-  static async login(email: string, password: string, rememberMe = false) {
-    return await this.getService().login(email, password, rememberMe);
-  }
-
-  /**
    * Login with a Google credential token
    */
   static async loginWithGoogle(credential: string, rememberMe = true) {

@@ -34,12 +34,6 @@ export interface AuthSession {
   expiresAt: string;
 }
 
-export interface LoginCredentials {
-  email: string;
-  password: string;
-  rememberMe?: boolean;
-}
-
 export interface GoogleLoginRequest {
   credential: string;
   rememberMe?: boolean;

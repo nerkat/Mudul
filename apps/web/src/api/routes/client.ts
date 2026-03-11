@@ -62,8 +62,9 @@ router.get('/:id/calls', requireAuth, validateResponse(ClientCallsSchema), async
     const { id: clientId } = req.params;
     
     // Validate and enforce limit bounds
-    const limitParam = parseInt(req.query.limit as string) || 10;
-    if (limitParam < 1 || limitParam > 50) {
+    const rawLimit = req.query.limit as string | undefined;
+    const limitParam = rawLimit === undefined ? 10 : Number.parseInt(rawLimit, 10);
+    if (!Number.isFinite(limitParam) || limitParam < 1 || limitParam > 50) {
       return res.status(400).json({
         error: 'INVALID_LIMIT',
         message: 'Limit must be between 1 and 50',
