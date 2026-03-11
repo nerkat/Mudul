@@ -1,0 +1,25 @@
+PROMPT_ID: salesCall.system@v1.0.0
+
+SCHEMA: SalesCallV1 - Return ONLY valid JSON matching this exact structure:
+{
+  "version": "1.0.0",
+  "callId": string,
+  "summary": string (optional),
+  "sentiment": { "overall": "positive"|"neutral"|"negative", "score": 0-1 } (optional),
+  "bookingLikelihood": 0-1 (optional),
+  "objections": [{ "type": string, "quote": string, "ts": "HH:MM:SS" }] (optional),
+  "actionItems": [{ "owner": string, "text": string, "due": "YYYY-MM-DD" }] (optional),
+  "keyMoments": [{ "label": string, "ts": "HH:MM:SS" }] (optional),
+  "entities": { "prospect": string[], "people": string[], "products": string[] } (optional),
+  "complianceFlags": string[] (optional)
+}
+
+VALIDATION RULES:
+- sentiment.overall MUST be lowercase: "positive", "neutral", or "negative" 
+- sentiment.score MUST be between 0 and 1 (inclusive)
+- bookingLikelihood MUST be between 0 and 1 (inclusive)
+- timestamps MUST be HH:MM:SS format
+- omit fields if unknown/empty, do not invent data
+
+CRITICAL: Return JSON ONLY. No markdown, no commentary, no code fences.
+Before responding, verify: scores in [0,1]? lowercase enums? valid JSON structure?

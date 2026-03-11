@@ -1,0 +1,157 @@
+// Prisma schema file
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Users table
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  passwordHash String @map("password_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  // Relations
+  memberships    Membership[]
+  refreshTokens  RefreshToken[]
+  ownedActionItems ActionItem[] @relation("ActionItemOwner")
+
+  @@map("users")
+}
+
+// Organizations table  
+model Org {
+  id        String   @id @default(cuid())
+  name      String
+  planTier  String   @default("pro") @map("plan_tier")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  memberships  Membership[]
+  clients      Client[]
+  calls        Call[]
+  actionItems  ActionItem[]
+
+  @@map("orgs")
+}
+
+// Memberships table (join table for users and orgs)
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  orgId     String   @map("org_id")
+  role      Role     @default(VIEWER)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  // Constraints
+  @@unique([userId, orgId])
+  @@index([userId, orgId])
+  @@map("memberships")
+}
+
+// Clients table
+model Client {
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  name      String
+  slug      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  org         Org          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  calls       Call[]
+  actionItems ActionItem[]
+
+  @@index([orgId])
+  @@unique([orgId, name]) // Prevent duplicate client names within org
+  @@map("clients")
+}
+
+// Calls table
+model Call {
+  id                String     @id @default(cuid())
+  orgId             String     @map("org_id")
+  clientId          String     @map("client_id")
+  name              String?
+  summary           String?
+  ts                DateTime   @default(now())
+  durationSec       Int?       @map("duration_sec")
+  sentiment         Sentiment  @default(NEUTRAL)
+  score             Float?     // sentiment score 0-1
+  bookingLikelihood Float?     @map("booking_likelihood") // 0-1
+  createdAt         DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  org    Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, clientId, ts])
+  @@index([clientId, ts])
+  @@map("calls")
+}
+
+// Action Items table
+model ActionItem {
+  id        String          @id @default(cuid())
+  orgId     String          @map("org_id")
+  clientId  String?         @map("client_id")
+  ownerId   String?         @map("owner_id") // FK to users
+  text      String
+  due       DateTime?
+  status    ActionItemStatus @default(OPEN)
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  org    Org     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  owner  User?   @relation("ActionItemOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([orgId, status, due])
+  @@index([clientId, status, due])
+  @@map("action_items")
+}
+
+// Refresh tokens table for JWT management
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// Enums
+enum Role {
+  OWNER
+  VIEWER
+}
+
+enum Sentiment {
+  POSITIVE @map("pos")
+  NEUTRAL  @map("neu") 
+  NEGATIVE @map("neg")
+}
+
+enum ActionItemStatus {
+  OPEN
+  DONE
+}
