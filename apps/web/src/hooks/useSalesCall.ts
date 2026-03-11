@@ -11,7 +11,7 @@ export function useSalesCall(nodeId?: string): { data: SalesCallMinimal | null; 
   const data = repo.getCallByNode(nodeId);
   return { 
     data, 
-    error: data ? null : "No analysis yet for this session.", 
-    loading: false 
+    error: data || repo.isLoading ? null : "No analysis yet for this session.", 
+    loading: repo.isLoading 
   };
 }

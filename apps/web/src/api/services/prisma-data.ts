@@ -44,11 +44,32 @@ export class PrismaDataService {
     return await this.getService().getOrgSummary(orgId);
   }
 
+  static async getOrgTree(orgId: string) {
+    return await this.getService().getOrgTree(orgId);
+  }
+
   /**
    * Get clients overview for organization
    */
   static async getClientsOverview(orgId: string) {
     return await this.getService().getClientsOverview(orgId);
+  }
+
+  static async createClient(orgId: string, name: string) {
+    return await this.getService().createClient(orgId, name);
+  }
+
+  static async createCall(
+    orgId: string,
+    payload: {
+      clientId: string;
+      title: string;
+      transcript: string;
+      analysis: Record<string, unknown>;
+      meta?: Record<string, unknown>;
+    }
+  ) {
+    return await this.getService().createCall(orgId, payload);
   }
 
   /**

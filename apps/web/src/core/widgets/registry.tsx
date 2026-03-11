@@ -24,7 +24,7 @@ import {
 import { Adapters } from '../adapters';
 import { PaperRenderer } from './paper/PaperRenderer';
 import { useViewMode } from '../../ctx/ViewModeContext';
-import * as repo from '../repo'; // Import repo functions
+import { useRepo } from '../../hooks/useRepo';
 
 // Component implementations (use existing Paper/Rich widgets internally)
 import { Rich as WRich } from "../../components/widgets";
@@ -264,6 +264,7 @@ interface WidgetRendererProps {
 export function WidgetRenderer({ config, call, nodeId }: WidgetRendererProps) {
   const { mode } = useViewMode();
   const theme = useTheme();
+  const repo = useRepo();
   const entry = WidgetRegistry[config.slug];
   
   if (!entry) {

@@ -53,6 +53,28 @@ router.get('/summary', requireAuth, validateResponse(OrgSummarySchema), async (r
   }
 });
 
+router.get('/tree', requireAuth, async (req, res) => {
+  try {
+    const { orgId } = (req as any).user;
+    const tree = await PrismaDataService.getOrgTree(orgId);
+    res.json(tree);
+  } catch (error: any) {
+    console.error('Org tree error:', error);
+
+    if (error.message === 'ORG_NOT_FOUND') {
+      return res.status(404).json({
+        error: 'ORG_NOT_FOUND',
+        message: 'Organization not found or access denied',
+      });
+    }
+
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Failed to get organization tree',
+    });
+  }
+});
+
 // GET /api/org/clients-overview
 router.get('/clients-overview', requireAuth, validateResponse(ClientsOverviewSchema), async (req, res) => {
   try {

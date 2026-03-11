@@ -52,6 +52,7 @@ if (typeof globalThis !== 'undefined') {
 class SimpleSQLiteService {
   constructor() {
     this.db = getDatabase();
+    this.extendedCallSchemaReady = false;
   }
 
   async query(sql, params = []) {
@@ -72,10 +73,259 @@ class SimpleSQLiteService {
     });
   }
 
+  async ensureExtendedCallSchema() {
+    if (this.extendedCallSchemaReady) {
+      return;
+    }
+
+    const columns = await this.query('PRAGMA table_info(calls)');
+    const columnNames = new Set(columns.map((column) => column.name));
+
+    if (!columnNames.has('transcript')) {
+      await this.run('ALTER TABLE calls ADD COLUMN transcript TEXT');
+    }
+
+    if (!columnNames.has('analysis_json')) {
+      await this.run('ALTER TABLE calls ADD COLUMN analysis_json TEXT');
+    }
+
+    if (!columnNames.has('meta_json')) {
+      await this.run('ALTER TABLE calls ADD COLUMN meta_json TEXT');
+    }
+
+    this.extendedCallSchemaReady = true;
+  }
+
+  slugify(value) {
+    return String(value || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'untitled';
+  }
+
+  normalizeSentiment(sentiment) {
+    const value = String(sentiment || 'neutral').toUpperCase();
+    if (value === 'POSITIVE' || value === 'POS') return 'positive';
+    if (value === 'NEGATIVE' || value === 'NEG') return 'negative';
+    return 'neutral';
+  }
+
+  parseJson(value, fallback) {
+    if (!value) {
+      return fallback;
+    }
+
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallback;
+    }
+  }
+
+  buildRootNode(orgId, orgName, createdAt) {
+    return {
+      id: `root-${orgId}`,
+      orgId,
+      parentId: null,
+      kind: 'group',
+      name: orgName,
+      slug: this.slugify(orgName),
+      dashboardId: 'org-dashboard',
+      createdAt,
+      updatedAt: createdAt,
+    };
+  }
+
+  buildClientNode(client, rootId) {
+    return {
+      id: client.id,
+      orgId: client.org_id,
+      parentId: rootId,
+      kind: 'lead',
+      name: client.name,
+      slug: client.slug || this.slugify(client.name),
+      dashboardId: 'client-dashboard',
+      createdAt: client.created_at,
+      updatedAt: client.created_at,
+    };
+  }
+
+  buildCallNode(call) {
+    return {
+      id: call.id,
+      orgId: call.org_id,
+      parentId: call.client_id,
+      kind: 'call_session',
+      name: call.name || 'Untitled Call',
+      slug: this.slugify(call.name || call.id),
+      dashboardId: 'sales-call-default',
+      dataRef: { type: 'session', id: `session-${call.id}` },
+      createdAt: call.ts,
+      updatedAt: call.created_at || call.ts,
+    };
+  }
+
+  buildCallData(call) {
+    const storedAnalysis = this.parseJson(call.analysis_json, {});
+    const storedMeta = this.parseJson(call.meta_json, {});
+
+    return {
+      id: call.id,
+      transcript: call.transcript || undefined,
+      summary: storedAnalysis.summary ?? call.summary ?? undefined,
+      sentiment: storedAnalysis.sentiment ?? {
+        overall: this.normalizeSentiment(call.sentiment),
+        score: call.score ?? 0,
+      },
+      bookingLikelihood: storedAnalysis.bookingLikelihood ?? call.booking_likelihood ?? 0,
+      objections: storedAnalysis.objections ?? [],
+      actionItems: storedAnalysis.actionItems ?? [],
+      keyMoments: storedAnalysis.keyMoments ?? [],
+      entities: storedAnalysis.entities ?? { prospect: [], people: [], products: [] },
+      complianceFlags: storedAnalysis.complianceFlags ?? [],
+      meta: storedMeta,
+    };
+  }
+
+  async getOrgTree(orgId) {
+    await this.ensureExtendedCallSchema();
+
+    const orgs = await this.query('SELECT id, name, created_at FROM orgs WHERE id = ?', [orgId]);
+    if (!orgs || orgs.length === 0) {
+      throw new Error('ORG_NOT_FOUND');
+    }
+
+    const org = orgs[0];
+    const root = this.buildRootNode(org.id, org.name, org.created_at);
+    const clientRows = await this.query(
+      'SELECT id, org_id, name, slug, created_at FROM clients WHERE org_id = ? ORDER BY created_at ASC, name ASC',
+      [orgId]
+    );
+    const callRows = await this.query(
+      `SELECT id, org_id, client_id, name, summary, ts, sentiment, score, booking_likelihood, created_at, transcript, analysis_json, meta_json
+       FROM calls
+       WHERE org_id = ?
+       ORDER BY ts DESC, created_at DESC`,
+      [orgId]
+    );
+
+    return {
+      root,
+      clients: clientRows.map((client) => this.buildClientNode(client, root.id)),
+      calls: callRows.map((call) => this.buildCallNode(call)),
+      callData: Object.fromEntries(callRows.map((call) => [call.id, this.buildCallData(call)])),
+    };
+  }
+
+  async createClient(orgId, name) {
+    const orgs = await this.query('SELECT id FROM orgs WHERE id = ?', [orgId]);
+    if (!orgs || orgs.length === 0) {
+      throw new Error('ORG_NOT_FOUND');
+    }
+
+    const timestamp = new Date().toISOString();
+    const clientId = `client-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const slug = this.slugify(name);
+
+    await this.run(
+      'INSERT INTO clients (id, org_id, name, slug, created_at) VALUES (?, ?, ?, ?, ?)',
+      [clientId, orgId, name, slug, timestamp]
+    );
+
+    return {
+      id: clientId,
+      orgId,
+      name,
+      slug,
+      createdAt: timestamp,
+    };
+  }
+
+  async createCall(orgId, payload) {
+    await this.ensureExtendedCallSchema();
+
+    const clients = await this.query(
+      'SELECT id FROM clients WHERE id = ? AND org_id = ?',
+      [payload.clientId, orgId]
+    );
+    if (!clients || clients.length === 0) {
+      throw new Error('CLIENT_NOT_FOUND');
+    }
+
+    const callId = `call-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const timestamp = new Date().toISOString();
+    const analysis = payload.analysis || {};
+    const meta = {
+      ...(payload.meta || {}),
+      updatedAt: timestamp,
+    };
+
+    await this.run('BEGIN TRANSACTION');
+
+    try {
+      await this.run(
+        `INSERT INTO calls (
+          id, org_id, client_id, name, summary, ts, sentiment, score, booking_likelihood, created_at, transcript, analysis_json, meta_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          callId,
+          orgId,
+          payload.clientId,
+          payload.title,
+          analysis.summary || null,
+          timestamp,
+          String(analysis.sentiment?.overall || 'neutral').toUpperCase(),
+          analysis.sentiment?.score ?? null,
+          analysis.bookingLikelihood ?? null,
+          timestamp,
+          payload.transcript,
+          JSON.stringify(analysis),
+          JSON.stringify(meta),
+        ]
+      );
+
+      const actionItems = Array.isArray(analysis.actionItems) ? analysis.actionItems : [];
+      for (const item of actionItems) {
+        await this.run(
+          'INSERT INTO action_items (id, org_id, client_id, text, due, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [
+            `action-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            orgId,
+            payload.clientId,
+            item.text,
+            item.due || null,
+            'OPEN',
+            timestamp,
+          ]
+        );
+      }
+
+      await this.run('COMMIT');
+    } catch (error) {
+      await this.run('ROLLBACK').catch(() => {});
+      throw error;
+    }
+
+    const createdRows = await this.query(
+      `SELECT id, org_id, client_id, name, summary, ts, sentiment, score, booking_likelihood, created_at, transcript, analysis_json, meta_json
+       FROM calls WHERE id = ?`,
+      [callId]
+    );
+    const createdCall = createdRows[0];
+
+    return {
+      node: this.buildCallNode(createdCall),
+      data: this.buildCallData(createdCall),
+    };
+  }
+
   /**
    * Get organization summary KPIs
    */
   async getOrgSummary(orgId) {
+    await this.ensureExtendedCallSchema();
+
     // Verify org exists
     const orgs = await this.query('SELECT id FROM orgs WHERE id = ?', [orgId]);
     if (!orgs || orgs.length === 0) {
@@ -119,6 +369,8 @@ class SimpleSQLiteService {
    * Get clients overview for organization
    */
   async getClientsOverview(orgId) {
+    await this.ensureExtendedCallSchema();
+
     // Verify org exists
     const orgs = await this.query('SELECT id FROM orgs WHERE id = ?', [orgId]);
     if (!orgs || orgs.length === 0) {
@@ -180,6 +432,8 @@ class SimpleSQLiteService {
    * Get client summary with KPIs and insights
    */
   async getClientSummary(clientId, orgId) {
+    await this.ensureExtendedCallSchema();
+
     const client = await this.query(
       'SELECT * FROM clients WHERE id = ? AND org_id = ?',
       [clientId, orgId]
@@ -214,6 +468,8 @@ class SimpleSQLiteService {
    * Get client calls with pagination
    */
   async getClientCalls(clientId, orgId, limit = 10) {
+    await this.ensureExtendedCallSchema();
+
     // Verify client belongs to org
     const client = await this.query(
       'SELECT id FROM clients WHERE id = ? AND org_id = ?',
@@ -233,7 +489,7 @@ class SimpleSQLiteService {
       id: call.id,
       name: call.name || 'Untitled Call',
       date: call.ts,
-      sentiment: call.sentiment.toLowerCase(),
+      sentiment: this.normalizeSentiment(call.sentiment),
       score: Math.round((call.score || 0) * 100) / 100, // Round to 2 decimals
       bookingLikelihood: Math.round((call.booking_likelihood || 0) * 100) / 100, // Round to 2 decimals
     }));
@@ -245,6 +501,8 @@ class SimpleSQLiteService {
    * Get client action items
    */
   async getClientActionItems(clientId, orgId, status) {
+    await this.ensureExtendedCallSchema();
+
     // Verify client belongs to org
     const client = await this.query(
       'SELECT id FROM clients WHERE id = ? AND org_id = ?',

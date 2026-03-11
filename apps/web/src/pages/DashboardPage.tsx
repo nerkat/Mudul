@@ -122,6 +122,19 @@ export function DashboardPage() {
   const hasAnalysisData = !!call && Object.keys(call).length > 0;
 
   if (!nodeId) {
+    if (repo.isLoading) {
+      return (
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Dashboard
+          </Typography>
+          <Alert severity="info">
+            Loading your dashboard...
+          </Alert>
+        </Box>
+      );
+    }
+
     return (
       <Box>
         <Typography variant="h4" component="h1" gutterBottom>
@@ -135,6 +148,19 @@ export function DashboardPage() {
   }
 
   if (!node) {
+    if (repo.isLoading) {
+      return (
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Dashboard
+          </Typography>
+          <Alert severity="info">
+            Loading node data...
+          </Alert>
+        </Box>
+      );
+    }
+
     return (
       <Box>
         <Typography variant="h4" component="h1" gutterBottom>
