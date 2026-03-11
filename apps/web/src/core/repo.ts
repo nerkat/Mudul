@@ -4,8 +4,26 @@ import type { NodeBase, SalesCallMinimal } from "./types";
 import type { DashboardTemplate } from "./widgets/protocol";
 import { isAnalysisDuplicate } from "../services/versioning";
 
-export function getRoot(): NodeBase | null {
-  return nodes["root"] || null;
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "untitled";
+}
+
+function buildRootId(orgId: string): string {
+  return orgId === nodes["root"]?.orgId ? "root" : `root-${orgId}`;
+}
+
+export function getRoot(orgId?: string): NodeBase | null {
+  if (!orgId) {
+    return nodes["root"] || null;
+  }
+
+  return Object.values(nodes).find(node =>
+    node.orgId === orgId && node.parentId === null && node.kind === "group"
+  ) || null;
 }
 
 export function getNode(id: string): NodeBase | null {
@@ -31,14 +49,75 @@ export function getDashboardId(nodeId: string): string | null {
   return node?.dashboardId || null;
 }
 
-export function getAllClients(): NodeBase[] {
-  return Object.values(nodes).filter(node => 
-    node.parentId === "root" && node.kind === "lead"
+export function getAllClients(orgId?: string): NodeBase[] {
+  if (!orgId) {
+    return Object.values(nodes).filter(node => node.kind === "lead");
+  }
+
+  const root = getRoot(orgId);
+  if (!root) {
+    return [];
+  }
+
+  return Object.values(nodes).filter(node =>
+    node.parentId === root.id && node.kind === "lead"
   );
 }
 
 export function getAllCalls(): NodeBase[] {
   return Object.values(nodes).filter(node => node.kind === "call_session");
+}
+
+export function ensureOrgRoot(orgId: string, orgName: string, createdAt?: string): NodeBase {
+  const existingRoot = getRoot(orgId);
+  if (existingRoot) {
+    return existingRoot;
+  }
+
+  const timestamp = createdAt || new Date().toISOString();
+  const rootId = buildRootId(orgId);
+  const rootNode: NodeBase = {
+    id: rootId,
+    orgId,
+    parentId: null,
+    kind: "group",
+    name: orgName,
+    slug: slugify(orgName),
+    dashboardId: "org-dashboard",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  nodes[rootId] = rootNode;
+  return rootNode;
+}
+
+export function createClientNode({
+  orgId,
+  orgName,
+  clientName,
+}: {
+  orgId: string;
+  orgName: string;
+  clientName: string;
+}): string {
+  const root = ensureOrgRoot(orgId, orgName);
+  const timestamp = new Date().toISOString();
+  const clientId = `client-${orgId}-${Date.now()}`;
+
+  nodes[clientId] = {
+    id: clientId,
+    orgId,
+    parentId: root.id,
+    kind: "lead",
+    name: clientName,
+    slug: slugify(clientName),
+    dashboardId: "client-dashboard",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  return clientId;
 }
 
 // ----- Mutation methods for AI analysis -----

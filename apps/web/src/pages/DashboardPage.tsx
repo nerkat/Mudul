@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import {
   Box,
@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { PlayArrow, Refresh, Cancel, Description, InsertChartOutlined } from '@mui/icons-material';
 import { useNode } from '../hooks/useNode';
+import { useRepo } from '../hooks/useRepo';
 import { useSalesCall } from '../hooks/useSalesCall';
 import { useAnalyzeCall } from '../hooks/useAnalyzeCall';
 import { WidgetRenderer } from '../core/widgets/registry';
@@ -24,6 +25,9 @@ import { useViewMode } from '../ctx/ViewModeContext';  // Use context instead of
 
 export function DashboardPage() {
   const { nodeId } = useParams<{ nodeId: string }>();
+  const navigate = useNavigate();
+  const repo = useRepo();
+  const root = repo.getRoot();
   const node = useNode(nodeId || "");
   const { data: call, error, loading /*, refetch */ } = useSalesCall(
     node?.kind === "call_session" ? nodeId || "" : undefined
@@ -62,6 +66,12 @@ export function DashboardPage() {
       setShowErrorToast(true);
     }
   }, [analyzeError]);
+
+  useEffect(() => {
+    if (!nodeId && root) {
+      navigate(`/node/${root.id}`, { replace: true });
+    }
+  }, [navigate, nodeId, root]);
 
   const getErrorMessage = (error: AnalysisError): string => {
     switch (error.code) {

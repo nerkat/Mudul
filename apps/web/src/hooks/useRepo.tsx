@@ -21,12 +21,13 @@ export function RepoProvider({ children }: { children: React.ReactNode }) {
   // Create org-scoped repo functions
   const value: RepoContextValue = useMemo(() => {
     const orgId = currentOrg?.id;
+
+    if (currentOrg) {
+      repo.ensureOrgRoot(currentOrg.id, currentOrg.name, currentOrg.createdAt);
+    }
     
     return {
-      getRoot: () => {
-        const root = repo.getRoot();
-        return root && root.orgId === orgId ? root : null;
-      },
+      getRoot: () => orgId ? repo.getRoot(orgId) : null,
       getNode: (id: string) => {
         const node = repo.getNode(id);
         return node && node.orgId === orgId ? node : null;
@@ -50,7 +51,7 @@ export function RepoProvider({ children }: { children: React.ReactNode }) {
         return repo.getDashboardId(nodeId);
       },
       getAllClients: () => {
-        return repo.getAllClients().filter(node => node.orgId === orgId);
+        return orgId ? repo.getAllClients(orgId) : [];
       },
       getAllCalls: () => {
         return repo.getAllCalls().filter(node => node.orgId === orgId);

@@ -105,7 +105,7 @@ export function AppShell() {
   const handleItemClick = (_event: React.SyntheticEvent, itemId: string) => {
     if (itemId === 'dashboard') {
       // Navigate to org dashboard
-      navigate('/node/root');
+      navigate(root ? `/node/${root.id}` : '/');
     } else if (itemId === 'settings') {
       navigate('/settings');
     } else {
@@ -205,6 +205,12 @@ export function AppShell() {
               </TreeItem>
             );
           })}
+
+          {clients.length === 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 1.5 }}>
+              No clients yet. Create your first one from New Call.
+            </Typography>
+          )}
         </SimpleTreeView>
         
         {/* New Call Button */}
