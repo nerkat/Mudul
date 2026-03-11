@@ -95,6 +95,20 @@ pnpm build
 cd apps/web && pnpm dev
 ```
 
+### Google Authentication
+
+The login screen now uses Google Sign-In. Configure a browser client ID in `apps/web/.env` before starting the app:
+
+```bash
+VITE_GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+```
+
+- `VITE_GOOGLE_CLIENT_ID` powers the browser-side Google sign-in button.
+- `GOOGLE_CLIENT_ID` is used by the API layer to verify the Google credential token.
+- Your Google OAuth client must allow `http://localhost:5173` as an authorized JavaScript origin.
+- First-time Google users are provisioned automatically and receive a personal workspace.
+
 Currently, two official plugins are available:
 ## Features
 

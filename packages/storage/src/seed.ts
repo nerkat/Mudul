@@ -15,6 +15,7 @@ async function seed() {
   console.log('🌱 Seeding database...');
 
   // Clear existing data
+  await prisma.oauthIdentity.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.actionItem.deleteMany();
   await prisma.call.deleteMany();

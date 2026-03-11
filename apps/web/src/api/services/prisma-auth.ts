@@ -38,6 +38,13 @@ export class PrismaAuthService {
   }
 
   /**
+   * Login with a Google credential token
+   */
+  static async loginWithGoogle(credential: string, rememberMe = true) {
+    return await this.getService().loginWithGoogle(credential, rememberMe);
+  }
+
+  /**
    * Refresh access token using refresh token
    */
   static async refreshToken(refreshToken: string) {

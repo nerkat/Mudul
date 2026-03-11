@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { AuthSession, LoginCredentials, AuthError, Permission } from './types';
+import type { AuthSession, LoginCredentials, GoogleLoginRequest, AuthError, Permission } from './types';
 import { authService } from './AuthService';
 import { hasPermission } from './types';
 
@@ -12,6 +12,7 @@ interface AuthContextValue {
 
   // Auth actions
   login: (credentials: LoginCredentials) => Promise<void>;
+  loginWithGoogle: (request: GoogleLoginRequest) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 
@@ -108,6 +109,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
+  const loginWithGoogle = useCallback(async (request: GoogleLoginRequest) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await authService.loginWithGoogle(request);
+      setSession(response.session);
+    } catch (error) {
+      const authError = error as AuthError;
+      setError(authError);
+      throw authError;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -142,6 +159,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Auth actions
     login,
+    loginWithGoogle,
     logout,
     clearError,
 

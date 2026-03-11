@@ -40,6 +40,11 @@ export interface LoginCredentials {
   rememberMe?: boolean;
 }
 
+export interface GoogleLoginRequest {
+  credential: string;
+  rememberMe?: boolean;
+}
+
 export interface AuthError {
   code: string;
   message: string;

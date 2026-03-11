@@ -4,6 +4,8 @@ const argon2 = require('argon2');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
+const { randomUUID } = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 
 function findDatabasePath() {
   if (process.env.DATABASE_URL) {
@@ -30,10 +32,26 @@ const dbPath = findDatabasePath();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
 const JWT_ACCESS_EXPIRES = '15m';
 const JWT_REFRESH_EXPIRES = '30d';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+
+let googleClient;
+
+function getGoogleClient() {
+  if (!GOOGLE_CLIENT_ID) {
+    throw new Error('GOOGLE_AUTH_NOT_CONFIGURED');
+  }
+
+  if (!googleClient) {
+    googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+  }
+
+  return googleClient;
+}
 
 class SimpleAuthService {
   constructor() {
     this.db = new sqlite3.Database(dbPath);
+    this.googleSchemaReady = false;
   }
 
   async query(sql, params = []) {
@@ -47,23 +65,144 @@ class SimpleAuthService {
 
   async run(sql, params = []) {
     return new Promise((resolve, reject) => {
-      this.db.run(sql, params, function(err) {
+      this.db.run(sql, params, function (err) {
         if (err) reject(err);
         else resolve({ changes: this.changes, lastID: this.lastID });
       });
     });
   }
 
+  createId(prefix) {
+    return `${prefix}-${randomUUID()}`;
+  }
+
+  async ensureGoogleSchema() {
+    if (this.googleSchemaReady) {
+      return;
+    }
+
+    await this.run(
+      `CREATE TABLE IF NOT EXISTS oauth_identities (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        provider_user_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(provider, provider_user_id)
+      )`
+    );
+    await this.run('CREATE INDEX IF NOT EXISTS idx_oauth_identities_user_provider ON oauth_identities(user_id, provider)');
+    this.googleSchemaReady = true;
+  }
+
+  buildWorkspaceName(name, email) {
+    const base = (name || email.split('@')[0] || 'New user').trim();
+    return `${base}'s Workspace`;
+  }
+
+  async verifyGoogleCredential(credential) {
+    if (process.env.NODE_ENV === 'test' && credential.startsWith('test-google-token:')) {
+      const [, rawEmail = '', rawName = 'Test User'] = credential.split(':');
+      const email = decodeURIComponent(rawEmail).toLowerCase();
+      const name = decodeURIComponent(rawName || 'Test User');
+
+      if (!email.includes('@')) {
+        throw new Error('GOOGLE_TOKEN_INVALID');
+      }
+
+      return {
+        sub: `test-${email}`,
+        email,
+        name,
+      };
+    }
+
+    const client = getGoogleClient();
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload?.sub || !payload.email || !payload.email_verified) {
+      throw new Error('GOOGLE_TOKEN_INVALID');
+    }
+
+    if (payload.iss !== 'accounts.google.com' && payload.iss !== 'https://accounts.google.com') {
+      throw new Error('GOOGLE_TOKEN_INVALID');
+    }
+
+    return {
+      sub: payload.sub,
+      email: payload.email.toLowerCase(),
+      name: payload.name || payload.email.split('@')[0],
+    };
+  }
+
+  async getUserById(userId) {
+    const users = await this.query('SELECT * FROM users WHERE id = ?', [userId]);
+    return users[0] || null;
+  }
+
+  async getUserByEmail(email) {
+    const users = await this.query('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+    return users[0] || null;
+  }
+
+  async getMembershipsForUser(userId) {
+    return await this.query(
+      `SELECT m.*, o.name as org_name
+       FROM memberships m
+       JOIN orgs o ON m.org_id = o.id
+       WHERE m.user_id = ?
+       ORDER BY m.created_at ASC`,
+      [userId]
+    );
+  }
+
+  async ensureMembershipForUser(userId, profile) {
+    const memberships = await this.getMembershipsForUser(userId);
+    if (memberships.length > 0) {
+      return memberships;
+    }
+
+    const orgId = this.createId('org');
+    const membershipId = this.createId('membership');
+    const now = new Date().toISOString();
+
+    await this.run('BEGIN TRANSACTION');
+
+    try {
+      await this.run(
+        'INSERT INTO orgs (id, name, plan_tier, created_at) VALUES (?, ?, ?, ?)',
+        [orgId, this.buildWorkspaceName(profile.name, profile.email), 'pro', now]
+      );
+      await this.run(
+        'INSERT INTO memberships (id, user_id, org_id, role, created_at) VALUES (?, ?, ?, ?, ?)',
+        [membershipId, userId, orgId, 'OWNER', now]
+      );
+      await this.run('COMMIT');
+    } catch (error) {
+      await this.run('ROLLBACK').catch(() => {});
+      throw error;
+    }
+
+    return await this.getMembershipsForUser(userId);
+  }
+
   generateAccessToken(userId, orgId) {
     return jwt.sign(
-      { 
-        sub: userId, 
-        orgId, 
+      {
+        sub: userId,
+        orgId,
         type: 'access',
         iat: Math.floor(Date.now() / 1000),
       },
       JWT_SECRET,
-      { 
+      {
         expiresIn: JWT_ACCESS_EXPIRES,
         issuer: 'mudul-api',
         audience: 'mudul-app',
@@ -72,66 +211,43 @@ class SimpleAuthService {
   }
 
   async generateRefreshToken(userId) {
+    const tokenId = this.createId('rt');
     const token = jwt.sign(
-      { 
+      {
         sub: userId,
+        jti: tokenId,
         type: 'refresh',
         iat: Math.floor(Date.now() / 1000),
       },
       JWT_SECRET,
-      { 
+      {
         expiresIn: JWT_REFRESH_EXPIRES,
         issuer: 'mudul-api',
         audience: 'mudul-app',
       }
     );
 
-    // Store in database
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await this.run(
       'INSERT INTO refresh_tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)',
-      [`refresh-${Date.now()}`, userId, token, expiresAt.toISOString()]
+      [tokenId, userId, token, expiresAt.toISOString()]
     );
 
     return token;
   }
 
-  async login(email, password, rememberMe = false) {
-    // Find user by email
-    const users = await this.query(
-      'SELECT * FROM users WHERE email = ?',
-      [email]
-    );
-
-    if (!users || users.length === 0) {
+  async buildAuthResponseForUser(userId, rememberMe) {
+    const user = await this.getUserById(userId);
+    if (!user) {
       throw new Error('INVALID_CREDENTIALS');
     }
 
-    const user = users[0];
-
-    // Verify password
-    const isValid = await argon2.verify(user.password_hash, password);
-    if (!isValid) {
-      throw new Error('INVALID_CREDENTIALS');
-    }
-
-    // Get user memberships
-    const memberships = await this.query(
-      `SELECT m.*, o.name as org_name 
-       FROM memberships m 
-       JOIN orgs o ON m.org_id = o.id 
-       WHERE m.user_id = ?`,
-      [user.id]
-    );
-
+    const memberships = await this.getMembershipsForUser(userId);
     if (!memberships || memberships.length === 0) {
       throw new Error('NO_ORG_ACCESS');
     }
 
-    // Use first org as active org
     const activeMembership = memberships[0];
-
-    // Generate tokens
     const accessToken = this.generateAccessToken(user.id, activeMembership.org_id);
     const refreshToken = rememberMe ? await this.generateRefreshToken(user.id) : undefined;
 
@@ -143,28 +259,116 @@ class SimpleAuthService {
         email: user.email,
         name: user.name,
       },
-      orgs: memberships.map(m => ({
-        id: m.org_id,
-        name: m.org_name,
-        role: m.role.toLowerCase(),
+      orgs: memberships.map((membership) => ({
+        id: membership.org_id,
+        name: membership.org_name,
+        role: membership.role.toLowerCase(),
       })),
       activeOrgId: activeMembership.org_id,
     };
   }
 
+  async login(email, password, rememberMe = false) {
+    const users = await this.query('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+
+    if (!users || users.length === 0) {
+      throw new Error('INVALID_CREDENTIALS');
+    }
+
+    const user = users[0];
+    const isValid = await argon2.verify(user.password_hash, password);
+    if (!isValid) {
+      throw new Error('INVALID_CREDENTIALS');
+    }
+
+    return await this.buildAuthResponseForUser(user.id, rememberMe);
+  }
+
+  async provisionGoogleUser(profile) {
+    await this.ensureGoogleSchema();
+
+    const existingIdentity = await this.query(
+      `SELECT user_id
+       FROM oauth_identities
+       WHERE provider = ? AND provider_user_id = ?`,
+      ['google', profile.sub]
+    );
+
+    if (existingIdentity.length > 0) {
+      return existingIdentity[0].user_id;
+    }
+
+    const user = await this.getUserByEmail(profile.email);
+    const now = new Date().toISOString();
+
+    await this.run('BEGIN TRANSACTION');
+
+    try {
+      if (!user) {
+        const userId = this.createId('user');
+        const orgId = this.createId('org');
+        const membershipId = this.createId('membership');
+
+        await this.run(
+          'INSERT INTO users (id, email, name, password_hash, created_at, last_login_at) VALUES (?, ?, ?, ?, ?, ?)',
+          [userId, profile.email, profile.name, `GOOGLE_AUTH_ONLY:${profile.sub}`, now, now]
+        );
+        await this.run(
+          'INSERT INTO orgs (id, name, plan_tier, created_at) VALUES (?, ?, ?, ?)',
+          [orgId, this.buildWorkspaceName(profile.name, profile.email), 'pro', now]
+        );
+        await this.run(
+          'INSERT INTO memberships (id, user_id, org_id, role, created_at) VALUES (?, ?, ?, ?, ?)',
+          [membershipId, userId, orgId, 'OWNER', now]
+        );
+        await this.run(
+          'INSERT INTO oauth_identities (id, user_id, provider, provider_user_id, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [this.createId('oauth'), userId, 'google', profile.sub, profile.email, now, now]
+        );
+        await this.run('COMMIT');
+        return userId;
+      }
+
+      await this.run(
+        'INSERT INTO oauth_identities (id, user_id, provider, provider_user_id, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [this.createId('oauth'), user.id, 'google', profile.sub, profile.email, now, now]
+      );
+      await this.run(
+        'UPDATE users SET name = ?, last_login_at = ? WHERE id = ?',
+        [profile.name, now, user.id]
+      );
+      await this.run('COMMIT');
+    } catch (error) {
+      await this.run('ROLLBACK').catch(() => {});
+      throw error;
+    }
+
+    await this.ensureMembershipForUser(user.id, profile);
+    return user.id;
+  }
+
+  async loginWithGoogle(credential, rememberMe = true) {
+    const profile = await this.verifyGoogleCredential(credential);
+    const userId = await this.provisionGoogleUser(profile);
+    const now = new Date().toISOString();
+
+    await this.run('UPDATE users SET name = ?, last_login_at = ? WHERE id = ?', [profile.name, now, userId]);
+    await this.ensureMembershipForUser(userId, profile);
+
+    return await this.buildAuthResponseForUser(userId, rememberMe);
+  }
+
   async refreshToken(refreshToken) {
-    // Verify refresh token
     let payload;
     try {
       payload = jwt.verify(refreshToken, JWT_SECRET, {
         issuer: 'mudul-api',
         audience: 'mudul-app',
       });
-    } catch (err) {
+    } catch (_err) {
       throw new Error('INVALID_REFRESH_TOKEN');
     }
 
-    // Check if token exists in database
     const storedTokens = await this.query(
       'SELECT * FROM refresh_tokens WHERE token = ? AND expires_at > datetime("now")',
       [refreshToken]
@@ -175,27 +379,18 @@ class SimpleAuthService {
     }
 
     const storedToken = storedTokens[0];
-
-    // Get user's active org
-    const memberships = await this.query(
-      'SELECT org_id FROM memberships WHERE user_id = ? LIMIT 1',
-      [storedToken.user_id]
-    );
+    const memberships = await this.query('SELECT org_id FROM memberships WHERE user_id = ? LIMIT 1', [storedToken.user_id]);
 
     if (!memberships || memberships.length === 0) {
       throw new Error('NO_ORG_ACCESS');
     }
 
-    const activeOrgId = memberships[0].org_id;
+    const accessToken = this.generateAccessToken(storedToken.user_id, memberships[0].org_id);
 
-    // Generate new access token
-    const accessToken = this.generateAccessToken(storedToken.user_id, activeOrgId);
-
-    // Rotate refresh token (delete old, create new)
     await this.run('DELETE FROM refresh_tokens WHERE id = ?', [storedToken.id]);
     const newRefreshToken = await this.generateRefreshToken(storedToken.user_id);
 
-    return { 
+    return {
       accessToken,
       refreshToken: newRefreshToken,
     };
@@ -223,7 +418,6 @@ class SimpleAuthService {
   }
 
   async logout(refreshToken) {
-    // Delete the refresh token from database
     if (refreshToken) {
       await this.run('DELETE FROM refresh_tokens WHERE token = ?', [refreshToken]);
     }

@@ -21,9 +21,8 @@ npm run db:setup
 cd apps/web && npm run dev
 ```
 
-**Login Credentials:**
-- Email: `demo@mudul.com`
-- Password: `password`
+**Login Method:**
+- Google Sign-In via the configured OAuth client
 
 That's it! You should now have a fully functional Mudul instance with demo data.
 
@@ -34,7 +33,7 @@ That's it! You should now have a fully functional Mudul instance with demo data.
 The application has been migrated from in-memory mock data to a real database using:
 - **Database**: SQLite (development) / PostgreSQL (production ready)
 - **ORM**: Prisma (schema defined, alternative SQLite implementation for immediate use)
-- **Authentication**: Argon2 password hashing + JWT tokens
+- **Authentication**: Google Sign-In + JWT tokens
 - **Validation**: Zod schemas for API responses
 
 ## Database Schema
@@ -76,12 +75,15 @@ The following environment variables are used:
 ```
 DATABASE_URL="file:./dev.db"
 JWT_SECRET="dev-secret-key-change-in-production"
+GOOGLE_CLIENT_ID="your-google-web-client-id.apps.googleusercontent.com"
 ```
 
 **apps/web/.env**:
 ```
 DATABASE_URL="file:../../packages/storage/dev.db"
 JWT_SECRET="dev-secret-key-change-in-production"
+GOOGLE_CLIENT_ID="your-google-web-client-id.apps.googleusercontent.com"
+VITE_GOOGLE_CLIENT_ID="your-google-web-client-id.apps.googleusercontent.com"
 ```
 
 ## Demo Data
@@ -89,8 +91,8 @@ JWT_SECRET="dev-secret-key-change-in-production"
 The seeded database includes:
 
 ### Users
-- **demo@mudul.com** / password: `password` (Owner of Acme Sales Org)
-- **viewer@mudul.com** / password: `password` (Viewer of Viewer Test Org)
+- Existing seeded users remain available for backend compatibility and tests
+- New browser logins are provisioned through Google Sign-In
 
 ### Organizations
 - **Acme Sales Org** (ID: `acme-sales-org`) with 3 clients and 5 calls
@@ -105,7 +107,7 @@ The seeded database includes:
 
 All API endpoints require JWT authentication:
 
-1. Login via `POST /api/auth/login` to get access token
+1. Sign in via `POST /api/auth/google` with a Google credential token, or use the browser login page
 2. Include token in `Authorization: Bearer <token>` header
 3. Refresh tokens via `POST /api/auth/refresh` when needed
 
@@ -120,6 +122,7 @@ All API endpoints require JWT authentication:
 
 ### Authentication
 - `POST /api/auth/login` - Login with email/password
+- `POST /api/auth/google` - Login with a Google credential token
 - `POST /api/auth/refresh` - Refresh access token  
 - `POST /api/auth/logout` - Logout and revoke refresh token
 
@@ -166,7 +169,7 @@ The application has been fully migrated from mock data to real database:
 
 ✅ **Completed**:
 - Database schema and seeding
-- User authentication with password hashing
+- Google credential verification with automatic user provisioning
 - JWT token generation and refresh
 - Organization-scoped data access
 - All API endpoints using real database queries

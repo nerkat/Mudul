@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { CssBaseline } from "@mui/material";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { MuiThemeProvider } from "./design/MuiThemeProvider";
 import { AuthProvider } from "./auth/AuthContext";
 import { AuthGuard } from "./auth/AuthGuard";
@@ -36,13 +37,23 @@ const router = createBrowserRouter([
   },
 ]);
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+const app = (
+  <MuiThemeProvider>
+    <CssBaseline />
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  </MuiThemeProvider>
+);
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <MuiThemeProvider>
-      <CssBaseline />
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </MuiThemeProvider>
+    {googleClientId ? (
+      <GoogleOAuthProvider clientId={googleClientId}>{app}</GoogleOAuthProvider>
+    ) : (
+      app
+    )}
   </React.StrictMode>
 );

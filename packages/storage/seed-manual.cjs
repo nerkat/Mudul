@@ -122,6 +122,20 @@ async function seed() {
         )
       `);
 
+      db.run(`
+        CREATE TABLE IF NOT EXISTS oauth_identities (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          provider_user_id TEXT NOT NULL,
+          email TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE(provider, provider_user_id)
+        )
+      `);
+
       // Create indexes for performance
       db.run('CREATE INDEX IF NOT EXISTS idx_memberships_user_org ON memberships(user_id, org_id)');
       db.run('CREATE INDEX IF NOT EXISTS idx_clients_org ON clients(org_id)');
@@ -129,7 +143,8 @@ async function seed() {
       db.run('CREATE INDEX IF NOT EXISTS idx_calls_org_client_ts ON calls(org_id, client_id, ts)');
       db.run('CREATE INDEX IF NOT EXISTS idx_action_items_org ON action_items(org_id)');
       db.run('CREATE INDEX IF NOT EXISTS idx_action_items_org_status_due ON action_items(org_id, status, due)');
-      db.run('CREATE INDEX IF NOT EXISTS idx_action_items_client_status_due ON action_items(client_id, status, due)', (err) => {
+      db.run('CREATE INDEX IF NOT EXISTS idx_action_items_client_status_due ON action_items(client_id, status, due)');
+      db.run('CREATE INDEX IF NOT EXISTS idx_oauth_identities_user_provider ON oauth_identities(user_id, provider)', (err) => {
         if (err) reject(err);
         else resolve();
       });
