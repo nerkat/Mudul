@@ -22,6 +22,7 @@ model User {
 
   // Relations
   memberships    Membership[]
+  oauthIdentities OAuthIdentity[]
   refreshTokens  RefreshToken[]
   ownedActionItems ActionItem[] @relation("ActionItemOwner")
 
@@ -154,4 +155,20 @@ enum Sentiment {
 enum ActionItemStatus {
   OPEN
   DONE
+}
+
+model OAuthIdentity {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  provider       String
+  providerUserId String   @map("provider_user_id")
+  email          String
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId, provider])
+  @@map("oauth_identities")
 }

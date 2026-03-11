@@ -12,6 +12,11 @@ const LoginRequestSchema = z.object({
   rememberMe: z.boolean().optional().default(false),
 });
 
+const GoogleLoginRequestSchema = z.object({
+  credential: z.string().min(1),
+  rememberMe: z.boolean().optional().default(true),
+});
+
 const RefreshRequestSchema = z.object({
   refreshToken: z.string(),
 });
@@ -86,6 +91,61 @@ router.post('/login', validateResponse(LoginResponseSchema), async (req, res) =>
     res.status(500).json({
       error: 'INTERNAL_ERROR',
       message: 'Login failed due to server error',
+    });
+  }
+});
+
+// POST /api/auth/google
+router.post('/google', validateResponse(LoginResponseSchema), async (req, res) => {
+  try {
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+    if (!checkRateLimit(clientIp)) {
+      return res.status(429).json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many login attempts. Please try again later.',
+      });
+    }
+
+    const validation = GoogleLoginRequestSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST',
+        message: 'Invalid request format',
+        details: validation.error.errors,
+      });
+    }
+
+    const { credential, rememberMe } = validation.data;
+    const result = await PrismaAuthService.loginWithGoogle(credential, rememberMe);
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Google login error:', error);
+
+    if (error.message === 'GOOGLE_TOKEN_INVALID') {
+      return res.status(401).json({
+        error: 'GOOGLE_TOKEN_INVALID',
+        message: 'Google sign-in failed. Please try again.',
+      });
+    }
+
+    if (error.message === 'GOOGLE_AUTH_NOT_CONFIGURED') {
+      return res.status(500).json({
+        error: 'GOOGLE_AUTH_NOT_CONFIGURED',
+        message: 'Google authentication is not configured on the server.',
+      });
+    }
+
+    if (error.message === 'NO_ORG_ACCESS') {
+      return res.status(403).json({
+        error: 'NO_ORG_ACCESS',
+        message: 'User has no organization access',
+      });
+    }
+
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Google sign-in failed due to server error',
     });
   }
 });

@@ -1,6 +1,7 @@
 import type { 
   AuthSession, 
   LoginCredentials, 
+  GoogleLoginRequest,
   AuthError, 
   AuthResponse 
 } from './types';
@@ -101,34 +102,7 @@ class AuthService {
     try {
       const result = await this.apiClient.post('/api/auth/login', credentials);
 
-      // Transform API response to match expected AuthSession format
-      const session: AuthSession = {
-        user: result.user,
-        organization: {
-          id: result.activeOrgId,
-          name: result.orgs.find((org: any) => org.id === result.activeOrgId)?.name || 'Unknown',
-          planTier: 'pro', // Default for now
-          createdAt: '2024-01-01T00:00:00Z' // Default for now
-        },
-        membership: {
-          userId: result.user.id,
-          orgId: result.activeOrgId,
-          role: result.orgs.find((org: any) => org.id === result.activeOrgId)?.role || 'viewer',
-          createdAt: '2024-01-01T00:00:00Z' // Default for now
-        },
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        expiresAt: this.calculateExpiryTime(15) // 15 minutes from now
-      };
-
-      // Store session
-      this.currentSession = session;
-      this.storeSession(session);
-
-      return {
-        session,
-        isFirstLogin: false // For demo purposes
-      };
+      return this.consumeAuthResult(result);
     } catch (error: any) {
       console.error('Login failed:', error);
 
@@ -145,6 +119,34 @@ class AuthService {
       }
 
       throw this.createError('server_error', 'Login failed due to server error');
+    }
+  }
+
+  /**
+   * Authenticate user with a Google credential
+   */
+  async loginWithGoogle(request: GoogleLoginRequest): Promise<AuthResponse> {
+    await this.simulateDelay(200);
+
+    try {
+      const result = await this.apiClient.post('/api/auth/google', request);
+      return this.consumeAuthResult(result);
+    } catch (error: any) {
+      console.error('Google login failed:', error);
+
+      if (error.message === 'GOOGLE_TOKEN_INVALID') {
+        throw this.createError('google_token_invalid', 'Google sign-in failed. Please try again.');
+      }
+
+      if (error.message === 'GOOGLE_AUTH_NOT_CONFIGURED') {
+        throw this.createError('google_not_configured', 'Google sign-in is not configured for this environment.');
+      }
+
+      if (error.message === 'RATE_LIMIT_EXCEEDED') {
+        throw this.createError('rate_limit', 'Too many login attempts. Please try again later.');
+      }
+
+      throw this.createError('server_error', 'Google sign-in failed due to server error');
     }
   }
 
@@ -254,6 +256,42 @@ class AuthService {
    */
   private calculateExpiryTime(minutes: number): string {
     return new Date(Date.now() + minutes * 60 * 1000).toISOString();
+  }
+
+  private consumeAuthResult(result: any): AuthResponse {
+    const activeOrg = result.orgs.find((org: any) => org.id === result.activeOrgId);
+    const now = new Date().toISOString();
+
+    const session: AuthSession = {
+      user: {
+        ...result.user,
+        createdAt: result.user.createdAt || now,
+        lastLoginAt: result.user.lastLoginAt || now,
+      },
+      organization: {
+        id: result.activeOrgId,
+        name: activeOrg?.name || 'Unknown',
+        planTier: 'pro',
+        createdAt: now,
+      },
+      membership: {
+        userId: result.user.id,
+        orgId: result.activeOrgId,
+        role: activeOrg?.role || 'viewer',
+        createdAt: now,
+      },
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      expiresAt: this.calculateExpiryTime(15)
+    };
+
+    this.currentSession = session;
+    this.storeSession(session);
+
+    return {
+      session,
+      isFirstLogin: false
+    };
   }
 
   /**

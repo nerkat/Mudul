@@ -1,26 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
-  TextField,
-  Button,
   Typography,
   Alert,
-  Checkbox,
-  FormControlLabel,
   Divider,
-  Link
+  CircularProgress
 } from '@mui/material';
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../auth/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   
-  const { login, error, clearError, isAuthenticated } = useAuth();
+  const { loginWithGoogle, error, clearError, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -32,35 +28,32 @@ export function LoginPage() {
     }
   }, [isAuthenticated, navigate, searchParams]);
 
-  // Clear errors when user starts typing
+  // Clear stale auth errors when opening the page
   useEffect(() => {
-    if (error) {
-      clearError();
-    }
-  }, [email, password, clearError]);
+    clearError();
+  }, [clearError]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email.trim() || !password.trim()) {
+  const handleGoogleSuccess = async (response: CredentialResponse) => {
+    if (!response.credential) {
+      setLocalError('Google did not return a credential token.');
       return;
     }
 
+    clearError();
+    setLocalError(null);
     setIsSubmitting(true);
     try {
-      await login({ email: email.trim(), password, rememberMe });
-      // Navigation will be handled by the useEffect above
-    } catch (err) {
-      // Error is handled by AuthContext
+      await loginWithGoogle({ credential: response.credential, rememberMe: true });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDemoLogin = () => {
-    setEmail('demo@mudul.com');
-    setPassword('password');
+  const handleGoogleError = () => {
+    setLocalError('Google sign-in was cancelled or unavailable.');
   };
+
+  const activeError = localError || error?.message || null;
 
   return (
     <Box
@@ -86,14 +79,14 @@ export function LoginPage() {
             Mudul
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Sign in to your account
+            Continue with Google to access your workspace
           </Typography>
         </Box>
 
-        {error && (
+        {activeError && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            {error.message}
-            {error.details && error.details.length > 0 && (
+            {activeError}
+            {error?.details && error.details.length > 0 && (
               <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
                 {error.details.map((detail, index) => (
                   <li key={index}>{detail}</li>
@@ -103,80 +96,51 @@ export function LoginPage() {
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <TextField
-            fullWidth
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            margin="normal"
-            required
-            autoFocus
-            autoComplete="email"
-          />
-          
-          <TextField
-            fullWidth
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            margin="normal"
-            required
-            autoComplete="current-password"
-          />
-
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                color="primary"
-              />
-            }
-            label="Remember me"
-            sx={{ mt: 1, mb: 2 }}
-          />
-
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            size="large"
-            disabled={isSubmitting || !email.trim() || !password.trim()}
-            sx={{ mt: 2, mb: 2 }}
-          >
-            {isSubmitting ? 'Signing in...' : 'Sign In'}
-          </Button>
-        </form>
-
         <Divider sx={{ my: 2 }}>
           <Typography variant="body2" color="text.secondary">
-            Demo
+            Google Sign-In
           </Typography>
         </Divider>
 
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={handleDemoLogin}
-          disabled={isSubmitting}
-        >
-          Use Demo Account
-        </Button>
+        {!googleClientId ? (
+          <Alert severity="warning">
+            Google sign-in is unavailable because VITE_GOOGLE_CLIENT_ID is not configured.
+          </Alert>
+        ) : (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              mt: 1,
+              mb: 2,
+              minHeight: 44,
+              opacity: isSubmitting ? 0.64 : 1,
+              pointerEvents: isSubmitting ? 'none' : 'auto'
+            }}
+          >
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap
+              theme="outline"
+              size="large"
+              text="continue_with"
+              shape="pill"
+            />
+          </Box>
+        )}
 
         <Box sx={{ textAlign: 'center', mt: 3 }}>
           <Typography variant="body2" color="text.secondary">
-            Demo credentials: demo@mudul.com / password
+            Your first Google sign-in creates a personal workspace automatically.
           </Typography>
         </Box>
 
-        <Box sx={{ textAlign: 'center', mt: 2 }}>
-          <Link href="#" variant="body2" color="primary">
-            Forgot password?
-          </Link>
-        </Box>
+        {isSubmitting && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <CircularProgress size={20} />
+          </Box>
+        )}
       </Paper>
     </Box>
   );
