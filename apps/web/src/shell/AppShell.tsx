@@ -2,10 +2,16 @@ import React, { useState, useMemo } from 'react';
 import { 
   AppBar, 
   Box, 
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   CssBaseline, 
   Drawer, 
   IconButton, 
   Toolbar, 
+  Tooltip,
   Typography, 
   useTheme,
   useMediaQuery,
@@ -29,10 +35,11 @@ import {
   Logout,
   Business as OrgIcon,
   ExpandMore,
+  ArchiveOutlined,
 } from '@mui/icons-material';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useRepo } from '../hooks/useRepo';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
@@ -40,16 +47,26 @@ import { ThemeSwitch } from '../components/ThemeSwitch';
 
 const drawerWidth = 280;
 
+type ArchiveTarget = {
+  id: string;
+  name: string;
+  kind: 'client' | 'call';
+  parentId?: string | null;
+};
+
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const [orgMenuAnchor, setOrgMenuAnchor] = useState<null | HTMLElement>(null);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [archiveTarget, setArchiveTarget] = useState<ArchiveTarget | null>(null);
+  const [isArchiving, setIsArchiving] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
+  const location = useLocation();
   const repo = useRepo();
-  const { user, logout, membership } = useAuth();
+  const { user, logout, membership, session } = useAuth();
   const { currentOrg, availableOrgs, switchOrg } = useOrg();
 
   // Get the tree data from repo
@@ -101,6 +118,117 @@ export function AppShell() {
       console.error('Organization switch failed:', error);
     }
   };
+
+  const handleArchiveClick = (
+    event: React.MouseEvent,
+    target: ArchiveTarget,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setArchiveTarget(target);
+  };
+
+  const handleArchiveCancel = () => {
+    if (isArchiving) {
+      return;
+    }
+
+    setArchiveTarget(null);
+  };
+
+  const handleArchiveConfirm = async () => {
+    if (!archiveTarget || !session?.accessToken) {
+      return;
+    }
+
+    setIsArchiving(true);
+    try {
+      const basePath = archiveTarget.kind === 'client' ? '/api/clients' : '/api/calls';
+      const response = await fetch(`${basePath}/${archiveTarget.id}/archive`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        throw new Error(result?.error || 'ARCHIVE_FAILED');
+      }
+
+      const archivedPath = `/node/${archiveTarget.id}`;
+      if (location.pathname === archivedPath) {
+        if (archiveTarget.kind === 'call' && archiveTarget.parentId) {
+          navigate(`/node/${archiveTarget.parentId}`);
+        } else if (root) {
+          navigate(`/node/${root.id}`);
+        } else {
+          navigate('/');
+        }
+      }
+
+      await repo.refresh();
+      setArchiveTarget(null);
+    } catch (error) {
+      console.error('Archive failed:', error);
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  const renderTreeLabel = (
+    icon: React.ReactNode,
+    title: string,
+    actionLabel: string,
+    target: ArchiveTarget,
+  ) => (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing(1),
+        width: '100%',
+        minWidth: 0,
+        '&:hover .tree-node-action, &:focus-within .tree-node-action': {
+          opacity: 1,
+          pointerEvents: 'auto',
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1), minWidth: 0, flex: 1 }}>
+        {icon}
+        <Typography variant="body2" sx={{ fontWeight: 'medium' }} noWrap>
+          {title}
+        </Typography>
+      </Box>
+      <Tooltip title={actionLabel}>
+        <span>
+          <IconButton
+            size="small"
+            className="tree-node-action"
+            aria-label={actionLabel}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={(event) => handleArchiveClick(event, target)}
+            sx={{
+              opacity: 0,
+              pointerEvents: 'none',
+              transition: theme.transitions.create('opacity', {
+                duration: theme.transitions.duration.shorter,
+              }),
+            }}
+          >
+            <ArchiveOutlined fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+    </Box>
+  );
 
   const handleItemClick = (_event: React.SyntheticEvent, itemId: string) => {
     if (itemId === 'dashboard') {
@@ -174,32 +302,23 @@ export function AppShell() {
               <TreeItem
                 key={client.id}
                 itemId={client.id}
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
-                    <Business fontSize="small" />
-                    {client.name}
-                  </Box>
-                }
+                label={renderTreeLabel(
+                  <Business fontSize="small" />,
+                  client.name,
+                  'Archive client',
+                  { id: client.id, name: client.name, kind: 'client', parentId: root?.id }
+                )}
               >
                 {calls.map((call) => (
                   <TreeItem
                     key={call.id}
                     itemId={call.id}
-                    label={
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        gap: theme.spacing(1),
-                        py: theme.spacing(0.5)
-                      }}>
-                        <Call fontSize="small" />
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                            {call.name}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    }
+                    label={renderTreeLabel(
+                      <Call fontSize="small" />,
+                      call.name,
+                      'Archive call',
+                      { id: call.id, name: call.name, kind: 'call', parentId: client.id }
+                    )}
                   />
                 ))}
               </TreeItem>
@@ -237,6 +356,21 @@ export function AppShell() {
           </Button>
         </Box>
       </Box>
+
+      <Dialog open={!!archiveTarget} onClose={handleArchiveCancel}>
+        <DialogTitle>Archive {archiveTarget?.kind === 'client' ? 'client' : 'call'}?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to archive {archiveTarget?.name || 'this item'}?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleArchiveCancel} disabled={isArchiving}>No</Button>
+          <Button onClick={handleArchiveConfirm} color="error" disabled={isArchiving}>
+            Yes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 

@@ -80,6 +80,8 @@ class SimpleSQLiteService {
 
     const columns = await this.query('PRAGMA table_info(calls)');
     const columnNames = new Set(columns.map((column) => column.name));
+    const clientColumns = await this.query('PRAGMA table_info(clients)');
+    const clientColumnNames = new Set(clientColumns.map((column) => column.name));
 
     if (!columnNames.has('transcript')) {
       await this.run('ALTER TABLE calls ADD COLUMN transcript TEXT');
@@ -91,6 +93,14 @@ class SimpleSQLiteService {
 
     if (!columnNames.has('meta_json')) {
       await this.run('ALTER TABLE calls ADD COLUMN meta_json TEXT');
+    }
+
+    if (!columnNames.has('archived_at')) {
+      await this.run('ALTER TABLE calls ADD COLUMN archived_at TEXT');
+    }
+
+    if (!clientColumnNames.has('archived_at')) {
+      await this.run('ALTER TABLE clients ADD COLUMN archived_at TEXT');
     }
 
     this.extendedCallSchemaReady = true;
@@ -146,6 +156,7 @@ class SimpleSQLiteService {
       name: client.name,
       slug: client.slug || this.slugify(client.name),
       dashboardId: 'client-dashboard',
+      archivedAt: client.archived_at || null,
       createdAt: client.created_at,
       updatedAt: client.created_at,
     };
@@ -161,6 +172,7 @@ class SimpleSQLiteService {
       slug: this.slugify(call.name || call.id),
       dashboardId: 'sales-call-default',
       dataRef: { type: 'session', id: `session-${call.id}` },
+      archivedAt: call.archived_at || null,
       createdAt: call.ts,
       updatedAt: call.created_at || call.ts,
     };
@@ -199,14 +211,18 @@ class SimpleSQLiteService {
     const org = orgs[0];
     const root = this.buildRootNode(org.id, org.name, org.created_at);
     const clientRows = await this.query(
-      'SELECT id, org_id, name, slug, created_at FROM clients WHERE org_id = ? ORDER BY created_at ASC, name ASC',
+      `SELECT id, org_id, name, slug, created_at, archived_at
+       FROM clients
+       WHERE org_id = ? AND archived_at IS NULL
+       ORDER BY created_at ASC, name ASC`,
       [orgId]
     );
     const callRows = await this.query(
-      `SELECT id, org_id, client_id, name, summary, ts, sentiment, score, booking_likelihood, created_at, transcript, analysis_json, meta_json
+      `SELECT calls.id, calls.org_id, calls.client_id, calls.name, calls.summary, calls.ts, calls.sentiment, calls.score, calls.booking_likelihood, calls.created_at, calls.transcript, calls.analysis_json, calls.meta_json, calls.archived_at
        FROM calls
-       WHERE org_id = ?
-       ORDER BY ts DESC, created_at DESC`,
+       INNER JOIN clients ON clients.id = calls.client_id
+       WHERE calls.org_id = ? AND calls.archived_at IS NULL AND clients.archived_at IS NULL
+       ORDER BY calls.ts DESC, calls.created_at DESC`,
       [orgId]
     );
 
@@ -333,22 +349,34 @@ class SimpleSQLiteService {
     }
 
     const totalCalls = await this.query(
-      'SELECT COUNT(*) as count FROM calls WHERE org_id = ?',
+      `SELECT COUNT(*) as count
+       FROM calls
+       INNER JOIN clients ON clients.id = calls.client_id
+       WHERE calls.org_id = ? AND calls.archived_at IS NULL AND clients.archived_at IS NULL`,
       [orgId]
     );
 
     const sentimentAvg = await this.query(
-      'SELECT AVG(score) as avg_score FROM calls WHERE org_id = ? AND score IS NOT NULL',
+      `SELECT AVG(calls.score) as avg_score
+       FROM calls
+       INNER JOIN clients ON clients.id = calls.client_id
+       WHERE calls.org_id = ? AND calls.archived_at IS NULL AND clients.archived_at IS NULL AND calls.score IS NOT NULL`,
       [orgId]
     );
 
     const highLikelihoodCalls = await this.query(
-      'SELECT COUNT(*) as count FROM calls WHERE org_id = ? AND booking_likelihood >= 0.7',
+      `SELECT COUNT(*) as count
+       FROM calls
+       INNER JOIN clients ON clients.id = calls.client_id
+       WHERE calls.org_id = ? AND calls.archived_at IS NULL AND clients.archived_at IS NULL AND calls.booking_likelihood >= 0.7`,
       [orgId]
     );
 
     const openActionItems = await this.query(
-      'SELECT COUNT(*) as count FROM action_items WHERE org_id = ? AND status = "OPEN"',
+      `SELECT COUNT(*) as count
+       FROM action_items
+       INNER JOIN clients ON clients.id = action_items.client_id
+       WHERE action_items.org_id = ? AND action_items.status = "OPEN" AND clients.archived_at IS NULL`,
       [orgId]
     );
 
@@ -378,21 +406,21 @@ class SimpleSQLiteService {
     }
 
     const clients = await this.query(
-      'SELECT id, name FROM clients WHERE org_id = ?',
+      'SELECT id, name FROM clients WHERE org_id = ? AND archived_at IS NULL',
       [orgId]
     );
 
     const items = await Promise.all(
       clients.map(async (client) => {
         const lastCall = await this.query(
-          'SELECT ts FROM calls WHERE client_id = ? ORDER BY ts DESC LIMIT 1',
+          'SELECT ts FROM calls WHERE client_id = ? AND archived_at IS NULL ORDER BY ts DESC LIMIT 1',
           [client.id]
         );
 
         // Get calls in last 30 days for sorting
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
         const calls30d = await this.query(
-          'SELECT COUNT(*) as calls30d FROM calls WHERE client_id = ? AND ts >= ?',
+          'SELECT COUNT(*) as calls30d FROM calls WHERE client_id = ? AND archived_at IS NULL AND ts >= ?',
           [client.id, thirtyDaysAgo]
         );
 
@@ -401,7 +429,7 @@ class SimpleSQLiteService {
             COUNT(*) as total_calls,
             AVG(score) as avg_sentiment,
             AVG(booking_likelihood) as avg_likelihood
-           FROM calls WHERE client_id = ?`,
+             FROM calls WHERE client_id = ? AND archived_at IS NULL`,
           [client.id]
         );
 
@@ -435,7 +463,7 @@ class SimpleSQLiteService {
     await this.ensureExtendedCallSchema();
 
     const client = await this.query(
-      'SELECT * FROM clients WHERE id = ? AND org_id = ?',
+      'SELECT * FROM clients WHERE id = ? AND org_id = ? AND archived_at IS NULL',
       [clientId, orgId]
     );
 
@@ -448,7 +476,7 @@ class SimpleSQLiteService {
         COUNT(*) as total_calls,
         AVG(score) as avg_sentiment,
         AVG(booking_likelihood) as avg_likelihood
-       FROM calls WHERE client_id = ?`,
+       FROM calls WHERE client_id = ? AND archived_at IS NULL`,
       [clientId]
     );
 
@@ -472,7 +500,7 @@ class SimpleSQLiteService {
 
     // Verify client belongs to org
     const client = await this.query(
-      'SELECT id FROM clients WHERE id = ? AND org_id = ?',
+      'SELECT id FROM clients WHERE id = ? AND org_id = ? AND archived_at IS NULL',
       [clientId, orgId]
     );
 
@@ -481,7 +509,7 @@ class SimpleSQLiteService {
     }
 
     const calls = await this.query(
-      'SELECT * FROM calls WHERE client_id = ? ORDER BY ts DESC, id DESC LIMIT ?',
+      'SELECT * FROM calls WHERE client_id = ? AND archived_at IS NULL ORDER BY ts DESC, id DESC LIMIT ?',
       [clientId, limit]
     );
 
@@ -505,7 +533,7 @@ class SimpleSQLiteService {
 
     // Verify client belongs to org
     const client = await this.query(
-      'SELECT id FROM clients WHERE id = ? AND org_id = ?',
+      'SELECT id FROM clients WHERE id = ? AND org_id = ? AND archived_at IS NULL',
       [clientId, orgId]
     );
 
@@ -545,6 +573,63 @@ class SimpleSQLiteService {
     return new Promise((resolve) => {
       this.db.close(resolve);
     });
+  }
+
+  async archiveClient(orgId, clientId) {
+    await this.ensureExtendedCallSchema();
+
+    const client = await this.query(
+      'SELECT id FROM clients WHERE id = ? AND org_id = ? AND archived_at IS NULL',
+      [clientId, orgId]
+    );
+
+    if (!client || client.length === 0) {
+      throw new Error('CLIENT_NOT_FOUND');
+    }
+
+    const archivedAt = new Date().toISOString();
+    await this.run('BEGIN TRANSACTION');
+
+    try {
+      await this.run(
+        'UPDATE clients SET archived_at = ? WHERE id = ? AND org_id = ? AND archived_at IS NULL',
+        [archivedAt, clientId, orgId]
+      );
+      await this.run(
+        'UPDATE calls SET archived_at = ? WHERE client_id = ? AND org_id = ? AND archived_at IS NULL',
+        [archivedAt, clientId, orgId]
+      );
+      await this.run('COMMIT');
+    } catch (error) {
+      await this.run('ROLLBACK').catch(() => {});
+      throw error;
+    }
+
+    return { id: clientId, archivedAt };
+  }
+
+  async archiveCall(orgId, callId) {
+    await this.ensureExtendedCallSchema();
+
+    const call = await this.query(
+      `SELECT calls.id
+       FROM calls
+       INNER JOIN clients ON clients.id = calls.client_id
+       WHERE calls.id = ? AND calls.org_id = ? AND calls.archived_at IS NULL AND clients.archived_at IS NULL`,
+      [callId, orgId]
+    );
+
+    if (!call || call.length === 0) {
+      throw new Error('CALL_NOT_FOUND');
+    }
+
+    const archivedAt = new Date().toISOString();
+    await this.run(
+      'UPDATE calls SET archived_at = ? WHERE id = ? AND org_id = ? AND archived_at IS NULL',
+      [archivedAt, callId, orgId]
+    );
+
+    return { id: callId, archivedAt };
   }
 }
 

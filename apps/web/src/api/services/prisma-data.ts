@@ -8,10 +8,44 @@ export class PrismaDataService {
   private static service: any = null;
   private static warned = false;
 
+  private static readonly requiredMethods = [
+    'getOrgTree',
+    'getOrgSummary',
+    'getClientsOverview',
+    'createClient',
+    'createCall',
+    'getClientSummary',
+    'getClientCalls',
+    'getClientActionItems',
+    'archiveClient',
+    'archiveCall',
+    'disconnect',
+  ] as const;
+
+  private static hasRequiredMethods(service: any) {
+    return this.requiredMethods.every((methodName) => typeof service?.[methodName] === 'function');
+  }
+
+  private static disposeService(service: any) {
+    if (service && typeof service.disconnect === 'function') {
+      void service.disconnect().catch(() => {});
+    }
+  }
+
   private static getService() {
+    if (this.service && !this.hasRequiredMethods(this.service)) {
+      const staleService = this.service;
+      this.service = null;
+      this.disposeService(staleService);
+    }
+
     if (!this.service) {
       try {
         const require = createRequire(import.meta.url);
+        if (process.env.NODE_ENV !== 'production') {
+          const modulePath = require.resolve('./simple-sqlite.cjs');
+          delete require.cache[modulePath];
+        }
         const { SimpleSQLiteService } = require('./simple-sqlite.cjs') as { SimpleSQLiteService: any };
         this.service = new SimpleSQLiteService();
       } catch (error) {
@@ -25,11 +59,16 @@ export class PrismaDataService {
         }
 
         this.service = {
+          getOrgTree: MockDataService.getOrgTree,
           getOrgSummary: MockDataService.getOrgSummary,
           getClientsOverview: MockDataService.getClientsOverview,
+          createClient: MockDataService.createClient,
+          createCall: MockDataService.createCall,
           getClientSummary: MockDataService.getClientSummary,
           getClientCalls: MockDataService.getClientCalls,
           getClientActionItems: MockDataService.getClientActionItems,
+          archiveClient: MockDataService.archiveClient,
+          archiveCall: MockDataService.archiveCall,
           disconnect: async () => {},
         };
       }
@@ -72,6 +111,14 @@ export class PrismaDataService {
     return await this.getService().createCall(orgId, payload);
   }
 
+  static async archiveClient(orgId: string, clientId: string) {
+    return await this.getService().archiveClient(orgId, clientId);
+  }
+
+  static async archiveCall(orgId: string, callId: string) {
+    return await this.getService().archiveCall(orgId, callId);
+  }
+
   /**
    * Get client summary with KPIs and insights
    */
@@ -102,7 +149,8 @@ export class PrismaDataService {
    */
   static async disconnect() {
     if (!this.service) return;
-    await this.service.disconnect();
+    const service = this.service;
     this.service = null;
+    await service.disconnect();
   }
 }

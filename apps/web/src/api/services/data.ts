@@ -44,13 +44,58 @@ interface ActionItemRow {
 }
 
 export class MockDataService {
+  static getOrgTree(orgId: string) {
+    const rootNode = Object.values(nodes).find(node =>
+      node.orgId === orgId &&
+      node.parentId === null &&
+      node.kind === 'group' &&
+      !node.archivedAt
+    );
+
+    if (!rootNode) {
+      throw new Error('ORG_NOT_FOUND');
+    }
+
+    const clientNodes = Object.values(nodes)
+      .filter(node =>
+        node.orgId === orgId &&
+        node.kind === 'lead' &&
+        !node.archivedAt
+      )
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+
+    const visibleClientIds = new Set(clientNodes.map(node => node.id));
+    const callNodes = Object.values(nodes)
+      .filter(node =>
+        node.orgId === orgId &&
+        node.kind === 'call_session' &&
+        !node.archivedAt &&
+        !!node.parentId &&
+        visibleClientIds.has(node.parentId)
+      )
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+
+    return {
+      root: rootNode,
+      clients: clientNodes,
+      calls: callNodes,
+      callData: Object.fromEntries(callNodes.map(node => [node.id, calls[node.id]])),
+    };
+  }
+
   /**
    * Get organization summary KPIs
    */
   static getOrgSummary(orgId: string): OrgSummary {
     // Filter calls for this org
     const orgCallIds = Object.values(nodes)
-      .filter(node => node.orgId === orgId && node.kind === 'call_session')
+      .filter(node =>
+        node.orgId === orgId &&
+        node.kind === 'call_session' &&
+        !node.archivedAt &&
+        !!node.parentId &&
+        !nodes[node.parentId]?.archivedAt
+      )
       .map(node => node.id);
 
     const orgCalls = orgCallIds.map(id => calls[id]).filter(Boolean);
@@ -86,13 +131,13 @@ export class MockDataService {
   static getClientsOverview(orgId: string): { items: ClientRow[] } {
     // Get clients for this org
     const clients = Object.values(nodes).filter(node => 
-      node.orgId === orgId && node.kind === 'lead'
+      node.orgId === orgId && node.kind === 'lead' && !node.archivedAt
     );
 
     const items: ClientRow[] = clients.map(client => {
       // Get calls for this client
       const clientCallIds = Object.values(nodes)
-        .filter(node => node.parentId === client.id && node.kind === 'call_session')
+        .filter(node => node.parentId === client.id && node.kind === 'call_session' && !node.archivedAt)
         .map(node => node.id);
 
       const clientCalls = clientCallIds.map(id => calls[id]).filter(Boolean);
@@ -131,13 +176,13 @@ export class MockDataService {
   static getClientSummary(clientId: string, orgId: string): ClientSummary {
     // Verify client exists and belongs to org
     const client = nodes[clientId];
-    if (!client || client.orgId !== orgId || client.kind !== 'lead') {
+    if (!client || client.orgId !== orgId || client.kind !== 'lead' || client.archivedAt) {
       throw new Error('CLIENT_NOT_FOUND');
     }
 
     // Get calls for this client
     const clientCallIds = Object.values(nodes)
-      .filter(node => node.parentId === clientId && node.kind === 'call_session')
+      .filter(node => node.parentId === clientId && node.kind === 'call_session' && !node.archivedAt)
       .map(node => node.id);
 
     const clientCalls = clientCallIds.map(id => calls[id]).filter(Boolean);
@@ -181,13 +226,13 @@ export class MockDataService {
   static getClientCalls(clientId: string, orgId: string, limit = 10): { items: CallRow[] } {
     // Verify client exists and belongs to org
     const client = nodes[clientId];
-    if (!client || client.orgId !== orgId || client.kind !== 'lead') {
+    if (!client || client.orgId !== orgId || client.kind !== 'lead' || client.archivedAt) {
       throw new Error('CLIENT_NOT_FOUND');
     }
 
     // Get calls for this client
     const clientCallIds = Object.values(nodes)
-      .filter(node => node.parentId === clientId && node.kind === 'call_session')
+      .filter(node => node.parentId === clientId && node.kind === 'call_session' && !node.archivedAt)
       .map(node => node.id)
       .sort((a, b) => new Date(nodes[b].createdAt).getTime() - new Date(nodes[a].createdAt).getTime())
       .slice(0, limit);
@@ -219,13 +264,13 @@ export class MockDataService {
   ): { items: ActionItemRow[] } {
     // Verify client exists and belongs to org
     const client = nodes[clientId];
-    if (!client || client.orgId !== orgId || client.kind !== 'lead') {
+    if (!client || client.orgId !== orgId || client.kind !== 'lead' || client.archivedAt) {
       throw new Error('CLIENT_NOT_FOUND');
     }
 
     // Get calls for this client and extract action items
     const clientCallIds = Object.values(nodes)
-      .filter(node => node.parentId === clientId && node.kind === 'call_session')
+      .filter(node => node.parentId === clientId && node.kind === 'call_session' && !node.archivedAt)
       .map(node => node.id);
 
     const actionItems: ActionItemRow[] = [];
@@ -248,5 +293,45 @@ export class MockDataService {
     });
 
     return { items: actionItems };
+  }
+
+  static archiveClient(orgId: string, clientId: string) {
+    const client = nodes[clientId];
+    if (!client || client.orgId !== orgId || client.kind !== 'lead' || client.archivedAt) {
+      throw new Error('CLIENT_NOT_FOUND');
+    }
+
+    const archivedAt = new Date().toISOString();
+    client.archivedAt = archivedAt;
+    client.updatedAt = archivedAt;
+
+    Object.values(nodes)
+      .filter(node => node.parentId === clientId && node.kind === 'call_session' && !node.archivedAt)
+      .forEach((node) => {
+        node.archivedAt = archivedAt;
+        node.updatedAt = archivedAt;
+      });
+
+    return { id: clientId, archivedAt };
+  }
+
+  static archiveCall(orgId: string, callId: string) {
+    const callNode = nodes[callId];
+    if (
+      !callNode ||
+      callNode.orgId !== orgId ||
+      callNode.kind !== 'call_session' ||
+      callNode.archivedAt ||
+      !callNode.parentId ||
+      nodes[callNode.parentId]?.archivedAt
+    ) {
+      throw new Error('CALL_NOT_FOUND');
+    }
+
+    const archivedAt = new Date().toISOString();
+    callNode.archivedAt = archivedAt;
+    callNode.updatedAt = archivedAt;
+
+    return { id: callId, archivedAt };
   }
 }
