@@ -5,7 +5,7 @@ dist/
 .DS_Store
 pnpm-lock.yaml
 *.tsbuildinfo
-# .env.local
-# .env
+.env.local
+.env
 dev.db
 
