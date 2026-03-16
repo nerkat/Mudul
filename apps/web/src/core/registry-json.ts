@@ -22,6 +22,7 @@ export const DashboardTemplates: Record<string, DashboardTemplate> = {
     version: ProtocolVersion,
     layout: { columns: 12 },
     widgets: [
+      { slug: "clientMemory", params: {} },
       { slug: "recentCalls", params: { maxItems: 5 } },
       { slug: "clientKPIs", params: {} },
       { slug: "followUps", params: { maxItems: 10 } },

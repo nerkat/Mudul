@@ -5,6 +5,7 @@ import { orgRoutes } from './routes/org';
 import { clientRoutes } from './routes/client';
 import { callRoutes } from './routes/call';
 import { healthRoutes } from './routes/health';
+import { memoryRoutes } from './routes/memory';
 
 export function apiPlugin(): Plugin {
   let app: express.Application;
@@ -42,6 +43,7 @@ export function apiPlugin(): Plugin {
       app.use('/org', orgRoutes);
       app.use('/clients', clientRoutes);
       app.use('/calls', callRoutes);
+      app.use('/client-memory', memoryRoutes);
 
       // Error handling
       app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {

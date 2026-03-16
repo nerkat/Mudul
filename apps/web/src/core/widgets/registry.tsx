@@ -17,7 +17,8 @@ import {
   HealthSignalsParams,
   RecentCallsParams,
   FollowUpsParams,
-  ClientKPIsParams
+  ClientKPIsParams,
+  ClientMemoryParams
 } from "./params";
 
 // Import adapters and paper renderer
@@ -251,6 +252,30 @@ export const WidgetRegistry: Record<WidgetSlug, WidgetRegistryEntry> = {
     render: (_call, _params, projectedData) => (
       <Skin.ClientKPIs key="clientKPIs" data={projectedData || { avgSentiment: 0, totalCalls: 0, conversionRate: 0, lastActivity: 'Unknown' }} />
     )
+  },
+
+  clientMemory: {
+    validate: (params: unknown) => {
+      const result = ClientMemoryParams.safeParse(params);
+      if (result.success) {
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: `Invalid clientMemory params: ${result.error.message}` };
+    },
+    render: (_call, _params, projectedData) => (
+      <Skin.ClientMemory key="clientMemory" data={projectedData || {
+        clientId: '',
+        memoryTags: [],
+        decisionStyle: '',
+        budgetSignals: '',
+        timelineSignals: '',
+        recurringRisks: [],
+        keyPeople: [],
+        briefingBullets: [],
+        lastUpdatedAt: '',
+        isEmpty: true,
+      }} />
+    )
   }
 };
 
@@ -364,7 +389,8 @@ export function WidgetRenderer({ config, call, nodeId }: WidgetRendererProps) {
     getAllClients: repo.getAllClients,
     getAllCalls: repo.getAllCalls,
     getCallByNode: repo.getCallByNode,
-    listCallsByClient: repo.listCallsByClient
+    listCallsByClient: repo.listCallsByClient,
+    getClientMemory: repo.getClientMemory,
   });
 
   // Branch between paper and rich mode

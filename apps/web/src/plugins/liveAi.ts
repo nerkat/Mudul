@@ -179,6 +179,77 @@ export function liveAiPlugin(): Plugin {
           }));
         }
       });
+
+      // Memory patch generation endpoint
+      server.middlewares.use('/api/ai/generate-memory-patch', async (req, res, next) => {
+        if (req.method !== 'POST') {
+          next();
+          return;
+        }
+
+        try {
+          const parsed = await parseJsonBody(req);
+          const { clientId, clientName, callAnalysis, existingMemory } = parsed ?? {};
+
+          if (!clientId) {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
+              ok: false,
+              error: { code: 'INVALID_REQUEST', message: 'Missing required field: clientId' }
+            }));
+            return;
+          }
+
+          const aiConfig = getAIConfig();
+
+          if (!aiConfig) {
+            // Return a stub patch when no API key is configured
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
+              patch: {
+                newTags: [],
+                riskSignals: [],
+                peopleUpdates: [],
+                budgetSignal: null,
+                timelineSignal: null,
+                briefingUpdates: [`Memory stub for ${clientName ?? clientId} (no AI key configured)`]
+              }
+            }));
+            return;
+          }
+
+          const messages = buildMemoryPatchPrompt({ clientName, callAnalysis, existingMemory });
+          const startTime = Date.now();
+          const result = await callAIProvider({ transcript: '', mode: 'memory_patch', schemaVersion: '1.0.0', config: aiConfig, messages });
+          const durationMs = Date.now() - startTime;
+
+          if (!result.ok) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result));
+            return;
+          }
+
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            patch: result.data,
+            meta: { provider: aiConfig.provider, model: aiConfig.model, duration_ms: durationMs }
+          }));
+        } catch (error) {
+          console.error('[LIVE AI MEMORY PATCH UNHANDLED]', error);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            ok: false,
+            error: {
+              code: 'SERVER_ERROR',
+              message: 'Internal server error',
+              details: error instanceof Error ? error.message : String(error)
+            }
+          }));
+        }
+      });
     },
   };
 }
@@ -269,18 +340,20 @@ async function callAIProvider({
   transcript,
   mode,
   schemaVersion,
-  config
+  config,
+  messages: customMessages
 }: {
   transcript: string;
   mode: string;
   schemaVersion: string;
   config: ReturnType<typeof getAIConfig>;
+  messages?: Array<{ role: 'system' | 'user'; content: string }>;
 }) {
   if (!config) {
     return { ok: false, error: { code: 'CONFIG_ERROR' } };
   }
 
-  const messages = buildAnalysisPrompt({ transcript, mode, schemaVersion });
+  const messages = customMessages ?? buildAnalysisPrompt({ transcript, mode, schemaVersion });
 
   // Import AI SDKs only on server-side
   let rawJSON: any;
@@ -426,5 +499,44 @@ Return ONLY valid JSON matching this exact schema. No explanations or prose.`;
   return [
     { role: "system" as const, content: systemPrompt },
     { role: "user" as const, content: `Analyze this sales call transcript:\n\n${transcript}` }
+  ];
+}
+
+function buildMemoryPatchPrompt({ clientName, callAnalysis, existingMemory }: {
+  clientName?: string;
+  callAnalysis?: any;
+  existingMemory?: any;
+}) {
+  const systemPrompt = `You are a sales intelligence assistant. Based on the provided call analysis and existing client memory, generate a memory patch to update the client profile.
+
+Return ONLY a JSON object with this exact structure (no explanations):
+{
+  "newTags": ["string"],
+  "riskSignals": ["string"],
+  "peopleUpdates": [
+    { "name": "string", "role": "string | null", "notes": "string | null" }
+  ],
+  "budgetSignal": "string | null",
+  "timelineSignal": "string | null",
+  "briefingUpdates": ["string (max 8 total bullets)"]
+}
+
+Rules:
+- Only add tags if they are clearly relevant and not already present in existing memory
+- Keep riskSignals concise and actionable
+- Merge people carefully: only include people explicitly mentioned in the call analysis
+- budgetSignal and timelineSignal should be null if no new information is available
+- briefingUpdates should be concise prep bullets for the next call with this client
+- Return empty arrays and null values if no relevant data is available`;
+
+  const userContent = JSON.stringify({
+    clientName: clientName ?? 'Unknown Client',
+    callAnalysis: callAnalysis ?? null,
+    existingMemory: existingMemory ?? null,
+  }, null, 2);
+
+  return [
+    { role: "system" as const, content: systemPrompt },
+    { role: "user" as const, content: `Generate a memory patch for this client:\n\n${userContent}` }
   ];
 }

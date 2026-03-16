@@ -1,4 +1,3 @@
-// src/core/adapters/index.ts
 import type { 
   AdapterMap,
   SummaryAdapter,
@@ -15,7 +14,8 @@ import type {
   HealthSignalsAdapter,
   RecentCallsAdapter,
   FollowUpsAdapter,
-  ClientKPIsAdapter
+  ClientKPIsAdapter,
+  ClientMemoryAdapter
 } from './types';
 
 import {
@@ -33,7 +33,8 @@ import {
   HealthSignalsDataSchema,
   RecentCallsDataSchema,
   FollowUpsDataSchema,
-  ClientKPIsDataSchema
+  ClientKPIsDataSchema,
+  ClientMemoryDataSchema
 } from './schemas';
 
 // Simple memoization cache for adapter results
@@ -437,5 +438,51 @@ export const Adapters: AdapterMap = {
       
       return validateAndCache(cacheKey, result, ClientKPIsDataSchema);
     }
-  } as ClientKPIsAdapter
+  } as ClientKPIsAdapter,
+
+  clientMemory: {
+    slug: 'clientMemory',
+    project: (_call, params, ctx) => {
+      const nodeId = ctx?.currentNodeId;
+      const cacheKey = createCacheKey('clientMemory', nodeId, ctx, params);
+      const cached = getCachedResult(cacheKey);
+      if (cached) return cached;
+
+      if (!nodeId) {
+        const result = {
+          clientId: '',
+          memoryTags: [],
+          decisionStyle: '',
+          budgetSignals: '',
+          timelineSignals: '',
+          recurringRisks: [],
+          keyPeople: [],
+          briefingBullets: [],
+          lastUpdatedAt: '',
+          isEmpty: true,
+        };
+        return validateAndCache(cacheKey, result, ClientMemoryDataSchema);
+      }
+
+      const memory = ctx?.getClientMemory?.(nodeId);
+      if (!memory) {
+        const result = {
+          clientId: nodeId,
+          memoryTags: [],
+          decisionStyle: '',
+          budgetSignals: '',
+          timelineSignals: '',
+          recurringRisks: [],
+          keyPeople: [],
+          briefingBullets: [],
+          lastUpdatedAt: '',
+          isEmpty: true,
+        };
+        return validateAndCache(cacheKey, result, ClientMemoryDataSchema);
+      }
+
+      const result = { ...memory, isEmpty: false };
+      return validateAndCache(cacheKey, result, ClientMemoryDataSchema);
+    }
+  } as ClientMemoryAdapter
 };
