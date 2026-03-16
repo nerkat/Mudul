@@ -61,3 +61,32 @@ export type WidgetKey =
 // Dashboard templates mapping
 export type DashboardTemplateId = string;
 export type DashboardTemplate = WidgetKey[];
+
+// Client Memory - persistent structured intelligence about a client
+export interface ClientMemoryPerson {
+  name: string;
+  role: string | null;
+  notes: string | null;
+}
+
+export interface ClientMemory {
+  clientId: string;
+  memoryTags: string[];
+  decisionStyle: string;
+  budgetSignals: string;
+  timelineSignals: string;
+  recurringRisks: string[];
+  keyPeople: ClientMemoryPerson[];
+  briefingBullets: string[];
+  lastUpdatedAt: string;
+}
+
+// Memory patch generated from a call analysis
+export interface MemoryPatch {
+  newTags: string[];
+  riskSignals: string[];
+  peopleUpdates: ClientMemoryPerson[];
+  budgetSignal: string | null;
+  timelineSignal: string | null;
+  briefingUpdates: string[];
+}

@@ -1,5 +1,5 @@
 // src/core/adapters/types.ts
-import type { SalesCallMinimal, NodeBase } from '../types';
+import type { SalesCallMinimal, NodeBase, ClientMemory } from '../types';
 
 export type ViewMode = "rich" | "paper";
 
@@ -17,6 +17,8 @@ export type AdapterCtx = {
   getAllCalls?: () => NodeBase[];
   getCallByNode?: (nodeId: string) => SalesCallMinimal | null;
   listCallsByClient?: (clientId: string) => NodeBase[];
+  // Client memory
+  getClientMemory?: (clientId: string) => ClientMemory | null;
 };
 
 // Base adapter interface
@@ -87,6 +89,21 @@ export interface ClientKPIsAdapter extends WidgetAdapter<{}, { avgSentiment: num
   slug: 'clientKPIs';
 }
 
+export interface ClientMemoryAdapter extends WidgetAdapter<{}, {
+  clientId: string;
+  memoryTags: string[];
+  decisionStyle: string;
+  budgetSignals: string;
+  timelineSignals: string;
+  recurringRisks: string[];
+  keyPeople: Array<{ name: string; role: string | null; notes: string | null }>;
+  briefingBullets: string[];
+  lastUpdatedAt: string;
+  isEmpty: boolean;
+}> {
+  slug: 'clientMemory';
+}
+
 // Discriminated union of all adapters
 export type TypedAdapter = 
   | SummaryAdapter
@@ -103,7 +120,8 @@ export type TypedAdapter =
   | HealthSignalsAdapter
   | RecentCallsAdapter
   | FollowUpsAdapter
-  | ClientKPIsAdapter;
+  | ClientKPIsAdapter
+  | ClientMemoryAdapter;
 
 // Map type for the registry
 export type AdapterMap = Record<TypedAdapter['slug'], TypedAdapter>;

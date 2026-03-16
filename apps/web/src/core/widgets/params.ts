@@ -64,6 +64,8 @@ export const FollowUpsParams = z.object({
 
 export const ClientKPIsParams = z.object({});
 
+export const ClientMemoryParams = z.object({});
+
 // Export param types
 export type SummaryParams = z.infer<typeof SummaryParams>;
 export type SentimentParams = z.infer<typeof SentimentParams>;
@@ -80,3 +82,4 @@ export type HealthSignalsParams = z.infer<typeof HealthSignalsParams>;
 export type RecentCallsParams = z.infer<typeof RecentCallsParams>;
 export type FollowUpsParams = z.infer<typeof FollowUpsParams>;
 export type ClientKPIsParams = z.infer<typeof ClientKPIsParams>;
+export type ClientMemoryParams = z.infer<typeof ClientMemoryParams>;

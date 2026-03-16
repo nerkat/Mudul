@@ -1,6 +1,6 @@
-import { nodes, calls } from "./seed";
+import { nodes, calls, clientMemories } from "./seed";
 import { DashboardTemplates } from "./registry-json";
-import type { NodeBase, SalesCallMinimal } from "./types";
+import type { NodeBase, SalesCallMinimal, ClientMemory, MemoryPatch } from "./types";
 import type { DashboardTemplate } from "./widgets/protocol";
 import { isAnalysisDuplicate } from "../services/versioning";
 
@@ -281,4 +281,99 @@ export function markNodeActive(nodeId: string): void {
   if (node) {
     node.updatedAt = new Date().toISOString();
   }
+}
+
+// ----- Client Memory operations -----
+
+/**
+ * Retrieve the current memory snapshot for a client.
+ */
+export function getClientMemory(clientId: string): ClientMemory | null {
+  return clientMemories[clientId] || null;
+}
+
+/**
+ * Persist (or replace) a client memory document.
+ */
+export function saveClientMemory(memory: ClientMemory): void {
+  clientMemories[memory.clientId] = {
+    ...memory,
+    lastUpdatedAt: new Date().toISOString(),
+  };
+}
+
+const MAX_BRIEFING_BULLETS = 8;
+
+/**
+ * Merge a MemoryPatch into the existing ClientMemory for a client.
+ * Creates a new memory document if none exists yet.
+ * Returns the updated memory.
+ */
+export function applyMemoryPatch(clientId: string, patch: MemoryPatch): ClientMemory {
+  const existing: ClientMemory = clientMemories[clientId] ?? {
+    clientId,
+    memoryTags: [],
+    decisionStyle: "",
+    budgetSignals: "",
+    timelineSignals: "",
+    recurringRisks: [],
+    keyPeople: [],
+    briefingBullets: [],
+    lastUpdatedAt: new Date().toISOString(),
+  };
+
+  // Merge tags — deduplicate
+  const tagSet = new Set(existing.memoryTags);
+  for (const tag of patch.newTags ?? []) {
+    tagSet.add(tag);
+  }
+
+  // Merge risks — deduplicate
+  const riskSet = new Set(existing.recurringRisks);
+  for (const risk of patch.riskSignals ?? []) {
+    riskSet.add(risk);
+  }
+
+  // Merge people — update by name, avoid duplicates
+  const peopleMap = new Map(existing.keyPeople.map((p) => [p.name, { ...p }]));
+  for (const update of patch.peopleUpdates ?? []) {
+    const existing = peopleMap.get(update.name);
+    if (existing) {
+      if (update.role !== null) existing.role = update.role;
+      if (update.notes !== null) existing.notes = update.notes;
+    } else {
+      peopleMap.set(update.name, { ...update });
+    }
+  }
+
+  // Budget / timeline signals — replace if patch provides a value
+  const budgetSignals = patch.budgetSignal !== null && patch.budgetSignal !== undefined
+    ? patch.budgetSignal
+    : existing.budgetSignals;
+  const timelineSignals = patch.timelineSignal !== null && patch.timelineSignal !== undefined
+    ? patch.timelineSignal
+    : existing.timelineSignals;
+
+  // Briefing bullets — prepend new bullets, keep max 8
+  const combinedBullets = [
+    ...(patch.briefingUpdates ?? []),
+    ...existing.briefingBullets,
+  ];
+  const uniqueBullets = Array.from(new Set(combinedBullets));
+  const briefingBullets = uniqueBullets.slice(0, MAX_BRIEFING_BULLETS);
+
+  const updated: ClientMemory = {
+    clientId,
+    memoryTags: Array.from(tagSet),
+    decisionStyle: existing.decisionStyle,
+    budgetSignals,
+    timelineSignals,
+    recurringRisks: Array.from(riskSet),
+    keyPeople: Array.from(peopleMap.values()),
+    briefingBullets,
+    lastUpdatedAt: new Date().toISOString(),
+  };
+
+  clientMemories[clientId] = updated;
+  return updated;
 }

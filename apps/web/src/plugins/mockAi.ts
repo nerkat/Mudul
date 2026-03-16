@@ -66,6 +66,27 @@ const mockAnalysisResponse = {
   }
 };
 
+// Mock memory patch response
+function buildMockMemoryPatch(clientName: string) {
+  return {
+    patch: {
+      newTags: ["enterprise", "budget-sensitive", "high-engagement"],
+      riskSignals: ["Budget approval required from finance team", "Pricing sensitivity noted"],
+      peopleUpdates: [
+        { name: "John Smith", role: "Decision Maker", notes: "Prefers detailed ROI analysis" },
+        { name: "Sarah Johnson", role: "Technical Evaluator", notes: "Focused on integration capabilities" }
+      ],
+      budgetSignal: "Mid-market budget range, requires finance committee sign-off",
+      timelineSignal: "Q2 target for procurement decision",
+      briefingUpdates: [
+        `${clientName} is evaluating enterprise options with strong interest in analytics`,
+        "Finance team involvement required for final approval",
+        "Technical fit confirmed — integration is the main evaluation criterion"
+      ]
+    }
+  };
+}
+
 export function mockAiPlugin(): Plugin {
   return {
     name: 'mock-ai-plugin',
@@ -79,6 +100,41 @@ export function mockAiPlugin(): Plugin {
           }, 800);
         } else {
           next();
+        }
+      });
+
+      server.middlewares.use('/api/ai/generate-memory-patch', async (req, res, next) => {
+        if (req.method !== 'POST') {
+          next();
+          return;
+        }
+
+        try {
+          // Parse request body
+          let body: any = {};
+          if (req.body && typeof req.body === 'object') {
+            body = req.body;
+          } else {
+            const chunks: Buffer[] = [];
+            for await (const chunk of req as any) {
+              chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+            }
+            const text = Buffer.concat(chunks).toString('utf-8');
+            if (text) {
+              try { body = JSON.parse(text); } catch { /* ignore */ }
+            }
+          }
+
+          const clientName = body?.clientName ?? 'Client';
+
+          setTimeout(() => {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(buildMockMemoryPatch(clientName)));
+          }, 600);
+        } catch {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'MOCK_ERROR', message: 'Mock AI error' }));
         }
       });
     },
