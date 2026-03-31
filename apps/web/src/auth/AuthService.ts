@@ -121,6 +121,18 @@ class AuthService {
   }
 
   /**
+   * Login as demo user (development/showcase only)
+   */
+  async loginAsDemo(): Promise<AuthResponse> {
+    try {
+      const result = await this.apiClient.post('/api/auth/demo-login', {});
+      return this.consumeAuthResult(result);
+    } catch (error: any) {
+      throw this.createError('demo_login_failed', 'Demo login failed. Please ensure the database is seeded.');
+    }
+  }
+
+  /**
    * Refresh access token using refresh token
    */
   async refreshToken(): Promise<AuthSession> {

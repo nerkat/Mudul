@@ -59,6 +59,13 @@ export class PrismaAuthService {
   }
 
   /**
+   * Login as the built-in demo user (development/showcase only)
+   */
+  static async loginAsDemoUser() {
+    return await this.getService().loginAsDemoUser();
+  }
+
+  /**
    * Close SQLite connection
    */
   static async disconnect() {

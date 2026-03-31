@@ -47,6 +47,9 @@ function getGoogleClient() {
   return googleClient;
 }
 
+// Reference org whose demo data is used as the base for all new workspaces
+const DEMO_SEED_ORG_ID = 'acme-sales-org';
+
 class SimpleAuthService {
   constructor() {
     this.db = new sqlite3.Database(dbPath);
@@ -162,6 +165,83 @@ class SimpleAuthService {
     );
   }
 
+  async seedDemoDataForOrg(orgId, ownerId) {
+    let demoData;
+    try {
+      demoData = await import('../../../../../packages/core/src/demo-data.js');
+    } catch (err) {
+      console.warn('[seedDemoDataForOrg] Could not load demo data:', err.message);
+      return;
+    }
+
+    const { demoClients, demoCalls, demoActionItems } = demoData;
+
+    // Map old client IDs to new org-scoped IDs
+    const clientIdMap = {};
+    for (const client of demoClients.filter((c) => c.orgId === DEMO_SEED_ORG_ID)) {
+      const newClientId = this.createId('client');
+      clientIdMap[client.id] = newClientId;
+      try {
+        await this.run(
+          'INSERT INTO clients (id, org_id, name, slug, created_at) VALUES (?, ?, ?, ?, ?)',
+          [newClientId, orgId, client.name, client.slug, client.createdAt]
+        );
+      } catch (_e) {
+        console.warn('[seedDemoDataForOrg] Skipping duplicate client:', client.name, _e.message);
+      }
+    }
+
+    // Map old call IDs to new IDs and insert
+    const callIdMap = {};
+    for (const call of demoCalls.filter((c) => c.orgId === DEMO_SEED_ORG_ID)) {
+      if (!clientIdMap[call.clientId]) continue;
+      const newCallId = this.createId('call');
+      callIdMap[call.id] = newCallId;
+      try {
+        await this.run(
+          'INSERT INTO calls (id, org_id, client_id, name, summary, ts, duration_sec, sentiment, score, booking_likelihood, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            newCallId,
+            orgId,
+            clientIdMap[call.clientId],
+            call.name,
+            call.summary,
+            call.ts,
+            call.durationSec,
+            call.sentiment.toUpperCase(),
+            call.score,
+            call.bookingLikelihood,
+            call.ts,
+          ]
+        );
+      } catch (_e) {
+        console.warn('[seedDemoDataForOrg] Skipping duplicate call:', call.name, _e.message);
+      }
+    }
+
+    // Insert action items
+    for (const ai of demoActionItems.filter((a) => a.orgId === DEMO_SEED_ORG_ID)) {
+      if (!clientIdMap[ai.clientId]) continue;
+      try {
+        await this.run(
+          'INSERT INTO action_items (id, org_id, client_id, owner_id, text, due, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            this.createId('action'),
+            orgId,
+            clientIdMap[ai.clientId],
+            ownerId,
+            ai.text,
+            ai.due || null,
+            ai.status.toUpperCase(),
+            new Date().toISOString(),
+          ]
+        );
+      } catch (_e) {
+        console.warn('[seedDemoDataForOrg] Skipping action item:', ai.text.slice(0, 50), _e.message);
+      }
+    }
+  }
+
   async ensureMembershipForUser(userId, profile) {
     const memberships = await this.getMembershipsForUser(userId);
     if (memberships.length > 0) {
@@ -189,7 +269,18 @@ class SimpleAuthService {
       throw error;
     }
 
+    // Seed demo data into the new org so new users see example content
+    await this.seedDemoDataForOrg(orgId, userId);
+
     return await this.getMembershipsForUser(userId);
+  }
+
+  async loginAsDemoUser() {
+    const users = await this.query('SELECT * FROM users WHERE email = ?', ['demo@mudul.com']);
+    if (!users || users.length === 0) {
+      throw new Error('DEMO_USER_NOT_FOUND');
+    }
+    return await this.buildAuthResponseForUser(users[0].id, true);
   }
 
   generateAccessToken(userId, orgId) {
@@ -309,6 +400,8 @@ class SimpleAuthService {
           [this.createId('oauth'), userId, 'google', profile.sub, profile.email, now, now]
         );
         await this.run('COMMIT');
+        // Seed demo data into the new org so new users see example content
+        await this.seedDemoDataForOrg(orgId, userId);
         return userId;
       }
 

@@ -12,6 +12,7 @@ interface AuthContextValue {
 
   // Auth actions
   loginWithGoogle: (request: GoogleLoginRequest) => Promise<void>;
+  loginAsDemo: () => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 
@@ -108,6 +109,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
+  const loginAsDemo = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await authService.loginAsDemo();
+      setSession(response.session);
+    } catch (error) {
+      const authError = error as AuthError;
+      setError(authError);
+      throw authError;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -142,6 +159,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Auth actions
     loginWithGoogle,
+    loginAsDemo,
     logout,
     clearError,
 
