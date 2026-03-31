@@ -4,7 +4,21 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 
 // JWT configuration
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
+const DEFAULT_JWT_SECRET = 'dev-secret-key-change-in-production';
+
+function getJwtSecret(): string {
+  const configuredSecret = process.env.JWT_SECRET?.trim();
+
+  if (process.env.NODE_ENV === 'production') {
+    if (!configuredSecret || configuredSecret === DEFAULT_JWT_SECRET) {
+      throw new Error('JWT_SECRET_NOT_CONFIGURED');
+    }
+  }
+
+  return configuredSecret || DEFAULT_JWT_SECRET;
+}
+
+const JWT_SECRET = getJwtSecret();
 const JWT_ACCESS_EXPIRES = '15m';
 const JWT_REFRESH_EXPIRES = '30d';
 
