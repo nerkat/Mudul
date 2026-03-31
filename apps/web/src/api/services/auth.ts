@@ -184,10 +184,29 @@ function seedDemoDataForMockOrg(orgId: string, orgName: string) {
   }
 }
 
+function orgHasSeedVisibleData(orgId: string): boolean {
+  return Object.values(nodes).some(
+    (node) => node.orgId === orgId && !node.archivedAt && (node.kind === 'lead' || node.kind === 'call_session')
+  );
+}
+
+function ensureMockOrgHasSeedData(orgId: string, orgName: string) {
+  if (!orgId || orgHasSeedVisibleData(orgId)) {
+    return;
+  }
+
+  seedDemoDataForMockOrg(orgId, orgName);
+}
+
 function ensureMembershipForUser(userId: string, email: string, name: string) {
   const memberships = getMembershipsForUser(userId);
   if (memberships.length > 0) {
-    return memberships;
+    const activeMembership = memberships[0];
+    const activeOrg = MOCK_ORGS[activeMembership.orgId];
+    if (activeOrg) {
+      ensureMockOrgHasSeedData(activeMembership.orgId, activeOrg.name);
+    }
+    return getMembershipsForUser(userId);
   }
 
   const orgId = createMockId('org');
@@ -234,6 +253,23 @@ async function initializeMockData() {
 export class MockAuthService {
   static async initialize() {
     await initializeMockData();
+  }
+
+  static async ensureOrgHasSeedData(orgId: string, userId: string) {
+    await initializeMockData();
+
+    const memberships = getMembershipsForUser(userId);
+    const membership = memberships.find((item) => item.orgId === orgId) || memberships[0];
+    if (!membership) {
+      return;
+    }
+
+    const org = MOCK_ORGS[membership.orgId];
+    if (!org) {
+      return;
+    }
+
+    ensureMockOrgHasSeedData(membership.orgId, org.name);
   }
 
   static generateAccessToken(userId: string, orgId: string): string {

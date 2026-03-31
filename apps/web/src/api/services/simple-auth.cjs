@@ -242,10 +242,39 @@ class SimpleAuthService {
     }
   }
 
+  async orgHasSeedVisibleData(orgId) {
+    const [clientCountRow] = await this.query(
+      'SELECT COUNT(*) as count FROM clients WHERE org_id = ? AND archived_at IS NULL',
+      [orgId]
+    );
+    const [callCountRow] = await this.query(
+      `SELECT COUNT(*) as count
+       FROM calls
+       INNER JOIN clients ON clients.id = calls.client_id
+       WHERE calls.org_id = ? AND calls.archived_at IS NULL AND clients.archived_at IS NULL`,
+      [orgId]
+    );
+
+    return Number(clientCountRow?.count || 0) > 0 || Number(callCountRow?.count || 0) > 0;
+  }
+
+  async ensureOrgHasSeedData(orgId, ownerId) {
+    if (!orgId) {
+      return;
+    }
+
+    if (await this.orgHasSeedVisibleData(orgId)) {
+      return;
+    }
+
+    await this.seedDemoDataForOrg(orgId, ownerId);
+  }
+
   async ensureMembershipForUser(userId, profile) {
     const memberships = await this.getMembershipsForUser(userId);
     if (memberships.length > 0) {
-      return memberships;
+      await this.ensureOrgHasSeedData(memberships[0].org_id, userId);
+      return await this.getMembershipsForUser(userId);
     }
 
     const orgId = this.createId('org');
@@ -338,6 +367,7 @@ class SimpleAuthService {
     }
 
     const activeMembership = memberships[0];
+    await this.ensureOrgHasSeedData(activeMembership.org_id, user.id);
     const accessToken = this.generateAccessToken(user.id, activeMembership.org_id);
     const refreshToken = rememberMe ? await this.generateRefreshToken(user.id) : undefined;
 

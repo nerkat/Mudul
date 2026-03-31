@@ -58,6 +58,13 @@ export class PrismaAuthService {
     return this.getService().getUserFromToken(token);
   }
 
+  static async ensureOrgHasSeedData(userId: string, orgId: string) {
+    const service = this.getService();
+    if (typeof service.ensureOrgHasSeedData === 'function') {
+      await service.ensureOrgHasSeedData(orgId, userId);
+    }
+  }
+
   /**
    * Login as the built-in demo user (development/showcase only)
    */
