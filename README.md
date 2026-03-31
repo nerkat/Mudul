@@ -61,7 +61,7 @@ Supports **real-time AI analysis** with strict validation and controlled executi
 export USE_LIVE_AI=true
 
 export AI_PROVIDER=openai        # or "anthropic"
-export AI_API_KEY=sk-proj-...
+export AI_API_KEY=your-openai-api-key
 export AI_MODEL=gpt-4o-mini
 export AI_TIMEOUT_MS=30000
 export AI_MAX_TOKENS=1500
