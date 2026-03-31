@@ -1,112 +1,125 @@
-# Agent Workbench (Monorepo)
 
-A **protocol-first, modular workbench** for AI-assisted call and interview analysis.  
-Designed for extensibility, strict validation, and production-grade reliability.
+
+````md
+# Mudul — AI Client Intelligence Workbench (Monorepo)
+
+A **protocol-first, modular system** for turning sales calls into structured, actionable client intelligence.
+
+Built to ingest conversations, analyze them with LLMs, and continuously update client-level insights over time.
 
 ---
 
-## 📦 Packages
+## 🧠 What it does
 
-- **`@core`** — Domain types, repositories, and event system (no React)  
-- **`@protocol`** — AI contracts (JSON schema), validators, and provider clients  
-- **`@storage`** — Persistence adapters (memory / Postgres / Firestore)  
-- **`@ui-headless`** — Widget contracts & logic (DOM-agnostic)  
-- **`@ui-web`** — React renderers (thin adapters over headless widgets)  
-- **`apps/web`** — Web application shell (React + Tailwind)
+- Upload call transcripts or notes
+- Analyze content via LLMs (OpenAI / Anthropic)
+- Extract structured insights:
+  - Action items
+  - Deal probability score
+  - Key signals and risks
+  - Summary insights
+- Continuously update a **client-level dashboard**
+- Aggregate insights across all clients into a **global view**
+
+The system is designed around **strict JSON contracts**, so AI output is reliable, structured, and usable in the UI.
+
+---
+
+## 🏗️ Architecture (Monorepo)
+
+- **`@core`** — Domain types, repositories, event system (framework-agnostic)
+- **`@protocol`** — AI contracts (JSON schemas), validators, provider clients
+- **`@storage`** — Persistence adapters (memory / Postgres / Firestore)
+- **`@ui-headless`** — UI logic and widget contracts (DOM-agnostic)
+- **`@ui-web`** — React renderers (thin adapters)
+- **`apps/web`** — Web app shell (React + Tailwind)
 
 ---
 
 ## ⚡ Live AI Integration
 
-The workbench supports **live AI analysis** through OpenAI and Anthropic, with strict security and validation.
+Supports **real-time AI analysis** with strict validation and controlled execution.
 
 ### Configuration
 
 ```bash
-# Enable live AI (default: false — safest for dev)
 export USE_LIVE_AI=true
 
-# Server-side AI configuration (never exposed to client)
-export AI_PROVIDER=openai              # or "anthropic"
-export AI_API_KEY=sk-proj-...          # Your provider key
-export AI_MODEL=gpt-4o-mini            # Model to use
-export AI_TIMEOUT_MS=30000             # Request timeout (ms)
-export AI_MAX_TOKENS=1500              # Max response tokens
-
-🔒 Security Features
-
-✅ Server-only SDK usage — AI SDKs run inside Vite middleware, never bundled to client
-
-✅ No key leakage — API keys remain server-side, never shipped in dist/JS
-
-✅ Schema validation — All AI responses validated via Zod before persistence
-
-✅ Idempotency via hashing — SHA-256 content hashing prevents duplicate analysis
-
-✅ Deterministic output — temperature=0, top_p=1 ensures consistent responses
-
-
+export AI_PROVIDER=openai        # or "anthropic"
+export AI_API_KEY=sk-proj-...
+export AI_MODEL=gpt-4o-mini
+export AI_TIMEOUT_MS=30000
+export AI_MAX_TOKENS=1500
+````
 
 ---
 
-🏗️ Architecture
+## 🔒 Security & Reliability
 
-Client HTTP Request 
-   → Vite Middleware Plugin 
-   → AI Provider 
-   → Schema Validation 
-   → Response (stored & streamed to UI)
-
-The Live AI Plugin (src/plugins/liveAi.ts) implements:
-
-Dynamic server-side SDK imports
-
-Schema-first prompt generation
-
-Timeout, validation, and provider error handling
-
-Observability logs for monitoring & debugging
-
-
-When USE_LIVE_AI=false, the system falls back to a mock provider for safe local development.
-
+* Server-only AI execution (never exposed to client)
+* No API key leakage
+* Schema validation (Zod) for all AI responses
+* Deterministic outputs (temperature=0)
+* Idempotent processing via SHA-256 hashing
+* Safe fallback to mock provider in development
 
 ---
 
-🚀 Roadmap
+## 🔁 Data Flow
 
-1. 0001 — Project structure (this PR)
-
-
-2. 0002 — Core types + in-memory repos
-
-
-3. 0003 — Minimal web app shell + router + placeholder dashboard
-
-
-4. 0004 — Data models + API skeleton (mock)
-
-
-5. 0005 — AI protocol (JSON schemas) + mock provider
-
-
-6. 0006 — Real provider integration + validation + WS updates
-
-
-
+```
+Client Input (call transcript)
+   → Server (Vite middleware)
+   → AI Provider
+   → JSON Schema Validation
+   → Persisted Insights
+   → UI (client + global dashboards)
+```
 
 ---
 
-🧪 Development
+## 🧠 Key Design Principles
 
-# Install dependencies
+* **Protocol-first** — AI is treated as a structured system, not free text
+* **Deterministic outputs** — predictable, machine-readable responses
+* **Composable architecture** — clear separation between logic, UI, and AI layer
+* **Extensibility** — easy to plug new providers, storage layers, or UI renderers
+
+---
+
+## 🚧 Next Step (In Progress)
+
+Introduce **persistent client memory**, allowing the system to:
+
+* Accumulate context across multiple calls
+* Refine insights over time
+* Improve scoring and recommendations based on history
+
+---
+
+## 🧪 Development
+
+```bash
 pnpm install
-
-# Run web app in dev mode
 pnpm dev
-
-# Build all packages
 pnpm build
-
+```
 
 ---
+
+```
+
+---
+
+## Why this upgrade works
+
+- **Immediately explains product** (not just architecture)
+- Shows **AI system thinking (protocol-first = strong signal)**
+- Shows **real-world use case (sales intelligence)**
+- Shows **next step (memory layer = advanced thinking)**
+
+---
+
+If you want next:
+→ I can add a **1-screen UI explanation section** so recruiters instantly understand how it looks/feels without running it (huge boost)
+```
