@@ -1,7 +1,7 @@
 
 
 
-# Mudul — AI Client Intelligence Workbench (Monorepo)
+# Mudul - AI Client Intelligence Workbench (Monorepo)
 
 A **protocol-first, modular system** for turning sales calls into structured, actionable client intelligence.
 
