@@ -9,6 +9,21 @@ Built to ingest conversations, analyze them with LLMs, and continuously update c
 
 ---
 
+## Product Screens
+
+<table>
+  <tr>
+    <td><img src="docs/showcase-screens/raw/screen1.png" alt="Client dashboard view" width="100%" /></td>
+    <td><img src="docs/showcase-screens/raw/screen2.png" alt="Organization dashboard view" width="100%" /></td>
+  </tr>
+  <tr>
+    <td><img src="docs/showcase-screens/raw/screen3.png" alt="New call form" width="100%" /></td>
+    <td><img src="docs/showcase-screens/raw/screen4.png" alt="Sales call dashboard" width="100%" /></td>
+  </tr>
+</table>
+
+---
+
 ## 🧠 What it does
 
 - Upload call transcripts or notes
