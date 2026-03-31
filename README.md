@@ -105,21 +105,3 @@ pnpm dev
 pnpm build
 ```
 
----
-
-```
-
----
-
-## Why this upgrade works
-
-- **Immediately explains product** (not just architecture)
-- Shows **AI system thinking (protocol-first = strong signal)**
-- Shows **real-world use case (sales intelligence)**
-- Shows **next step (memory layer = advanced thinking)**
-
----
-
-If you want next:
-→ I can add a **1-screen UI explanation section** so recruiters instantly understand how it looks/feels without running it (huge boost)
-```
