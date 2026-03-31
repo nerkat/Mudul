@@ -5,7 +5,8 @@ import {
   Typography,
   Alert,
   Divider,
-  CircularProgress
+  CircularProgress,
+  Button
 } from '@mui/material';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../auth/AuthContext';
@@ -16,7 +17,7 @@ export function LoginPage() {
   const [localError, setLocalError] = useState<string | null>(null);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   
-  const { loginWithGoogle, error, clearError, isAuthenticated } = useAuth();
+  const { loginWithGoogle, loginAsDemo, error, clearError, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -51,6 +52,19 @@ export function LoginPage() {
 
   const handleGoogleError = () => {
     setLocalError('Google sign-in was cancelled or unavailable.');
+  };
+
+  const handleDemoLogin = async () => {
+    clearError();
+    setLocalError(null);
+    setIsSubmitting(true);
+    try {
+      await loginAsDemo();
+    } catch {
+      setLocalError('Demo login failed. Please ensure the database is seeded (run: npm run db:setup).');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const activeError = localError || error?.message || null;
@@ -96,38 +110,59 @@ export function LoginPage() {
           </Alert>
         )}
 
-        <Divider sx={{ my: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            Google Sign-In
-          </Typography>
-        </Divider>
-
-        {!googleClientId ? (
-          <Alert severity="warning">
-            Google sign-in is unavailable because VITE_GOOGLE_CLIENT_ID is not configured.
-          </Alert>
-        ) : (
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              mt: 1,
-              mb: 2,
-              minHeight: 44,
-              opacity: isSubmitting ? 0.64 : 1,
-              pointerEvents: isSubmitting ? 'none' : 'auto'
-            }}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            mt: 1,
+            mb: 2,
+            minHeight: 44,
+            opacity: isSubmitting ? 0.64 : 1,
+            pointerEvents: isSubmitting ? 'none' : 'auto'
+          }}
+        >
+          <Button
+            variant="contained"
+            color="primary"
+            size="large"
+            fullWidth
+            onClick={handleDemoLogin}
+            disabled={isSubmitting}
           >
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              useOneTap
-              theme="outline"
-              size="large"
-              text="continue_with"
-              shape="pill"
-            />
-          </Box>
+            Try Demo
+          </Button>
+        </Box>
+
+        {googleClientId && (
+          <>
+            <Divider sx={{ my: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                or
+              </Typography>
+            </Divider>
+
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mt: 1,
+                mb: 2,
+                minHeight: 44,
+                opacity: isSubmitting ? 0.64 : 1,
+                pointerEvents: isSubmitting ? 'none' : 'auto'
+              }}
+            >
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap
+                theme="outline"
+                size="large"
+                text="continue_with"
+                shape="pill"
+              />
+            </Box>
+          </>
         )}
 
         <Box sx={{ textAlign: 'center', mt: 3 }}>

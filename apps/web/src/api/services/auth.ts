@@ -4,12 +4,23 @@ import {
   demoMemberships,
   demoOrganizations,
   demoUsers,
+  demoClients,
+  demoCalls,
+  demoActionItems,
 } from '../../../../../packages/core/src/demo-data.js';
+// The mock fallback service directly mutates the shared in-memory seed stores (nodes/calls)
+// so that MockDataService (data.ts) reflects seeded org data. This is intentional for the
+// mock/fallback path only — production code uses the SQLite service.
+import { nodes, calls } from '../../core/seed';
+import type { NodeBase, SalesCallMinimal } from '../../core/types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
 const JWT_ACCESS_EXPIRES = '15m';
 const JWT_REFRESH_EXPIRES = '30d';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+
+// Reference org whose demo data is copied into every new workspace
+const DEMO_SEED_ORG_ID = 'acme-sales-org';
 
 interface MockUser {
   id: string;
@@ -99,8 +110,78 @@ function createWorkspaceName(name: string, email: string): string {
   return `${base}'s Workspace`;
 }
 
+function slugify(value: string): string {
+  return String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'untitled';
+}
+
 function getMembershipsForUser(userId: string) {
   return MOCK_MEMBERSHIPS.filter((membership) => membership.userId === userId);
+}
+
+function seedDemoDataForMockOrg(orgId: string, orgName: string) {
+  // Add a root node for the new org
+  const rootId = `root-${orgId}`;
+  nodes[rootId] = {
+    id: rootId,
+    orgId,
+    parentId: null,
+    kind: 'group',
+    name: orgName,
+    slug: slugify(orgName),
+    dashboardId: 'org-dashboard',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as NodeBase;
+
+  // Map demo client IDs to new org-scoped IDs
+  const clientIdMap: Record<string, string> = {};
+  for (const client of demoClients.filter((c) => c.orgId === DEMO_SEED_ORG_ID)) {
+    const newClientId = `${orgId}-${client.id}`;
+    clientIdMap[client.id] = newClientId;
+    nodes[newClientId] = {
+      id: newClientId,
+      orgId,
+      parentId: rootId,
+      kind: 'lead',
+      name: client.name,
+      slug: client.slug,
+      dashboardId: 'client-dashboard',
+      createdAt: client.createdAt,
+      updatedAt: client.createdAt,
+    } as NodeBase;
+  }
+
+  // Map demo call IDs to new org-scoped IDs and populate call data
+  for (const call of demoCalls.filter((c) => c.orgId === DEMO_SEED_ORG_ID)) {
+    if (!clientIdMap[call.clientId]) continue;
+    const newCallId = `${orgId}-${call.id}`;
+    nodes[newCallId] = {
+      id: newCallId,
+      orgId,
+      parentId: clientIdMap[call.clientId],
+      kind: 'call_session',
+      name: call.name,
+      slug: call.slug,
+      dashboardId: 'sales-call-default',
+      dataRef: { type: 'session', id: `session-${newCallId}` },
+      createdAt: call.ts,
+      updatedAt: call.ts,
+    } as NodeBase;
+
+    calls[newCallId] = {
+      id: newCallId,
+      summary: call.summary,
+      sentiment: { overall: call.sentiment as 'positive' | 'neutral' | 'negative', score: call.score },
+      bookingLikelihood: call.bookingLikelihood,
+      objections: call.objections,
+      actionItems: demoActionItems
+        .filter((ai) => ai.callId === call.id)
+        .map((ai) => ({ owner: ai.owner, text: ai.text, due: ai.due })),
+      keyMoments: call.keyMoments,
+      entities: call.entities,
+      complianceFlags: call.complianceFlags,
+    } as SalesCallMinimal;
+  }
 }
 
 function ensureMembershipForUser(userId: string, email: string, name: string) {
@@ -110,9 +191,10 @@ function ensureMembershipForUser(userId: string, email: string, name: string) {
   }
 
   const orgId = createMockId('org');
+  const orgName = createWorkspaceName(name, email);
   MOCK_ORGS[orgId] = {
     id: orgId,
-    name: createWorkspaceName(name, email),
+    name: orgName,
     planTier: 'pro',
     createdAt: new Date().toISOString(),
   };
@@ -123,6 +205,9 @@ function ensureMembershipForUser(userId: string, email: string, name: string) {
     role: 'owner',
     createdAt: new Date().toISOString(),
   });
+
+  // Seed demo data into new org so all users start with example content
+  seedDemoDataForMockOrg(orgId, orgName);
 
   return getMembershipsForUser(userId);
 }
@@ -305,6 +390,26 @@ export class MockAuthService {
     return {
       userId: payload.sub!,
       orgId: payload.orgId!,
+    };
+  }
+
+  static async loginAsDemoUser() {
+    await initializeMockData();
+
+    const demoUser = MOCK_USERS['demo@mudul.com'];
+    if (!demoUser) throw new Error('DEMO_USER_NOT_FOUND');
+
+    const memberships = ensureMembershipForUser(demoUser.id, demoUser.email, demoUser.name);
+    const activeMembership = memberships[0];
+    const accessToken = this.generateAccessToken(demoUser.id, activeMembership.orgId);
+    const refreshToken = this.generateRefreshToken(demoUser.id);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: { id: demoUser.id, email: demoUser.email, name: demoUser.name },
+      orgs: memberships.map((m) => ({ id: m.orgId, name: MOCK_ORGS[m.orgId].name, role: m.role })),
+      activeOrgId: activeMembership.orgId,
     };
   }
 }

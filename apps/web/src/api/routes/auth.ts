@@ -18,6 +18,7 @@ const RefreshRequestSchema = z.object({
 // Rate limiting (simple in-memory for demo)
 const googleLoginRateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const refreshRateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const demoLoginRateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX = 5; // 5 attempts per window
 
@@ -144,6 +145,40 @@ router.post('/refresh', validateResponse(RefreshResponseSchema), async (req, res
     res.status(500).json({
       error: 'INTERNAL_ERROR', 
       message: 'Token refresh failed due to server error',
+    });
+  }
+});
+
+// POST /api/auth/demo-login (development/showcase only – never enabled in production)
+router.post('/demo-login', async (req, res) => {
+  const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+  if (!checkRateLimit(demoLoginRateLimitMap, clientIp)) {
+    return res.status(429).json({
+      error: 'RATE_LIMIT_EXCEEDED',
+      message: 'Too many demo login attempts. Please try again later.',
+    });
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'NOT_FOUND' });
+  }
+
+  try {
+    const result = await PrismaAuthService.loginAsDemoUser();
+    res.json(result);
+  } catch (error: any) {
+    console.error('Demo login error:', error);
+
+    if (error.message === 'DEMO_USER_NOT_FOUND') {
+      return res.status(404).json({
+        error: 'DEMO_USER_NOT_FOUND',
+        message: 'Demo user not found. Run the database seed first.',
+      });
+    }
+
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Demo login failed',
     });
   }
 });
