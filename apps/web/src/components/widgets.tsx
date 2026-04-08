@@ -61,6 +61,21 @@ export type ClientKPIsWidgetProps = {
   data: { avgSentiment: number; totalCalls: number; conversionRate: number; lastActivity: string };
 };
 
+export type ClientMemoryWidgetProps = {
+  data: {
+    clientId: string;
+    memoryTags: string[];
+    decisionStyle: string;
+    budgetSignals: string;
+    timelineSignals: string;
+    recurringRisks: string[];
+    keyPeople: Array<{ name: string; role: string | null; notes: string | null }>;
+    briefingBullets: string[];
+    lastUpdatedAt: string;
+    isEmpty: boolean;
+  };
+};
+
 // Legacy type for backward compatibility
 export type WidgetProps = { data: SalesCallMinimal };
 
@@ -191,6 +206,33 @@ export const Paper = {
       <div>Avg Sentiment: {data.avgSentiment}</div>
       <div>Conversion Rate: {data.conversionRate}</div>
       <div>Last Activity: {data.lastActivity}</div>
+    </PaperCard>
+  ),
+
+  ClientMemory: ({ data }: ClientMemoryWidgetProps) => (
+    <PaperCard title="Client Memory">
+      {data.isEmpty ? (
+        <div>No memory yet. Click "Refresh Memory" to generate.</div>
+      ) : (
+        <>
+          {data.memoryTags.length > 0 && <div>Tags: {data.memoryTags.join(', ')}</div>}
+          {data.decisionStyle && <div>Decision Style: {data.decisionStyle}</div>}
+          {data.budgetSignals && <div>Budget: {data.budgetSignals}</div>}
+          {data.timelineSignals && <div>Timeline: {data.timelineSignals}</div>}
+          {data.recurringRisks.length > 0 && (
+            <div>Risks: {data.recurringRisks.map((r, i) => <div key={i}>• {r}</div>)}</div>
+          )}
+          {data.keyPeople.length > 0 && (
+            <div>Key People: {data.keyPeople.map((p, i) => (
+              <div key={i}>• {p.name}{p.role ? ` (${p.role})` : ''}{p.notes ? `: ${p.notes}` : ''}</div>
+            ))}</div>
+          )}
+          {data.briefingBullets.length > 0 && (
+            <div>Briefing: {data.briefingBullets.map((b, i) => <div key={i}>• {b}</div>)}</div>
+          )}
+          {data.lastUpdatedAt && <div style={{ marginTop: 4 }}>Updated: {new Date(data.lastUpdatedAt).toLocaleString()}</div>}
+        </>
+      )}
     </PaperCard>
   ),
 };
@@ -639,6 +681,102 @@ export const Rich = {
             </Typography>
           </Box>
         </Box>
+      </MuiPaper>
+    );
+  },
+
+  ClientMemory: ({ data }: ClientMemoryWidgetProps) => {
+    const theme = useTheme();
+    return (
+      <MuiPaper sx={{ p: theme.spacing(2) }}>
+        <Typography variant="h6" sx={{ fontWeight: 'medium', mb: theme.spacing(1) }}>
+          Client Memory
+        </Typography>
+        {data.isEmpty ? (
+          <Typography variant="body2" color="text.secondary">
+            No memory yet. Click "Refresh Memory" to generate intelligence from past calls.
+          </Typography>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: theme.spacing(1.5) }}>
+            {data.memoryTags.length > 0 && (
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Tags</Typography>
+                <Box sx={{ display: 'flex', gap: theme.spacing(0.5), flexWrap: 'wrap' }}>
+                  {data.memoryTags.map((tag, i) => (
+                    <Chip key={i} label={tag} size="small" variant="outlined" />
+                  ))}
+                </Box>
+              </Box>
+            )}
+            {data.decisionStyle && (
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Decision Style</Typography>
+                <Typography variant="body2">{data.decisionStyle}</Typography>
+              </Box>
+            )}
+            {data.budgetSignals && (
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Budget Signals</Typography>
+                <Typography variant="body2">{data.budgetSignals}</Typography>
+              </Box>
+            )}
+            {data.timelineSignals && (
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Timeline Signals</Typography>
+                <Typography variant="body2">{data.timelineSignals}</Typography>
+              </Box>
+            )}
+            {data.recurringRisks.length > 0 && (
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Recurring Risks</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: theme.spacing(0.5) }}>
+                  {data.recurringRisks.map((risk, i) => (
+                    <Typography key={i} variant="body2">• {risk}</Typography>
+                  ))}
+                </Box>
+              </Box>
+            )}
+            {data.keyPeople.length > 0 && (
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Key People</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: theme.spacing(0.5) }}>
+                  {data.keyPeople.map((person, i) => (
+                    <Box key={i}>
+                      <Typography variant="body2" component="span" sx={{ fontWeight: 'medium' }}>
+                        {person.name}
+                      </Typography>
+                      {person.role && (
+                        <Typography variant="body2" component="span" color="text.secondary">
+                          {' '}({person.role})
+                        </Typography>
+                      )}
+                      {person.notes && (
+                        <Typography variant="body2" color="text.secondary">
+                          {person.notes}
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            )}
+            {data.briefingBullets.length > 0 && (
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Briefing Bullets</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: theme.spacing(0.5) }}>
+                  {data.briefingBullets.map((bullet, i) => (
+                    <Typography key={i} variant="body2">• {bullet}</Typography>
+                  ))}
+                </Box>
+              </Box>
+            )}
+            {data.lastUpdatedAt && (
+              <Typography variant="caption" color="text.secondary">
+                Updated: {new Date(data.lastUpdatedAt).toLocaleString()}
+              </Typography>
+            )}
+          </Box>
+        )}
       </MuiPaper>
     );
   },

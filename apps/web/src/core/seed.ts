@@ -4,7 +4,7 @@ import {
   demoClients,
   demoOrganizations,
 } from '../../../../packages/core/src/demo-data.js';
-import type { NodeBase, SalesCallMinimal } from './types';
+import type { NodeBase, SalesCallMinimal, ClientMemory } from './types';
 
 const rootOrg = demoOrganizations[0];
 
@@ -71,3 +71,6 @@ export const calls: Record<string, SalesCallMinimal> = Object.fromEntries(
       } satisfies SalesCallMinimal,
     ])
 );
+
+// Client memory store — one entry per client (keyed by client node ID)
+export const clientMemories: Record<string, ClientMemory> = {};

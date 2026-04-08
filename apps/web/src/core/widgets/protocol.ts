@@ -20,7 +20,9 @@ export const WidgetSlug = z.enum([
   // Client dashboard widgets
   "recentCalls",
   "followUps",
-  "clientKPIs"
+  "clientKPIs",
+  // Client memory widget
+  "clientMemory"
 ]);
 
 export type WidgetSlug = z.infer<typeof WidgetSlug>;

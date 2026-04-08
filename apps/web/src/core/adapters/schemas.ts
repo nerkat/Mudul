@@ -107,6 +107,25 @@ export const ClientKPIsDataSchema = z.object({
   lastActivity: z.string()
 }).strict();
 
+export const ClientMemoryPersonSchema = z.object({
+  name: z.string(),
+  role: z.string().nullable(),
+  notes: z.string().nullable(),
+});
+
+export const ClientMemoryDataSchema = z.object({
+  clientId: z.string(),
+  memoryTags: z.array(z.string()).default([]),
+  decisionStyle: z.string(),
+  budgetSignals: z.string(),
+  timelineSignals: z.string(),
+  recurringRisks: z.array(z.string()).default([]),
+  keyPeople: z.array(ClientMemoryPersonSchema).default([]),
+  briefingBullets: z.array(z.string()).default([]),
+  lastUpdatedAt: z.string(),
+  isEmpty: z.boolean().default(false),
+}).strict();
+
 // Type exports
 export type SummaryData = z.infer<typeof SummaryDataSchema>;
 export type SentimentData = z.infer<typeof SentimentDataSchema>;
@@ -123,3 +142,4 @@ export type HealthSignalsData = z.infer<typeof HealthSignalsDataSchema>;
 export type RecentCallsData = z.infer<typeof RecentCallsDataSchema>;
 export type FollowUpsData = z.infer<typeof FollowUpsDataSchema>;
 export type ClientKPIsData = z.infer<typeof ClientKPIsDataSchema>;
+export type ClientMemoryData = z.infer<typeof ClientMemoryDataSchema>;

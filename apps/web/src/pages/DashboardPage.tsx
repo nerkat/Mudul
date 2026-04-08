@@ -12,11 +12,12 @@ import {
   Divider,
   Stack
 } from '@mui/material';
-import { PlayArrow, Refresh, Cancel, Description, InsertChartOutlined } from '@mui/icons-material';
+import { PlayArrow, Refresh, Cancel, Description, InsertChartOutlined, Psychology } from '@mui/icons-material';
 import { useNode } from '../hooks/useNode';
 import { useRepo } from '../hooks/useRepo';
 import { useSalesCall } from '../hooks/useSalesCall';
 import { useAnalyzeCall } from '../hooks/useAnalyzeCall';
+import { useClientMemory } from '../hooks/useClientMemory';
 import { WidgetRenderer } from '../core/widgets/registry';
 import { DashboardTemplate } from '../core/widgets/protocol';
 import { DashboardTemplates } from '../core/registry-json';
@@ -33,6 +34,7 @@ export function DashboardPage() {
     node?.kind === "call_session" ? nodeId || "" : undefined
   );
   const { analyze, loading: analyzing, error: analyzeError, lastResult, cancel } = useAnalyzeCall();
+  const { refreshMemory, loading: memoryLoading, error: memoryError } = useClientMemory();
 
   const { mode, toggleMode, setMode } = useViewMode(); // Use context methods
 
@@ -66,6 +68,14 @@ export function DashboardPage() {
       setShowErrorToast(true);
     }
   }, [analyzeError]);
+
+  // Handle memory refresh errors
+  useEffect(() => {
+    if (memoryError) {
+      setToastMessage(`Memory refresh failed: ${memoryError}`);
+      setShowErrorToast(true);
+    }
+  }, [memoryError]);
 
   useEffect(() => {
     if (!nodeId && root) {
@@ -112,6 +122,15 @@ export function DashboardPage() {
     await analyze(nodeId, sourceTranscript);
   };
 
+  const handleRefreshMemory = async () => {
+    if (!nodeId) return;
+    const result = await refreshMemory(nodeId);
+    if (result) {
+      setToastMessage("Client memory updated successfully!");
+      setShowSuccessToast(true);
+    }
+  };
+
   const handleCancel = () => {
     cancel();
     setToastMessage("Analysis cancelled");
@@ -119,6 +138,7 @@ export function DashboardPage() {
   };
 
   const isCallSession = node?.kind === "call_session";
+  const isClientNode = node?.kind === "lead";
   const hasAnalysisData = !!call && Object.keys(call).length > 0;
 
   if (!nodeId) {
@@ -274,6 +294,21 @@ export function DashboardPage() {
                 {analyzing ? "Analyzing..." : hasAnalysisData ? "Reanalyze" : "Analyze"}
               </Button>
             </Box>
+          )}
+
+          {isClientNode && (
+            <Tooltip title="Refresh client intelligence from past calls">
+              <Button
+                type="button"
+                variant="outlined"
+                startIcon={memoryLoading ? undefined : <Psychology />}
+                onClick={handleRefreshMemory}
+                disabled={memoryLoading}
+                size="small"
+              >
+                {memoryLoading ? "Refreshing..." : "Refresh Memory"}
+              </Button>
+            </Tooltip>
           )}
         </Box>
       </Box>

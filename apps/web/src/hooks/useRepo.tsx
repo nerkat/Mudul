@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import type { NodeBase, SalesCallMinimal } from "../core/types";
+import type { NodeBase, SalesCallMinimal, ClientMemory } from "../core/types";
 import { useOrg } from "../auth/OrgContext";
 import { useAuth } from "../auth/AuthContext";
+import { getClientMemory as repoGetClientMemory } from "../core/repo";
 
 interface RepoContextValue {
   getRoot: () => NodeBase | null;
@@ -12,6 +13,7 @@ interface RepoContextValue {
   getDashboardId: (nodeId: string) => string | null;
   getAllClients: () => NodeBase[];
   getAllCalls: () => NodeBase[];
+  getClientMemory: (clientId: string) => ClientMemory | null;
   refresh: () => Promise<void>;
   isLoading: boolean;
 }
@@ -84,6 +86,7 @@ export function RepoProvider({ children }: { children: React.ReactNode }) {
       getDashboardId: (nodeId: string) => getNode(nodeId)?.dashboardId || null,
       getAllClients: () => Object.values(nodesById).filter(node => node.kind === 'lead'),
       getAllCalls: () => Object.values(nodesById).filter(node => node.kind === 'call_session'),
+      getClientMemory: repoGetClientMemory,
       refresh,
       isLoading,
     };
