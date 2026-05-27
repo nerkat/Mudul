@@ -1,24 +1,60 @@
 # Mudul
 
-Mudul is an AI Client Intelligence Workbench: a protocol-first monorepo for turning raw sales call transcripts into structured, actionable client intelligence.
+Mudul is a protocol-first AI workflow workbench for turning unstructured real-world conversations and interactions into structured operational intelligence.
 
-This repository is a product prototype and workflow exploration, not a finished SaaS product. The focus is on how AI output gets constrained, validated, stored, and turned into useful dashboards instead of staying as a one-off summary.
+This repository is a product prototype and workflow exploration, not a finished SaaS product. The focus is on how messy human input gets constrained, validated, stored, and turned into usable product state instead of staying as a one-off AI summary.
 
-## What it does
+## Core idea
 
-- Accepts a new call transcript or notes input
-- Sends the transcript through a server-side AI analysis step
-- Validates the response against structured JSON contracts
-- Persists usable outputs such as summaries, objections, action items, entities, and sentiment
-- Surfaces the results in client-level and org-level dashboard views
+Mudul is not just "AI summarizes a call."
+
+It is an AI-to-UI workflow architecture:
+
+`unstructured human interaction -> structured JSON -> validated data -> persistent state -> usable product UI`
+
+In practice that means:
+
+- raw transcripts or notes come in
+- AI analyzes them through schema-validated JSON contracts
+- the output maps directly into UI components and workflows
+- summaries become dashboards
+- action items become todo lists with priority, owner, and due dates
+- objections become risk signals
+- entities become structured records
+- follow-ups become operational state
+
+## Example use cases
+
+The current sales-call flow is the first demo vertical and proof of concept, but the same architecture can apply to:
+
+- sales calls
+- job interviews
+- support calls
+- consulting sessions
+- research interviews
+- internal meetings
+- client discovery
+- coaching and advisory sessions
+
+## What it does today
+
+- accepts a new transcript or notes input
+- sends the interaction through a server-side AI analysis step
+- validates the response against structured JSON contracts
+- persists usable outputs such as summaries, objections, action items, entities, and sentiment
+- surfaces the results in client-level and org-level dashboard views
 
 ## Main workflow
 
-1. A user adds a call transcript.
-2. The server routes it into a mock or live AI provider flow.
+1. A user adds a transcript or messy conversation notes.
+2. The server routes the input into a mock or live AI provider flow.
 3. The response is normalized into a strict schema.
-4. Structured analysis is stored with call metadata.
-5. Dashboards update at the call, client, and organization levels.
+4. Structured analysis is stored with call or interaction metadata.
+5. The validated output becomes product UI and workflow state.
+
+## Sales-call demo context
+
+The current demo focuses on sales-call analysis. It takes a transcript, runs structured AI analysis, and turns the output into client intelligence, account context, and org-level visibility. That sales workflow is the first concrete implementation, not the limit of the architecture.
 
 ## Product screens
 
@@ -53,13 +89,14 @@ Mudul treats AI as a structured subsystem rather than a chat surface:
 - malformed responses can be rejected or downgraded safely
 - mock and fallback modes make the workflow testable without live credentials
 
-This makes it easier to turn model output into product state instead of manually reviewing free text after every call.
+This makes it easier to turn model output into persistent state and usable UI instead of manually reviewing free text after every interaction.
 
 ## Current state
 
 - The web app, transcript submission flow, and dashboard UI are implemented
 - The repository supports both mock and live-provider analysis paths
 - Seed/demo data is included for local exploration and demos
+- The sales-call workflow is the current end-to-end proof of concept
 - Some infrastructure paths still mix prototype shortcuts with production-oriented patterns
 - Persistent multi-call memory is a direction, not a completed feature
 
