@@ -1,5 +1,5 @@
 {
-  "name": "agent-workbench",
+  "name": "mudul",
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "workspaces": [
@@ -7,9 +7,9 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "echo \"(placeholder) run dev in subpackages\"",
-    "build": "echo \"(placeholder) build all\"",
-    "typecheck": "echo \"(placeholder) typecheck all\"",
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "typecheck": "pnpm --filter web typecheck",
     "db:setup": "cd packages/storage && node seed-manual.cjs",
     "db:reset": "if [ \"$NODE_ENV\" = \"production\" ]; then echo \"ERROR: Cannot reset database in production\"; exit 1; else cd packages/storage && rm -f dev.db && node seed-manual.cjs; fi"
   },

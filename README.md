@@ -1,122 +1,76 @@
+# Mudul
 
+Mudul is an AI Client Intelligence Workbench: a protocol-first monorepo for turning raw sales call transcripts into structured, actionable client intelligence.
 
+This repository is a product prototype and workflow exploration, not a finished SaaS product. The focus is on how AI output gets constrained, validated, stored, and turned into useful dashboards instead of staying as a one-off summary.
 
-# Mudul - AI Client Intelligence Workbench (Monorepo)
+## What it does
 
-A **protocol-first, modular system** for turning sales calls into structured, actionable client intelligence.
+- Accepts a new call transcript or notes input
+- Sends the transcript through a server-side AI analysis step
+- Validates the response against structured JSON contracts
+- Persists usable outputs such as summaries, objections, action items, entities, and sentiment
+- Surfaces the results in client-level and org-level dashboard views
 
-Built to ingest conversations, analyze them with LLMs, and continuously update client-level insights over time.
+## Main workflow
 
----
+1. A user adds a call transcript.
+2. The server routes it into a mock or live AI provider flow.
+3. The response is normalized into a strict schema.
+4. Structured analysis is stored with call metadata.
+5. Dashboards update at the call, client, and organization levels.
 
-## Product Screens
+## Product screens
 
 <table>
   <tr>
-    <td><img src="docs/showcase-screens/raw/screen1.png" alt="Client dashboard view" width="100%" /></td>
-    <td><img src="docs/showcase-screens/raw/screen2.png" alt="Organization dashboard view" width="100%" /></td>
+    <td><img src="docs/showcase-screens/raw/screen1.png" alt="Organization dashboard" width="100%" /></td>
+    <td><img src="docs/showcase-screens/raw/screen2.png" alt="Client dashboard" width="100%" /></td>
   </tr>
   <tr>
-    <td><img src="docs/showcase-screens/raw/screen3.png" alt="New call form" width="100%" /></td>
-    <td><img src="docs/showcase-screens/raw/screen4.png" alt="Sales call dashboard" width="100%" /></td>
+    <td><img src="docs/showcase-screens/raw/screen3.png" alt="New call transcript input" width="100%" /></td>
+    <td><img src="docs/showcase-screens/raw/screen4.png" alt="Analyzed call result" width="100%" /></td>
   </tr>
 </table>
 
----
+## Monorepo architecture
 
-## 🧠 What it does
+- `@mudul/core`: domain types, repositories, seed/demo data, and shared analysis logic
+- `@mudul/protocol`: AI contracts, prompt assets, JSON schemas, and validators
+- `@mudul/storage`: persistence adapters and database setup
+- `@mudul/ui-headless`: UI contracts intended to stay renderer-agnostic
+- `@mudul/ui-web`: thin web renderers and UI composition helpers
+- `apps/web`: the prototype web app, API routes, auth flow, and dashboard screens
 
-- Upload call transcripts or notes
-- Analyze content via LLMs (OpenAI / Anthropic)
-- Extract structured insights:
-  - Action items
-  - Deal probability score
-  - Key signals and risks
-  - Summary insights
-- Continuously update a **client-level dashboard**
-- Aggregate insights across all clients into a **global view**
+See [docs/architecture.md](docs/architecture.md) for layer boundaries and import direction.
 
-The system is designed around **strict JSON contracts**, so AI output is reliable, structured, and usable in the UI.
+## AI analysis model
 
----
+Mudul treats AI as a structured subsystem rather than a chat surface:
 
-## 🏗️ Architecture (Monorepo)
+- AI runs server-side only
+- provider output is expected to match a schema
+- malformed responses can be rejected or downgraded safely
+- mock and fallback modes make the workflow testable without live credentials
 
-- **`@core`** — Domain types, repositories, event system (framework-agnostic)
-- **`@protocol`** — AI contracts (JSON schemas), validators, provider clients
-- **`@storage`** — Persistence adapters (memory / Postgres / Firestore)
-- **`@ui-headless`** — UI logic and widget contracts (DOM-agnostic)
-- **`@ui-web`** — React renderers (thin adapters)
-- **`apps/web`** — Web app shell (React + Tailwind)
+This makes it easier to turn model output into product state instead of manually reviewing free text after every call.
 
----
+## Current state
 
-## ⚡ Live AI Integration
+- The web app, transcript submission flow, and dashboard UI are implemented
+- The repository supports both mock and live-provider analysis paths
+- Seed/demo data is included for local exploration and demos
+- Some infrastructure paths still mix prototype shortcuts with production-oriented patterns
+- Persistent multi-call memory is a direction, not a completed feature
 
-Supports **real-time AI analysis** with strict validation and controlled execution.
-
-### Configuration
-
-```bash
-export USE_LIVE_AI=true
-
-export AI_PROVIDER=openai        # or "anthropic"
-export AI_API_KEY=your-openai-api-key
-export AI_MODEL=gpt-4o-mini
-export AI_TIMEOUT_MS=30000
-export AI_MAX_TOKENS=1500
-````
-
----
-
-## 🔒 Security & Reliability
-
-* Server-only AI execution (never exposed to client)
-* No API key leakage
-* Schema validation (Zod) for all AI responses
-* Deterministic outputs (temperature=0)
-* Idempotent processing via SHA-256 hashing
-* Safe fallback to mock provider in development
-
----
-
-## 🔁 Data Flow
-
-```
-Client Input (call transcript)
-   → Server (Vite middleware)
-   → AI Provider
-   → JSON Schema Validation
-   → Persisted Insights
-   → UI (client + global dashboards)
-```
-
----
-
-## 🧠 Key Design Principles
-
-* **Protocol-first** — AI is treated as a structured system, not free text
-* **Deterministic outputs** — predictable, machine-readable responses
-* **Composable architecture** — clear separation between logic, UI, and AI layer
-* **Extensibility** — easy to plug new providers, storage layers, or UI renderers
-
----
-
-## 🚧 Next Step (In Progress)
-
-Introduce **persistent client memory**, allowing the system to:
-
-* Accumulate context across multiple calls
-* Refine insights over time
-* Improve scoring and recommendations based on history
-
----
-
-## 🧪 Development
+## Development
 
 ```bash
 pnpm install
-pnpm dev
-pnpm build
+pnpm --filter web dev
+pnpm --filter web build
 ```
 
+## Environment
+
+Use the root [`.env.example`](.env.example) or the package-specific examples as templates for local setup. Keep real credentials in local `.env` files only.
